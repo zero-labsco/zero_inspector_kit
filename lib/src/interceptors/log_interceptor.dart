@@ -24,6 +24,9 @@ class InspectorLogInterceptor {
   /// 是否正在捕获日志（防止递归）
   bool _isCapturing = false;
 
+  /// 当前日志级别（用于跟踪多行日志的级别）
+  LogLevel _currentLogLevel = LogLevel.debug;
+
   /// 日志捕获回调，供其他日志库调用
   /// 用户可以注册这个回调来将其他日志库的日志传递给检查器
   void Function(LogEntry)? onLogCaptured;
@@ -147,7 +150,7 @@ class InspectorLogInterceptor {
   /// 根据日志内容自动识别日志级别
   /// 支持多种格式：
   /// - [VERBOSE] message
-  /// - [DEBUG] message  
+  /// - [DEBUG] message
   /// - [INFO] message
   /// - [WARNING] / [WARN] message
   /// - [ERROR] / [ERR] message
@@ -155,38 +158,50 @@ class InspectorLogInterceptor {
   /// - Logger库格式：[T] [D] [I] [W] [E] [F]
   /// - Logger库带装饰格式：│ [D] message 或 ├─ [D] message
   /// - Logger库 emoji 格式：📱 [D] message 或 🐛 [D] message
+  /// - 多行日志跟踪：如果当前行没有级别标记，使用上一行的级别
   LogLevel _detectLogLevel(String message) {
     final trimmed = message.trim();
-    
+
     String levelPrefix = '';
     final bracketIndex = trimmed.indexOf('[');
     if (bracketIndex != -1) {
       final endBracketIndex = trimmed.indexOf(']', bracketIndex);
       if (endBracketIndex != -1) {
-        levelPrefix = trimmed.substring(bracketIndex, endBracketIndex + 1).toUpperCase();
+        levelPrefix = trimmed
+            .substring(bracketIndex, endBracketIndex + 1)
+            .toUpperCase();
       }
     }
-    
-    if (levelPrefix == '[VERBOSE]' || levelPrefix == '[V]' || levelPrefix == '[T]') {
-      return LogLevel.verbose;
-    }
-    if (levelPrefix == '[DEBUG]' || levelPrefix == '[D]') {
-      return LogLevel.debug;
-    }
-    if (levelPrefix == '[INFO]' || levelPrefix == '[I]') {
-      return LogLevel.info;
-    }
-    if (levelPrefix == '[WARNING]' || levelPrefix == '[WARN]' || levelPrefix == '[W]') {
-      return LogLevel.warning;
-    }
-    if (levelPrefix == '[ERROR]' || levelPrefix == '[ERR]' || levelPrefix == '[E]') {
-      return LogLevel.error;
-    }
-    if (levelPrefix == '[FATAL]' || levelPrefix == '[CRITICAL]' || levelPrefix == '[F]') {
-      return LogLevel.error;
+
+    LogLevel level;
+
+    if (levelPrefix == '[VERBOSE]' ||
+        levelPrefix == '[V]' ||
+        levelPrefix == '[T]') {
+      level = LogLevel.verbose;
+    } else if (levelPrefix == '[DEBUG]' || levelPrefix == '[D]') {
+      level = LogLevel.debug;
+    } else if (levelPrefix == '[INFO]' || levelPrefix == '[I]') {
+      level = LogLevel.info;
+    } else if (levelPrefix == '[WARNING]' ||
+        levelPrefix == '[WARN]' ||
+        levelPrefix == '[W]') {
+      level = LogLevel.warning;
+    } else if (levelPrefix == '[ERROR]' ||
+        levelPrefix == '[ERR]' ||
+        levelPrefix == '[E]') {
+      level = LogLevel.error;
+    } else if (levelPrefix == '[FATAL]' ||
+        levelPrefix == '[CRITICAL]' ||
+        levelPrefix == '[F]') {
+      level = LogLevel.error;
+    } else {
+      level = _currentLogLevel;
     }
 
-    return LogLevel.debug;
+    _currentLogLevel = level;
+
+    return level;
   }
 }
 
@@ -210,11 +225,10 @@ void runInspectorApp(VoidCallback appRunner) {
     zoneSpecification: ZoneSpecification(
       print: (self, parent, zone, line) {
         parent.print(zone, line);
-        final level = InspectorLogInterceptor.instance._detectLogLevel(line.toString());
-        InspectorLogInterceptor.instance._captureLog(
+        final level = InspectorLogInterceptor.instance._detectLogLevel(
           line.toString(),
-          level,
         );
+        InspectorLogInterceptor.instance._captureLog(line.toString(), level);
       },
     ),
   );

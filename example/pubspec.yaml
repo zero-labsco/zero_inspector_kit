@@ -12,7 +12,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: 4e2af00
+      ref: 89d35fe
 
   dio: '5.4.3+1'
   http: '1.2.1'
