@@ -1,7 +1,8 @@
 name: zero_inspector_kit
 description: A Flutter plugin for in-app developer console with network request viewing, logging, database inspection, and route tracking.
 version: 1.0.0
-homepage:
+homepage: https://github.com/zero-labsco/zero_inspector_kit
+repository: https://github.com/zero-labsco/zero_inspector_kit
 
 environment:
   sdk: '3.11.5'
