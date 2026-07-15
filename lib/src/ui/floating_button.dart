@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'inspector_panel.dart';
 
 /// 悬浮检查器按钮
 /// 隐藏在屏幕边缘，可拖动，点击展开检查器面板
+///
+/// 在生产环境（release模式）下，此组件会返回空容器，不会打包检查器代码
 class FloatingInspectorButton extends StatefulWidget {
   /// 是否启用检查器按钮
+  /// 默认根据环境自动判断：debug模式启用，release模式禁用
   final bool enabled;
 
   const FloatingInspectorButton({super.key, this.enabled = true});
@@ -51,6 +55,7 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton> {
 
   @override
   Widget build(BuildContext context) {
+    if (kReleaseMode) return const SizedBox.shrink();
     if (!widget.enabled || !_isVisible) return const SizedBox.shrink();
 
     return Stack(

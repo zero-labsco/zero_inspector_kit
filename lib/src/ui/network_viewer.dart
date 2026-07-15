@@ -18,27 +18,32 @@ class _NetworkViewerState extends State<NetworkViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final requests = InspectorService.instance.networkRequests;
-
     return Column(
       children: [
         _buildToolbar(),
         Expanded(
-          child: Row(
-            children: [
-              Expanded(
-                flex: 1,
-                child: ListView.builder(
-                  itemCount: requests.length,
-                  itemBuilder: (context, index) => _buildRequestItem(requests[index]),
-                ),
-              ),
-              if (_selectedRequest != null)
-                Expanded(
-                  flex: 1,
-                  child: _buildRequestDetail(_selectedRequest!),
-                ),
-            ],
+          child: ListenableBuilder(
+            listenable: InspectorService.instance,
+            builder: (context, child) {
+              final requests = InspectorService.instance.networkRequests;
+
+              return Row(
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: ListView.builder(
+                      itemCount: requests.length,
+                      itemBuilder: (context, index) => _buildRequestItem(requests[index]),
+                    ),
+                  ),
+                  if (_selectedRequest != null)
+                    Expanded(
+                      flex: 1,
+                      child: _buildRequestDetail(_selectedRequest!),
+                    ),
+                ],
+              );
+            },
           ),
         ),
       ],
@@ -47,24 +52,29 @@ class _NetworkViewerState extends State<NetworkViewer> {
 
   /// 构建工具栏
   Widget _buildToolbar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF2d2d44))),
-      ),
-      child: Row(
-        children: [
-          Text(
-            '${InspectorService.instance.networkRequests.length} Requests',
-            style: const TextStyle(color: Colors.grey, fontSize: 12),
+    return ListenableBuilder(
+      listenable: InspectorService.instance,
+      builder: (context, child) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFF2d2d44))),
           ),
-          const Spacer(),
-          IconButton(
-            onPressed: () => InspectorService.instance.clearNetworkRequests(),
-            icon: const Icon(Icons.delete, color: Colors.grey, size: 16),
+          child: Row(
+            children: [
+              Text(
+                '${InspectorService.instance.networkRequests.length} Requests',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () => InspectorService.instance.clearNetworkRequests(),
+                icon: const Icon(Icons.delete, color: Colors.grey, size: 16),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

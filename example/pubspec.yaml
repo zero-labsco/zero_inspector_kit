@@ -10,11 +10,16 @@ dependencies:
     sdk: flutter
 
   zero_inspector_kit:
-    path: ../
+    git:
+      url: https://github.com/zero-labsco/zero_inspector_kit.git
+      ref: main
 
   dio: '5.4.3+1'
   http: '1.2.1'
   cupertino_icons: '1.0.8'
+  logger: '2.4.0'
+  sqflite: '2.4.0'
+  path: '1.9.1'
 
 dev_dependencies:
   integration_test:

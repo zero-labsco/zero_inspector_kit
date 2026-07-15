@@ -20,19 +20,24 @@ class _LogViewerState extends State<LogViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final logs = InspectorService.instance.logEntries;
-    final filteredLogs = _filterLevel != null
-        ? logs.where((e) => e.level == _filterLevel).toList()
-        : logs;
-
     return Column(
       children: [
         _buildToolbar(),
         _buildFilterBar(),
         Expanded(
-          child: ListView.builder(
-            itemCount: filteredLogs.length,
-            itemBuilder: (context, index) => _buildLogItem(filteredLogs[index]),
+          child: ListenableBuilder(
+            listenable: InspectorService.instance,
+            builder: (context, child) {
+              final logs = InspectorService.instance.logEntries;
+              final filteredLogs = _filterLevel != null
+                  ? logs.where((e) => e.level == _filterLevel).toList()
+                  : logs;
+
+              return ListView.builder(
+                itemCount: filteredLogs.length,
+                itemBuilder: (context, index) => _buildLogItem(filteredLogs[index]),
+              );
+            },
           ),
         ),
       ],
@@ -41,24 +46,29 @@ class _LogViewerState extends State<LogViewer> {
 
   /// 构建工具栏
   Widget _buildToolbar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF2d2d44))),
-      ),
-      child: Row(
-        children: [
-          Text(
-            '${InspectorService.instance.logEntries.length} Logs',
-            style: const TextStyle(color: Colors.grey, fontSize: 12),
+    return ListenableBuilder(
+      listenable: InspectorService.instance,
+      builder: (context, child) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFF2d2d44))),
           ),
-          const Spacer(),
-          IconButton(
-            onPressed: () => InspectorService.instance.clearLogs(),
-            icon: const Icon(Icons.delete, color: Colors.grey, size: 16),
+          child: Row(
+            children: [
+              Text(
+                '${InspectorService.instance.logEntries.length} Logs',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () => InspectorService.instance.clearLogs(),
+                icon: const Icon(Icons.delete, color: Colors.grey, size: 16),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

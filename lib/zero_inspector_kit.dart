@@ -1,5 +1,6 @@
 export 'src/ui/floating_button.dart';
 export 'src/ui/inspector_panel.dart';
+export 'src/ui/conditional_inspector.dart';
 export 'src/ui/network_viewer.dart';
 export 'src/ui/log_viewer.dart';
 export 'src/ui/database_viewer.dart';

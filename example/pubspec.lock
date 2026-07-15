@@ -210,6 +210,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "6.1.0"
+  logger:
+    dependency: "direct main"
+    description:
+      name: logger
+      sha256: "697d067c60c20999686a0add96cf6aba723b3aa1f83ecf806a8097231529ec32"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.4.0"
   logging:
     dependency: transitive
     description:
@@ -259,7 +267,7 @@ packages:
     source: hosted
     version: "2.2.0"
   path:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: path
       sha256: "75cca69d1490965be98c73ceaea117e8a04dd21217b37b292c9ddbec0d955bc5"
@@ -368,7 +376,7 @@ packages:
     source: hosted
     version: "1.10.2"
   sqflite:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: sqflite
       sha256: "79a297dc3cc137e758c6a4baf83342b039e5a6d2436fcdf3f96a00adaaf2ad62"
@@ -522,9 +530,11 @@ packages:
   zero_inspector_kit:
     dependency: "direct main"
     description:
-      path: ".."
-      relative: true
-    source: path
+      path: "."
+      ref: main
+      resolved-ref: "65515064b1ab26522a65b3baadf2ea7507feb4c7"
+      url: "https://github.com/zero-labsco/zero_inspector_kit.git"
+    source: git
     version: "0.0.1"
 sdks:
   dart: "3.11.5"

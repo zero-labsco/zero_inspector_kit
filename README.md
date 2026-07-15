@@ -5,7 +5,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 ## Features
 
 - **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency.
-- **Logging System**: Capture application logs with multiple levels (verbose, debug, info, warning, error).
+- **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
 - **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
 - **Route Tracker**: Monitor navigation history and current route information.
 - **Floating Button**: Accessible floating inspector button that slides in/out from the edge of the screen.
@@ -18,7 +18,9 @@ Add the following to your `pubspec.yaml`:
 ```yaml
 dependencies:
   zero_inspector_kit:
-    path: /path/to/zero_inspector_kit
+    git:
+      url: https://github.com/zero-labsco/zero_inspector_kit.git
+      ref: main
 ```
 
 ## Usage
@@ -30,7 +32,9 @@ import 'package:flutter/material.dart';
 import 'package:zero_inspector_kit/zero_inspector_kit.dart';
 
 void main() {
-  runApp(const MyApp());
+  runInspectorApp(() {
+    runApp(const MyApp());
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -50,17 +54,50 @@ class MyApp extends StatelessWidget {
 }
 ```
 
+**Note**: Use `runInspectorApp()` to wrap your app for automatic print() capture. This ensures all print() calls, including those from third-party libraries, are captured by the inspector.
+
+**Production Build**: The inspector is automatically disabled in release mode. You don't need to remove any code - Flutter's tree-shaking will remove all inspector-related code from production builds.
+
 ### Logging
+
+The logger automatically captures logs from multiple sources once started:
 
 ```dart
 InspectorLogInterceptor.instance.start();
+```
 
+**Auto-captured logs:**
+- `print()` and `debugPrint()` calls
+- Flutter framework errors and exceptions
+- Unhandled exceptions caught by `runZonedGuarded`
+
+**Manual logging:**
+```dart
 InspectorLogInterceptor.instance.verbose('Verbose log');
 InspectorLogInterceptor.instance.debug('Debug log');
 InspectorLogInterceptor.instance.info('Info log');
 InspectorLogInterceptor.instance.warning('Warning log');
 InspectorLogInterceptor.instance.error('Error log');
 ```
+
+**Third-party log library integration:**
+
+To integrate with other log libraries (e.g., logger, flutter_logger), use the `onLogCaptured` callback:
+
+```dart
+import 'package:logger/logger.dart';
+
+final logger = Logger();
+
+InspectorLogInterceptor.instance.onLogCaptured = (entry) {
+  logger.log(
+    _mapLogLevel(entry.level),
+    '${entry.tag != null ? '[${entry.tag}] ' : ''}${entry.message}',
+  );
+};
+```
+
+To capture logs from third-party libraries that use `print()` internally, no additional setup is required - they will be captured automatically.
 
 ### Network Requests (Dio)
 
@@ -167,9 +204,24 @@ DatabaseRegistry.instance.registerProvider(MyCustomDatabaseProvider());
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| enabled | bool | Whether the inspector is enabled |
+| enabled | bool | Whether the inspector is enabled (default: true, automatically disabled in release mode) |
 | position | FloatingButtonPosition | Position of the button (left/right) |
 | color | Color | Background color of the button |
+
+### ConditionalInspector
+
+A convenience widget that automatically shows/hides the inspector based on build mode.
+
+```dart
+ConditionalInspector(
+  child: YourAppWidget(),
+)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| child | Widget | The child widget |
+| enabled | bool | Whether the inspector is enabled (default: true) |
 
 ### InspectorLogInterceptor
 
@@ -184,9 +236,25 @@ DatabaseRegistry.instance.registerProvider(MyCustomDatabaseProvider());
 | warning(message, tag) | Add warning log |
 | error(message, tag) | Add error log |
 
+| Property | Type | Description |
+|----------|------|-------------|
+| onLogCaptured | `void Function(LogEntry)?` | Callback when a log is captured, used for third-party log library integration |
+
 ### InspectorRouteObserver
 
 Navigator observer for tracking route changes.
+
+### runInspectorApp
+
+A helper function to run your app with the inspector Zone, enabling automatic print() capture.
+
+```dart
+runInspectorApp(VoidCallback appRunner)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| appRunner | VoidCallback | The function to run your app (usually `runApp`) |
 
 ## Contributing
 

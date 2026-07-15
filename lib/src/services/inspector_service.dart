@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import '../models/network_request.dart';
 import '../models/log_entry.dart';
 import '../models/route_entry.dart';
 
 /// 检查器服务，用于管理所有收集的数据
-class InspectorService {
+class InspectorService extends ChangeNotifier {
   InspectorService._();
 
   /// 单例实例
@@ -34,6 +35,7 @@ class InspectorService {
   void addNetworkRequest(NetworkRequest request) {
     _networkRequests.insert(0, request);
     _trimList(_networkRequests);
+    notifyListeners();
   }
 
   /// 更新网络请求响应信息
@@ -55,6 +57,7 @@ class InspectorService {
         responseTime: now,
         duration: duration,
       );
+      notifyListeners();
     }
   }
 
@@ -62,12 +65,14 @@ class InspectorService {
   void addLogEntry(LogEntry entry) {
     _logEntries.insert(0, entry);
     _trimList(_logEntries);
+    notifyListeners();
   }
 
   /// 添加路由记录
   void addRouteEntry(RouteEntry entry) {
     _routeEntries.insert(0, entry);
     _trimList(_routeEntries);
+    notifyListeners();
   }
 
   /// 清空所有数据
@@ -75,21 +80,25 @@ class InspectorService {
     _networkRequests.clear();
     _logEntries.clear();
     _routeEntries.clear();
+    notifyListeners();
   }
 
   /// 清空网络请求记录
   void clearNetworkRequests() {
     _networkRequests.clear();
+    notifyListeners();
   }
 
   /// 清空日志记录
   void clearLogs() {
     _logEntries.clear();
+    notifyListeners();
   }
 
   /// 清空路由记录
   void clearRoutes() {
     _routeEntries.clear();
+    notifyListeners();
   }
 
   /// 裁剪列表到最大条目数
