@@ -154,6 +154,7 @@ class InspectorLogInterceptor {
   /// - [FATAL] / [CRITICAL] message
   /// - Logger库格式：[T] [D] [I] [W] [E] [F]
   /// - Logger库带装饰格式：│ [D] message 或 ├─ [D] message
+  /// - Logger库 emoji 格式：📱 [D] message 或 🐛 [D] message
   LogLevel _detectLogLevel(String message) {
     final trimmed = message.trim();
     

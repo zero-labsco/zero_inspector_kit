@@ -47,28 +47,15 @@ class _HomePageState extends State<HomePage> {
 
   void _setupLoggerIntegration() {
     _logger = Logger(printer: PrettyPrinter(methodCount: 0, printEmojis: true));
-
-    InspectorLogInterceptor.instance.onLogCaptured = (entry) {
-      _logger.log(
-        _mapLogLevel(entry.level),
-        '${entry.tag != null ? '[${entry.tag}] ' : ''}${entry.message}',
-      );
-    };
   }
 
-  Level _mapLogLevel(LogLevel level) {
-    switch (level) {
-      case LogLevel.verbose:
-        return Level.trace;
-      case LogLevel.debug:
-        return Level.debug;
-      case LogLevel.info:
-        return Level.info;
-      case LogLevel.warning:
-        return Level.warning;
-      case LogLevel.error:
-        return Level.error;
-    }
+  void _logWithLogger() {
+    _logger.t('Logger trace message');
+    _logger.d('Logger debug message');
+    _logger.i('Logger info message');
+    _logger.w('Logger warning message');
+    _logger.e('Logger error message');
+    _logger.f('Logger fatal message');
   }
 
   Future<void> _initTestDatabase() async {
@@ -270,15 +257,6 @@ class _HomePageState extends State<HomePage> {
     InspectorLogInterceptor.instance.info('Custom info log via callback');
     InspectorLogInterceptor.instance.warning('Custom warning log via callback');
     InspectorLogInterceptor.instance.error('Custom error log via callback');
-  }
-
-  void _logWithLogger() {
-    _logger.t('Logger trace message');
-    _logger.d('Logger debug message');
-    _logger.i('Logger info message');
-    _logger.w('Logger warning message');
-    _logger.e('Logger error message');
-    _logger.f('Logger fatal message');
   }
 
   @override
