@@ -258,11 +258,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _logMessages() {
-    print('This is a verbose log');
-    print('This is a debug log');
-    print('This is an info log');
-    print('This is a warning log');
-    print('This is an error log');
+    print('[VERBOSE] This is a verbose log');
+    print('[DEBUG] This is a debug log');
+    print('[INFO] This is an info log');
+    print('[WARNING] This is a warning log');
+    print('[ERROR] This is an error log');
   }
 
   void _logWithCustomCallback() {

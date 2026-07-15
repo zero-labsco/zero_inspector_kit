@@ -50,7 +50,8 @@ class InspectorLogInterceptor {
       if (_originalDebugPrint != null) {
         _originalDebugPrint!(message, wrapWidth: wrapWidth);
       }
-      _captureLog(message ?? '', LogLevel.debug);
+      final level = _detectLogLevel(message ?? '');
+      _captureLog(message ?? '', level);
     };
   }
 
@@ -142,6 +143,40 @@ class InspectorLogInterceptor {
   String _generateId() {
     return 'log_${DateTime.now().millisecondsSinceEpoch}';
   }
+
+  /// 根据日志内容自动识别日志级别
+  /// 支持多种格式：
+  /// - [VERBOSE] message
+  /// - [DEBUG] message  
+  /// - [INFO] message
+  /// - [WARNING] / [WARN] message
+  /// - [ERROR] / [ERR] message
+  /// - [FATAL] / [CRITICAL] message
+  /// - Logger库格式：[T] [D] [I] [W] [E] [F]
+  LogLevel _detectLogLevel(String message) {
+    final trimmed = message.trim().toUpperCase();
+    
+    if (trimmed.startsWith('[VERBOSE]') || trimmed.startsWith('[V]') || trimmed.startsWith('[T]')) {
+      return LogLevel.verbose;
+    }
+    if (trimmed.startsWith('[DEBUG]') || trimmed.startsWith('[D]')) {
+      return LogLevel.debug;
+    }
+    if (trimmed.startsWith('[INFO]') || trimmed.startsWith('[I]')) {
+      return LogLevel.info;
+    }
+    if (trimmed.startsWith('[WARNING]') || trimmed.startsWith('[WARN]') || trimmed.startsWith('[W]')) {
+      return LogLevel.warning;
+    }
+    if (trimmed.startsWith('[ERROR]') || trimmed.startsWith('[ERR]') || trimmed.startsWith('[E]')) {
+      return LogLevel.error;
+    }
+    if (trimmed.startsWith('[FATAL]') || trimmed.startsWith('[CRITICAL]') || trimmed.startsWith('[F]')) {
+      return LogLevel.error;
+    }
+
+    return LogLevel.debug;
+  }
 }
 
 /// 使用检查器 Zone 运行应用，确保所有 print() 调用都能被捕获
@@ -164,9 +199,10 @@ void runInspectorApp(VoidCallback appRunner) {
     zoneSpecification: ZoneSpecification(
       print: (self, parent, zone, line) {
         parent.print(zone, line);
+        final level = InspectorLogInterceptor.instance._detectLogLevel(line.toString());
         InspectorLogInterceptor.instance._captureLog(
           line.toString(),
-          LogLevel.debug,
+          level,
         );
       },
     ),
