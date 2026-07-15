@@ -153,25 +153,35 @@ class InspectorLogInterceptor {
   /// - [ERROR] / [ERR] message
   /// - [FATAL] / [CRITICAL] message
   /// - Logger库格式：[T] [D] [I] [W] [E] [F]
+  /// - Logger库带装饰格式：│ [D] message 或 ├─ [D] message
   LogLevel _detectLogLevel(String message) {
-    final trimmed = message.trim().toUpperCase();
+    final trimmed = message.trim();
     
-    if (trimmed.startsWith('[VERBOSE]') || trimmed.startsWith('[V]') || trimmed.startsWith('[T]')) {
+    String levelPrefix = '';
+    final bracketIndex = trimmed.indexOf('[');
+    if (bracketIndex != -1) {
+      final endBracketIndex = trimmed.indexOf(']', bracketIndex);
+      if (endBracketIndex != -1) {
+        levelPrefix = trimmed.substring(bracketIndex, endBracketIndex + 1).toUpperCase();
+      }
+    }
+    
+    if (levelPrefix == '[VERBOSE]' || levelPrefix == '[V]' || levelPrefix == '[T]') {
       return LogLevel.verbose;
     }
-    if (trimmed.startsWith('[DEBUG]') || trimmed.startsWith('[D]')) {
+    if (levelPrefix == '[DEBUG]' || levelPrefix == '[D]') {
       return LogLevel.debug;
     }
-    if (trimmed.startsWith('[INFO]') || trimmed.startsWith('[I]')) {
+    if (levelPrefix == '[INFO]' || levelPrefix == '[I]') {
       return LogLevel.info;
     }
-    if (trimmed.startsWith('[WARNING]') || trimmed.startsWith('[WARN]') || trimmed.startsWith('[W]')) {
+    if (levelPrefix == '[WARNING]' || levelPrefix == '[WARN]' || levelPrefix == '[W]') {
       return LogLevel.warning;
     }
-    if (trimmed.startsWith('[ERROR]') || trimmed.startsWith('[ERR]') || trimmed.startsWith('[E]')) {
+    if (levelPrefix == '[ERROR]' || levelPrefix == '[ERR]' || levelPrefix == '[E]') {
       return LogLevel.error;
     }
-    if (trimmed.startsWith('[FATAL]') || trimmed.startsWith('[CRITICAL]') || trimmed.startsWith('[F]')) {
+    if (levelPrefix == '[FATAL]' || levelPrefix == '[CRITICAL]' || levelPrefix == '[F]') {
       return LogLevel.error;
     }
 
