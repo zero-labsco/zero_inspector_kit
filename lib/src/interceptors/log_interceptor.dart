@@ -158,16 +158,19 @@ class InspectorLogInterceptor {
   /// - Logger库格式：[T] [D] [I] [W] [E] [F]
   /// - Logger库带装饰格式：│ [D] message 或 ├─ [D] message
   /// - Logger库 emoji 格式：📱 [D] message 或 🐛 [D] message
+  /// - Logger库 ANSI 颜色格式：[34m[D] message[0m
   /// - 多行日志跟踪：如果当前行没有级别标记，使用上一行的级别
   LogLevel _detectLogLevel(String message) {
-    final trimmed = message.trim();
+    var processed = message.trim();
+
+    processed = processed.replaceAll(RegExp(r'\x1B\[[0-9;]*[A-Za-z]'), '');
 
     String levelPrefix = '';
-    final bracketIndex = trimmed.indexOf('[');
+    final bracketIndex = processed.indexOf('[');
     if (bracketIndex != -1) {
-      final endBracketIndex = trimmed.indexOf(']', bracketIndex);
+      final endBracketIndex = processed.indexOf(']', bracketIndex);
       if (endBracketIndex != -1) {
-        levelPrefix = trimmed
+        levelPrefix = processed
             .substring(bracketIndex, endBracketIndex + 1)
             .toUpperCase();
       }

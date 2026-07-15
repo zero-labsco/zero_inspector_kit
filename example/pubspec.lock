@@ -531,8 +531,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "89d35fe"
-      resolved-ref: "89d35fe357c211ce34809ac530d4a953df49cf73"
+      ref: "6317413"
+      resolved-ref: "631741395b26f9418d038708f7dfa6798cb88557"
       url: "https://github.com/zero-labsco/zero_inspector_kit.git"
     source: git
     version: "1.0.0"
