@@ -10,9 +10,7 @@ dependencies:
     sdk: flutter
 
   zero_inspector_kit:
-    git:
-      url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: '7c7f4b4'
+    path: ..
 
   dio: '5.4.3+1'
   http: '1.2.1'

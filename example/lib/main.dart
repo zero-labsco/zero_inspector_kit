@@ -6,11 +6,20 @@ import 'package:zero_inspector_kit/zero_inspector_kit.dart';
 import 'package:logger/logger.dart';
 
 void main() {
-  runInspectorApp(() {
-    runApp(const MyApp());
-  });
+  /// 零侵入集成：仅需一行代码即可启用所有检查器功能
+  /// runAppWithInspector 会自动：
+  /// 1. 初始化检查器（日志捕获、网络拦截、数据库扫描）
+  /// 2. 通过 Zone 捕获所有 print() 输出
+  /// 3. 自动显示悬浮按钮
+  ZeroInspectorKit.runAppWithInspector(const MyApp());
 }
 
+/// 零侵入使用：无需修改任何现有代码
+/// 检查器会自动：
+/// - 捕获所有 print() 输出和 Flutter 错误
+/// - 拦截所有 http 包和 Dio 请求
+/// - 扫描 SQLite 数据库
+/// - 跟踪路由导航
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -38,7 +47,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
+
+    /// 注意：SQLite 数据库提供者已在 ZeroInspectorKit.init() 中自动注册，无需手动注册
+    /// DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider()); // 这行已不需要
 
     _setupLoggerIntegration();
     _setupDioInterceptor();

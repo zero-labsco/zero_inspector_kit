@@ -3,32 +3,28 @@ import 'package:flutter/foundation.dart';
 import '../models/log_entry.dart';
 import '../services/inspector_service.dart';
 
-/// 日志拦截器
-/// 自动捕获应用中的日志信息，无需用户手动调用
-/// 支持：
-/// 1. print() / debugPrint() 输出自动捕获
-/// 2. Flutter 错误和异常捕获
-/// 3. 其他日志库集成（通过回调接口）
+/// 日志拦截器类
+/// 负责自动捕获应用中的所有日志输出，包括：
+/// - print() / debugPrint() 调用
+/// - Flutter 错误和异常
+/// - 第三方日志库（如 logger）通过 print() 输出的日志
 class InspectorLogInterceptor {
+  /// 私有构造函数
   InspectorLogInterceptor._();
 
   /// 单例实例
   static final InspectorLogInterceptor instance = InspectorLogInterceptor._();
 
-  /// 是否已启动
+  /// 是否已启动日志捕获
   bool _isStarted = false;
 
-  /// 原始 debugPrint 函数
+  /// 原始的 debugPrint 函数引用
   DebugPrintCallback? _originalDebugPrint;
 
-  /// 是否正在捕获日志（防止递归）
+  /// 是否正在捕获日志（防止递归调用）
   bool _isCapturing = false;
 
-  /// 当前日志级别（用于跟踪多行日志的级别）
-  LogLevel _currentLogLevel = LogLevel.debug;
-
-  /// 日志捕获回调，供其他日志库调用
-  /// 用户可以注册这个回调来将其他日志库的日志传递给检查器
+  /// 日志捕获回调，供外部日志库集成使用
   void Function(LogEntry)? onLogCaptured;
 
   /// 启动日志捕获
@@ -46,19 +42,21 @@ class InspectorLogInterceptor {
     _restoreDebugPrint();
   }
 
-  /// 覆盖 debugPrint 函数，自动捕获所有 debugPrint 输出
+  /// 覆盖 debugPrint 函数，实现日志捕获
   void _overrideDebugPrint() {
     _originalDebugPrint = debugPrint;
     debugPrint = (String? message, {int? wrapWidth}) {
+      // 先调用原始的 debugPrint 确保日志正常输出到控制台
       if (_originalDebugPrint != null) {
         _originalDebugPrint!(message, wrapWidth: wrapWidth);
       }
-      final level = _detectLogLevel(message ?? '');
-      _captureLog(message ?? '', level);
+      // 识别日志级别并捕获
+      final level = detectLogLevel(message ?? '');
+      captureLog(message ?? '', level);
     };
   }
 
-  /// 恢复原始 debugPrint 函数
+  /// 恢复原始的 debugPrint 函数
   void _restoreDebugPrint() {
     if (_originalDebugPrint != null) {
       debugPrint = _originalDebugPrint!;
@@ -68,28 +66,32 @@ class InspectorLogInterceptor {
 
   /// 设置错误处理，捕获 Flutter 错误和异常
   void _setupErrorHandling() {
+    // 捕获 Flutter 框架级别的错误
     FlutterError.onError = (FlutterErrorDetails details) {
-      _captureLog(details.exception.toString(), LogLevel.error);
+      captureLog(details.exception.toString(), LogLevel.error);
       if (details.stack != null) {
-        _captureLog(details.stack.toString(), LogLevel.error);
+        captureLog(details.stack.toString(), LogLevel.error);
       }
     };
 
+    // 捕获未处理的异常
     runZonedGuarded(() {}, (error, stackTrace) {
-      _captureLog(error.toString(), LogLevel.error);
-      _captureLog(stackTrace.toString(), LogLevel.error);
+      captureLog(error.toString(), LogLevel.error);
+      captureLog(stackTrace.toString(), LogLevel.error);
     });
   }
 
   /// 捕获日志并添加到服务中
   /// [message] 日志消息
-  /// [level] 日志级别，默认为 debug
+  /// [level] 日志级别
   /// [tag] 日志标签（可选）
-  void _captureLog(String message, LogLevel level, {String? tag}) {
+  void captureLog(String message, LogLevel level, {String? tag}) {
+    // 如果未启动或正在捕获中，直接返回（防止递归调用）
     if (!_isStarted || _isCapturing) return;
 
     _isCapturing = true;
     try {
+      // 创建日志条目
       final entry = LogEntry(
         id: _generateId(),
         level: level,
@@ -98,8 +100,10 @@ class InspectorLogInterceptor {
         tag: tag,
       );
 
+      // 添加到检查器服务
       InspectorService.instance.addLogEntry(entry);
 
+      // 触发回调（供外部日志库集成）
       if (onLogCaptured != null) {
         onLogCaptured!(entry);
       }
@@ -108,63 +112,64 @@ class InspectorLogInterceptor {
     }
   }
 
-  /// 添加自定义日志
+  /// 通用日志方法
   /// [level] 日志级别
   /// [message] 日志消息
   /// [tag] 日志标签（可选）
   void log(LogLevel level, String message, {String? tag}) {
-    _captureLog(message, level, tag: tag);
+    captureLog(message, level, tag: tag);
   }
 
-  /// 添加verbose级别日志
+  /// 输出 VERBOSE 级别的日志
   void verbose(String message, {String? tag}) =>
       log(LogLevel.verbose, message, tag: tag);
 
-  /// 添加debug级别日志
+  /// 输出 DEBUG 级别的日志
   void debug(String message, {String? tag}) =>
       log(LogLevel.debug, message, tag: tag);
 
-  /// 添加info级别日志
+  /// 输出 INFO 级别的日志
   void info(String message, {String? tag}) =>
       log(LogLevel.info, message, tag: tag);
 
-  /// 添加warning级别日志
+  /// 输出 WARNING 级别的日志
   void warning(String message, {String? tag}) =>
       log(LogLevel.warning, message, tag: tag);
 
-  /// 添加error级别日志
+  /// 输出 ERROR 级别的日志
   void error(String message, {String? tag}) =>
       log(LogLevel.error, message, tag: tag);
 
-  /// 打印并捕获日志（替代print函数）
+  /// 通过 print 输出日志并捕获
   void logPrint(String message) {
     print(message);
-    _captureLog(message, LogLevel.debug);
+    captureLog(message, LogLevel.debug);
   }
 
-  /// 生成唯一日志ID
+  /// 生成唯一的日志 ID
   String _generateId() {
     return 'log_${DateTime.now().millisecondsSinceEpoch}';
   }
 
   /// 根据日志内容自动识别日志级别
-  /// 支持多种格式：
-  /// - [VERBOSE] message
-  /// - [DEBUG] message
-  /// - [INFO] message
-  /// - [WARNING] / [WARN] message
-  /// - [ERROR] / [ERR] message
-  /// - [FATAL] / [CRITICAL] message
-  /// - Logger库格式：[T] [D] [I] [W] [E] [F]
-  /// - Logger库带装饰格式：│ [D] message 或 ├─ [D] message
-  /// - Logger库 emoji 格式：📱 [D] message 或 🐛 [D] message
-  /// - Logger库 ANSI 颜色格式：[34m[D] message[0m
-  /// - 多行日志跟踪：如果当前行没有级别标记，使用上一行的级别
-  LogLevel _detectLogLevel(String message) {
+  /// 支持以下标准格式（方括号级别标记）：
+  /// - [VERBOSE] message / [V] message / [T] message (trace)
+  /// - [DEBUG] message / [D] message
+  /// - [INFO] message / [I] message
+  /// - [WARNING] message / [WARN] message / [W] message
+  /// - [ERROR] message / [ERR] message / [E] message
+  /// - [FATAL] message / [CRITICAL] message / [F] message
+  ///
+  /// 对于第三方日志库（如 logger、logcat 等），由于其格式各不相同且自带标识，
+  /// 统一归类到 INFO 级别，用户可通过日志内容中的标识自行识别级别。
+  LogLevel detectLogLevel(String message) {
+    // 去除首尾空白
     var processed = message.trim();
 
+    // 移除 ANSI 颜色代码（如 [34m[D] message[0m）
     processed = processed.replaceAll(RegExp(r'\x1B\[[0-9;]*[A-Za-z]'), '');
 
+    // 提取级别前缀（如 [D], [INFO]）
     String levelPrefix = '';
     final bracketIndex = processed.indexOf('[');
     if (bracketIndex != -1) {
@@ -176,62 +181,62 @@ class InspectorLogInterceptor {
       }
     }
 
-    LogLevel level;
-
+    // 根据级别前缀判断日志级别
     if (levelPrefix == '[VERBOSE]' ||
         levelPrefix == '[V]' ||
         levelPrefix == '[T]') {
-      level = LogLevel.verbose;
+      return LogLevel.verbose;
     } else if (levelPrefix == '[DEBUG]' || levelPrefix == '[D]') {
-      level = LogLevel.debug;
+      return LogLevel.debug;
     } else if (levelPrefix == '[INFO]' || levelPrefix == '[I]') {
-      level = LogLevel.info;
+      return LogLevel.info;
     } else if (levelPrefix == '[WARNING]' ||
         levelPrefix == '[WARN]' ||
         levelPrefix == '[W]') {
-      level = LogLevel.warning;
+      return LogLevel.warning;
     } else if (levelPrefix == '[ERROR]' ||
         levelPrefix == '[ERR]' ||
         levelPrefix == '[E]') {
-      level = LogLevel.error;
+      return LogLevel.error;
     } else if (levelPrefix == '[FATAL]' ||
         levelPrefix == '[CRITICAL]' ||
         levelPrefix == '[F]') {
-      level = LogLevel.error;
-    } else {
-      level = _currentLogLevel;
+      return LogLevel.error;
     }
 
-    _currentLogLevel = level;
-
-    return level;
+    // 第三方日志库（如 logger、logcat 等）统一归类到 INFO 级别
+    // 第三方库自己已经有标识（emoji、前缀等），用户可通过日志内容识别级别
+    return LogLevel.info;
   }
 }
 
-/// 使用检查器 Zone 运行应用，确保所有 print() 调用都能被捕获
-/// 推荐在 main() 函数中使用此方法来运行应用
+/// 使用检查器 Zone 运行应用
+/// 通过 ZoneSpecification 捕获所有 print() 调用
+/// [appRunner] 应用运行回调
 void runInspectorApp(VoidCallback appRunner) {
   InspectorLogInterceptor.instance.start();
 
   runZonedGuarded(
     appRunner,
     (error, stackTrace) {
-      InspectorLogInterceptor.instance._captureLog(
+      InspectorLogInterceptor.instance.captureLog(
         error.toString(),
         LogLevel.error,
       );
-      InspectorLogInterceptor.instance._captureLog(
+      InspectorLogInterceptor.instance.captureLog(
         stackTrace.toString(),
         LogLevel.error,
       );
     },
     zoneSpecification: ZoneSpecification(
       print: (self, parent, zone, line) {
+        // 先调用原始的 print 确保日志正常输出到控制台
         parent.print(zone, line);
-        final level = InspectorLogInterceptor.instance._detectLogLevel(
+        // 识别日志级别并捕获
+        final level = InspectorLogInterceptor.instance.detectLogLevel(
           line.toString(),
         );
-        InspectorLogInterceptor.instance._captureLog(line.toString(), level);
+        InspectorLogInterceptor.instance.captureLog(line.toString(), level);
       },
     ),
   );

@@ -4,6 +4,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 
 ## Features
 
+- **Zero Invasion**: Integrate with just **1 line of code**, no need to modify any existing project code.
 - **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency.
 - **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
 - **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
@@ -25,16 +26,17 @@ dependencies:
 
 ## Usage
 
-### Basic Setup
+### Zero Invasion Integration (Recommended)
+
+Integrate with just **1 line of code**, no need to modify any existing project code:
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:zero_inspector_kit/zero_inspector_kit.dart';
 
 void main() {
-  runInspectorApp(() {
-    runApp(const MyApp());
-  });
+  // Single line: Initialize inspector, capture print() via Zone, and display floating button
+  ZeroInspectorKit.runAppWithInspector(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -47,16 +49,34 @@ class MyApp extends StatelessWidget {
       home: Scaffold(
         appBar: AppBar(title: const Text('App')),
         body: const Center(child: Text('Hello World')),
-        floatingActionButton: const FloatingInspectorButton(enabled: true),
       ),
     );
   }
 }
 ```
 
-**Note**: Use `runInspectorApp()` to wrap your app for automatic print() capture. This ensures all print() calls, including those from third-party libraries, are captured by the inspector.
+**Zero Invasion Explanation**:
+
+After integration, the inspector automatically does the following without modifying any other project code:
+
+- ✅ **Log Capture**: Automatically captures all `print()`, `debugPrint()` calls and Flutter errors via Zone
+- ✅ **Network Interception**: Automatically intercepts all http package network requests via HttpOverrides
+- ✅ **Database Scan**: Automatically scans and registers SQLite databases
+- ✅ **Floating Button**: Automatically displayed via Overlay, no need to manually add any components
+- ✅ **Route Tracking**: Monitors navigation history via `InspectorRouteObserver`
 
 **Production Build**: The inspector is automatically disabled in release mode. You don't need to remove any code - Flutter's tree-shaking will remove all inspector-related code from production builds.
+
+### Alternative Integration (Two Lines)
+
+If you prefer more control, you can use the two-line approach:
+
+```dart
+void main() {
+  ZeroInspectorKit.init();
+  runApp(ZeroInspectorKit.wrapApp(const MyApp()));
+}
+```
 
 ### Logging
 
@@ -82,7 +102,9 @@ InspectorLogInterceptor.instance.error('Error log');
 
 **Third-party log library integration:**
 
-To integrate with other log libraries (e.g., logger, flutter_logger), use the `onLogCaptured` callback:
+Third-party log libraries (e.g., logger, flutter_logger) that use `print()` internally will be captured automatically. These logs are categorized as **INFO level** since each library has its own level indicators (emoji, prefixes, etc.) that users can identify from the log content.
+
+To integrate with other log libraries using the `onLogCaptured` callback:
 
 ```dart
 import 'package:logger/logger.dart';
@@ -96,8 +118,6 @@ InspectorLogInterceptor.instance.onLogCaptured = (entry) {
   );
 };
 ```
-
-To capture logs from third-party libraries that use `print()` internally, no additional setup is required - they will be captured automatically.
 
 ### Network Requests (Dio)
 
@@ -149,21 +169,21 @@ dio.interceptors.add(
 
 ### Network Requests (HTTP Package)
 
+HTTP package requests are automatically intercepted via `HttpOverrides` after initialization. No additional setup is required - just use http package as normal:
+
 ```dart
 import 'package:http/http.dart' as http;
 
-// GET request
-final response = await InspectorHttpInterceptor.instance.get(
+// GET request (automatically captured)
+final response = await http.get(
   Uri.parse('https://api.example.com/data'),
 );
 
-// POST request
-final response = await InspectorHttpInterceptor.instance.post(
+// POST request (automatically captured)
+final response = await http.post(
   Uri.parse('https://api.example.com/data'),
   body: {'key': 'value'},
 );
-
-// Other methods: put, delete, patch, head, send
 ```
 
 ### Database Provider

@@ -4,6 +4,7 @@
 
 ## 功能特性
 
+- **零侵入性**: 仅需一行代码即可集成，无需修改项目任何现有代码。
 - **网络检查器**: 实时捕获和查看所有 HTTP 请求，包括请求/响应头、请求体、状态码和延迟时间。
 - **日志系统**: 自动捕获应用中的日志，包括 print() 调用、Flutter 错误和异常。支持多种日志级别（verbose、debug、info、warning、error），并支持第三方日志库集成。
 - **数据库查看器**: 支持 SQLite 和其他数据库的检查，支持自定义数据库提供者。
@@ -25,16 +26,17 @@ dependencies:
 
 ## 使用方法
 
-### 基本配置
+### 零侵入集成（推荐）
+
+只需**一行代码**即可完成集成，无需修改项目任何现有代码：
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:zero_inspector_kit/zero_inspector_kit.dart';
 
 void main() {
-  runInspectorApp(() {
-    runApp(const MyApp());
-  });
+  // 一行代码：初始化检查器、通过 Zone 捕获 print()、自动显示悬浮按钮
+  ZeroInspectorKit.runAppWithInspector(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -47,16 +49,34 @@ class MyApp extends StatelessWidget {
       home: Scaffold(
         appBar: AppBar(title: const Text('App')),
         body: const Center(child: Text('Hello World')),
-        floatingActionButton: const FloatingInspectorButton(enabled: true),
       ),
     );
   }
 }
 ```
 
-**注意**: 使用 `runInspectorApp()` 包装你的应用以启用自动 print() 捕获。这确保所有 print() 调用（包括第三方库的调用）都能被检查器捕获。
+**零侵入性说明**：
+
+集成后，检查器会自动完成以下工作，无需修改项目其他代码：
+
+- ✅ **日志捕获**: 通过 Zone 自动捕获所有 `print()`、`debugPrint()` 调用和 Flutter 错误
+- ✅ **网络拦截**: 通过 HttpOverrides 自动拦截 http 包的所有网络请求
+- ✅ **数据库扫描**: 自动扫描并注册 SQLite 数据库
+- ✅ **悬浮按钮**: 通过 Overlay 自动显示，无需手动添加任何组件
+- ✅ **路由追踪**: 通过 `InspectorRouteObserver` 监控导航历史
 
 **生产构建**: 检查器在 release 模式下会自动禁用。你不需要移除任何代码 - Flutter 的 tree-shaking 会从生产构建中移除所有检查器相关代码。
+
+### 替代集成方式（两行代码）
+
+如果你需要更多控制权，可以使用两行代码的方式：
+
+```dart
+void main() {
+  ZeroInspectorKit.init();
+  runApp(ZeroInspectorKit.wrapApp(const MyApp()));
+}
+```
 
 ### 日志记录
 
@@ -82,7 +102,9 @@ InspectorLogInterceptor.instance.error('错误日志');
 
 **第三方日志库集成：**
 
-要与其他日志库（如 logger、flutter_logger）集成，使用 `onLogCaptured` 回调：
+内部使用 `print()` 的第三方日志库（如 logger、flutter_logger）会自动被捕获。这些日志统一归类到 **INFO 级别**，因为每个库都有自己的级别标识（emoji、前缀等），用户可通过日志内容识别级别。
+
+要使用 `onLogCaptured` 回调与其他日志库集成：
 
 ```dart
 import 'package:logger/logger.dart';
@@ -96,8 +118,6 @@ InspectorLogInterceptor.instance.onLogCaptured = (entry) {
   );
 };
 ```
-
-对于内部使用 `print()` 的第三方日志库，无需额外配置，会自动被捕获。
 
 ### 网络请求（Dio）
 
@@ -149,21 +169,21 @@ dio.interceptors.add(
 
 ### 网络请求（HTTP 包）
 
+HTTP 包的请求在初始化后会通过 `HttpOverrides` 自动拦截。无需额外配置，正常使用 http 包即可：
+
 ```dart
 import 'package:http/http.dart' as http;
 
-// GET 请求
-final response = await InspectorHttpInterceptor.instance.get(
+// GET 请求（自动捕获）
+final response = await http.get(
   Uri.parse('https://api.example.com/data'),
 );
 
-// POST 请求
-final response = await InspectorHttpInterceptor.instance.post(
+// POST 请求（自动捕获）
+final response = await http.post(
   Uri.parse('https://api.example.com/data'),
   body: {'key': 'value'},
 );
-
-// 其他方法: put, delete, patch, head, send
 ```
 
 ### 数据库提供者

@@ -530,12 +530,10 @@ packages:
   zero_inspector_kit:
     dependency: "direct main"
     description:
-      path: "."
-      ref: "7c7f4b4"
-      resolved-ref: "7c7f4b4115a220ada7444dcc462b3248453642f6"
-      url: "https://github.com/zero-labsco/zero_inspector_kit.git"
-    source: git
-    version: "1.0.0"
+      path: ".."
+      relative: true
+    source: path
+    version: "1.0.1"
 sdks:
   dart: "3.11.5"
   flutter: ">=3.38.4"
