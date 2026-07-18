@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/log_entry.dart';
 import '../services/inspector_service.dart';
 
-/// 日志查看器
-/// 显示所有捕获的日志，支持按级别过滤
+/// 日志查看器 / Log viewer
+/// 显示所有捕获的日志，支持按级别过滤 / Display all captured logs, support filtering by level
 class LogViewer extends StatefulWidget {
   const LogViewer({super.key});
 
@@ -12,10 +12,10 @@ class LogViewer extends StatefulWidget {
 }
 
 class _LogViewerState extends State<LogViewer> {
-  /// 当前过滤的日志级别
+  /// 当前过滤的日志级别 / Currently filtered log level
   LogLevel? _filterLevel;
 
-  /// 所有日志级别
+  /// 所有日志级别 / All log levels
   final List<LogLevel> _levels = LogLevel.values;
 
   @override
@@ -44,7 +44,7 @@ class _LogViewerState extends State<LogViewer> {
     );
   }
 
-  /// 构建工具栏
+  /// 构建工具栏 / Build toolbar
   Widget _buildToolbar() {
     return ListenableBuilder(
       listenable: InspectorService.instance,
@@ -72,7 +72,7 @@ class _LogViewerState extends State<LogViewer> {
     );
   }
 
-  /// 构建过滤栏
+  /// 构建过滤栏 / Build filter bar
   Widget _buildFilterBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -98,7 +98,7 @@ class _LogViewerState extends State<LogViewer> {
     );
   }
 
-  /// 获取日志级别缩写文本
+  /// 获取日志级别缩写文本 / Get log level abbreviation text
   String _getLevelText(LogLevel level) {
     switch (level) {
       case LogLevel.verbose:
@@ -114,7 +114,7 @@ class _LogViewerState extends State<LogViewer> {
     }
   }
 
-  /// 构建过滤标签
+  /// 构建过滤标签 / Build filter chip
   Widget _buildFilterChip(LogLevel? level, String label) {
     final isSelected = _filterLevel == level;
 
@@ -128,7 +128,7 @@ class _LogViewerState extends State<LogViewer> {
     );
   }
 
-  /// 构建单个日志项
+  /// 构建单个日志项 / Build single log item
   Widget _buildLogItem(LogEntry entry) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -185,7 +185,7 @@ class _LogViewerState extends State<LogViewer> {
     );
   }
 
-  /// 根据日志级别获取背景颜色
+  /// 根据日志级别获取背景颜色 / Get background color by log level
   Color _getLevelColor(LogLevel level) {
     switch (level) {
       case LogLevel.verbose:
@@ -201,7 +201,7 @@ class _LogViewerState extends State<LogViewer> {
     }
   }
 
-  /// 根据日志级别获取文本颜色
+  /// 根据日志级别获取文本颜色 / Get text color by log level
   Color _getLevelTextColor(LogLevel level) {
     switch (level) {
       case LogLevel.error:

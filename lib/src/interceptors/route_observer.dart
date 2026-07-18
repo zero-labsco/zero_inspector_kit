@@ -2,8 +2,8 @@ import 'package:flutter/widgets.dart';
 import '../models/route_entry.dart';
 import '../services/inspector_service.dart';
 
-/// 路由观察者
-/// 监听应用中的路由导航操作并记录
+/// 路由观察者 / Route observer
+/// 监听应用中的路由导航操作并记录 / Listen to route navigation operations in the app and record them
 class InspectorRouteObserver extends RouteObserver<PageRoute<dynamic>> {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
@@ -31,7 +31,7 @@ class InspectorRouteObserver extends RouteObserver<PageRoute<dynamic>> {
     _logRoute(route, RouteAction.pop);
   }
 
-  /// 记录路由操作
+  /// 记录路由操作 / Record route operation
   void _logRoute(Route<dynamic> route, RouteAction action) {
     final routeName = route.settings.name ?? route.runtimeType.toString();
     final entry = RouteEntry(
@@ -44,7 +44,7 @@ class InspectorRouteObserver extends RouteObserver<PageRoute<dynamic>> {
     InspectorService.instance.addRouteEntry(entry);
   }
 
-  /// 生成唯一路由记录ID
+  /// 生成唯一路由记录ID / Generate unique route record ID
   String _generateId() {
     return 'route_${DateTime.now().millisecondsSinceEpoch}';
   }

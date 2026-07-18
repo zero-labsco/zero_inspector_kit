@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/network_request.dart';
 import '../services/inspector_service.dart';
 
-/// 网络请求查看器
-/// 显示所有捕获的网络请求，支持查看详细信息
+/// 网络请求查看器 / Network request viewer
+/// 显示所有捕获的网络请求，支持查看详细信息 / Display all captured network requests, support viewing detailed information
 class NetworkViewer extends StatefulWidget {
   const NetworkViewer({super.key});
 
@@ -13,7 +13,7 @@ class NetworkViewer extends StatefulWidget {
 }
 
 class _NetworkViewerState extends State<NetworkViewer> {
-  /// 当前选中的请求
+  /// 当前选中的请求 / Currently selected request
   NetworkRequest? _selectedRequest;
 
   @override
@@ -50,7 +50,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
   }
 
-  /// 构建工具栏
+  /// 构建工具栏 / Build toolbar
   Widget _buildToolbar() {
     return ListenableBuilder(
       listenable: InspectorService.instance,
@@ -78,7 +78,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
   }
 
-  /// 构建单个请求项
+  /// 构建单个请求项 / Build single request item
   Widget _buildRequestItem(NetworkRequest request) {
     final isSelected = _selectedRequest?.id == request.id;
 
@@ -137,7 +137,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
   }
 
-  /// 构建请求详情面板
+  /// 构建请求详情面板 / Build request detail panel
   Widget _buildRequestDetail(NetworkRequest request) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -172,7 +172,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
   }
 
-  /// 构建详情分段
+  /// 构建详情分段 / Build detail section
   Widget _buildDetailSection(String title, String content) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +199,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
   }
 
-  /// 根据状态码获取颜色
+  /// 根据状态码获取颜色 / Get color by status code
   Color _getStatusColor(int status) {
     if (status >= 200 && status < 300) return Colors.greenAccent;
     if (status >= 300 && status < 400) return Colors.yellowAccent;
@@ -208,7 +208,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     return Colors.grey;
   }
 
-  /// 根据HTTP方法获取颜色
+  /// 根据HTTP方法获取颜色 / Get color by HTTP method
   Color _getMethodColor(String method) {
     switch (method.toUpperCase()) {
       case 'GET':
@@ -224,7 +224,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     }
   }
 
-  /// 格式化JSON数据
+  /// 格式化JSON数据 / Format JSON data
   String _formatJson(dynamic data) {
     if (data == null) return 'null';
     if (data is String) return data;

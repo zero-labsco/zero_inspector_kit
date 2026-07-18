@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'inspector_panel.dart';
 
-/// 悬浮检查器按钮
-/// 隐藏在屏幕边缘，可拖动，点击展开检查器面板
+/// 悬浮检查器按钮 / Floating inspector button
+/// 隐藏在屏幕边缘，可拖动，点击展开检查器面板 / Hidden at screen edge, draggable, click to expand inspector panel
 ///
-/// 在生产环境（release模式）下，此组件会返回空容器，不会打包检查器代码
+/// 在生产环境（release模式）下，此组件会返回空容器，不会打包检查器代码 / In production environment (release mode), this widget returns an empty container, inspector code won't be bundled
 class FloatingInspectorButton extends StatefulWidget {
-  /// 是否启用检查器按钮
-  /// 默认根据环境自动判断：debug模式启用，release模式禁用
+  /// 是否启用检查器按钮 / Whether to enable inspector button
+  /// 默认根据环境自动判断：debug模式启用，release模式禁用 / Auto-detect by environment by default: enabled in debug mode, disabled in release mode
   final bool enabled;
 
   const FloatingInspectorButton({super.key, this.enabled = true});
@@ -19,28 +19,28 @@ class FloatingInspectorButton extends StatefulWidget {
 }
 
 class _FloatingInspectorButtonState extends State<FloatingInspectorButton> {
-  /// 按钮X坐标
+  /// 按钮X坐标 / Button X coordinate
   double _x = 0;
 
-  /// 按钮Y坐标
+  /// 按钮Y坐标 / Button Y coordinate
   double _y = 200;
 
-  /// 是否展开检查器面板
+  /// 是否展开检查器面板 / Whether inspector panel is expanded
   bool _isExpanded = false;
 
-  /// 按钮是否可见
+  /// 按钮是否可见 / Whether button is visible
   bool _isVisible = false;
 
-  /// 是否正在拖动按钮
+  /// 是否正在拖动按钮 / Whether button is being dragged
   bool _isDragging = false;
 
-  /// 拖动开始位置
+  /// 拖动开始位置 / Drag start position
   Offset? _dragStart;
 
-  /// 拖动开始时的X坐标
+  /// 拖动开始时的X坐标 / X coordinate at drag start
   double? _startX;
 
-  /// 拖动开始时的Y坐标
+  /// 拖动开始时的Y坐标 / Y coordinate at drag start
   double? _startY;
 
   @override
@@ -66,7 +66,7 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton> {
     );
   }
 
-  /// 构建可拖动的悬浮按钮
+  /// 构建可拖动的悬浮按钮 / Build draggable floating button
   Widget _buildDraggableButton() {
     return Positioned(
       left: _isExpanded ? -50 : _x,
@@ -133,7 +133,7 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton> {
     );
   }
 
-  /// 构建展开的检查器面板
+  /// 构建展开的检查器面板 / Build expanded inspector panel
   Widget _buildExpandedPanel() {
     return Positioned(
       left: 0,
@@ -161,7 +161,7 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton> {
     );
   }
 
-  /// 切换检查器面板展开状态
+  /// 切换检查器面板展开状态 / Toggle inspector panel expansion state
   void _toggleExpanded() {
     setState(() {
       _isExpanded = !_isExpanded;

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/route_entry.dart';
 import '../services/inspector_service.dart';
 
-/// 路由查看器
-/// 显示应用中的路由导航记录
+/// 路由查看器 / Route viewer
+/// 显示应用中的路由导航记录 / Display route navigation records in the app
 class RouteViewer extends StatefulWidget {
   const RouteViewer({super.key});
 
@@ -13,7 +13,7 @@ class RouteViewer extends StatefulWidget {
 }
 
 class _RouteViewerState extends State<RouteViewer> {
-  /// 当前选中的路由记录
+  /// 当前选中的路由记录 / Currently selected route record
   RouteEntry? _selectedRoute;
 
   @override
@@ -50,7 +50,7 @@ class _RouteViewerState extends State<RouteViewer> {
     );
   }
 
-  /// 构建工具栏
+  /// 构建工具栏 / Build toolbar
   Widget _buildToolbar() {
     return ListenableBuilder(
       listenable: InspectorService.instance,
@@ -78,7 +78,7 @@ class _RouteViewerState extends State<RouteViewer> {
     );
   }
 
-  /// 构建单个路由记录项
+  /// 构建单个路由记录项 / Build single route record item
   Widget _buildRouteItem(RouteEntry entry) {
     final isSelected = _selectedRoute?.id == entry.id;
 
@@ -131,7 +131,7 @@ class _RouteViewerState extends State<RouteViewer> {
     );
   }
 
-  /// 构建路由详情面板
+  /// 构建路由详情面板 / Build route detail panel
   Widget _buildRouteDetail(RouteEntry entry) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -150,7 +150,7 @@ class _RouteViewerState extends State<RouteViewer> {
     );
   }
 
-  /// 构建详情分段
+  /// 构建详情分段 / Build detail section
   Widget _buildDetailSection(String title, String content) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,12 +176,12 @@ class _RouteViewerState extends State<RouteViewer> {
     );
   }
 
-  /// 格式化时间戳
+  /// 格式化时间戳 / Format timestamp
   String _formatTimestamp(DateTime timestamp) {
     return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}:${timestamp.second.toString().padLeft(2, '0')}.${timestamp.millisecond.toString().padLeft(3, '0')}';
   }
 
-  /// 根据路由操作类型获取颜色
+  /// 根据路由操作类型获取颜色 / Get color by route action type
   Color _getActionColor(RouteAction action) {
     switch (action) {
       case RouteAction.push:
@@ -197,7 +197,7 @@ class _RouteViewerState extends State<RouteViewer> {
     }
   }
 
-  /// 格式化JSON数据
+  /// 格式化JSON数据 / Format JSON data
   String _formatJson(dynamic data) {
     if (data == null) return 'null';
     try {

@@ -4,7 +4,7 @@
 
 ## 功能特性
 
-- **零侵入性**: 仅需一行代码即可集成，无需修改项目任何现有代码。
+- **零侵入性**: 仅需一行代码即可集成，无需修改项目任何现有代码（http 包用户）。
 - **网络检查器**: 实时捕获和查看所有 HTTP 请求，包括请求/响应头、请求体、状态码和延迟时间。
 - **日志系统**: 自动捕获应用中的日志，包括 print() 调用、Flutter 错误和异常。支持多种日志级别（verbose、debug、info、warning、error），并支持第三方日志库集成。
 - **数据库查看器**: 支持 SQLite 和其他数据库的检查，支持自定义数据库提供者。
@@ -20,7 +20,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.0.2
+  zero_inspector_kit: ^1.0.3
 ```
 
 ### GitHub
@@ -71,10 +71,10 @@ class MyApp extends StatelessWidget {
 集成后，检查器会自动完成以下工作，无需修改项目其他代码：
 
 - ✅ **日志捕获**: 通过 Zone 自动捕获所有 `print()`、`debugPrint()` 调用和 Flutter 错误
-- ✅ **网络拦截**: 通过 HttpOverrides 自动拦截 http 包的所有网络请求
+- ✅ **网络拦截**: 通过 HttpOverrides 自动拦截 **http 包**和 **Dio** 的所有网络请求（Dio 默认使用 HttpClient）。
 - ✅ **数据库扫描**: 自动扫描并注册 SQLite 数据库
 - ✅ **悬浮按钮**: 通过 Overlay 自动显示，无需手动添加任何组件
-- ✅ **路由追踪**: 通过 `InspectorRouteObserver` 监控导航历史
+- ✅ **路由追踪**: 通过 `InspectorRouteObserver` 监控导航历史（自动注入到 MaterialApp）
 
 **生产构建**: 检查器在 release 模式下会自动禁用。你不需要移除任何代码 - Flutter 的 tree-shaking 会从生产构建中移除所有检查器相关代码。
 
@@ -102,7 +102,10 @@ InspectorLogInterceptor.instance.start();
 - Flutter 框架错误和异常
 - `runZonedGuarded` 捕获的未处理异常
 
-**手动记录日志：**
+**手动记录日志（可选）：**
+
+如果需要更精确的日志级别控制，可以使用检查器提供的日志方法。这是**可选功能**，不影响自动捕获功能：
+
 ```dart
 InspectorLogInterceptor.instance.verbose('详细日志');
 InspectorLogInterceptor.instance.debug('调试日志');
@@ -111,11 +114,17 @@ InspectorLogInterceptor.instance.warning('警告日志');
 InspectorLogInterceptor.instance.error('错误日志');
 ```
 
-**第三方日志库集成：**
+**第三方日志库集成（自动）：**
 
-内部使用 `print()` 的第三方日志库（如 logger、flutter_logger）会自动被捕获。这些日志统一归类到 **INFO 级别**，因为每个库都有自己的级别标识（emoji、前缀等），用户可通过日志内容识别级别。
+**无需任何配置！** 插件会自动捕获所有使用 `print()` 或 `debugPrint()` 的第三方日志库（如 logger、flutter_logger、logcat）的日志。
 
-要使用 `onLogCaptured` 回调与其他日志库集成：
+工作原理：插件通过覆盖 `debugPrint` 和 Zone 机制捕获所有 `print()` 调用，而大多数第三方日志库内部都是通过 `print()` 输出日志的。
+
+这些日志统一归类到 **INFO 级别**，因为每个库都有自己的级别标识（emoji、前缀等），用户可通过日志内容识别级别。
+
+**双向同步（可选）：**
+
+如果需要将检查器捕获的日志同步到第三方日志库（让检查器日志也出现在你的日志服务中），可以使用 `onLogCaptured` 回调：
 
 ```dart
 import 'package:logger/logger.dart';
@@ -130,58 +139,11 @@ InspectorLogInterceptor.instance.onLogCaptured = (entry) {
 };
 ```
 
-### 网络请求（Dio）
+### 网络请求
 
-```dart
-import 'package:dio/dio.dart';
+所有 HTTP 请求（包括 **http 包**和 **Dio**）在初始化后都会通过 `HttpOverrides` 自动拦截。无需任何额外配置！
 
-final Dio dio = Dio();
-final InspectorDioInterceptor dioInterceptor = InspectorDioInterceptor();
-
-dio.interceptors.add(
-  InterceptorsWrapper(
-    onRequest: (options, handler) {
-      dioInterceptor.onRequest({
-        'method': options.method,
-        'url': options.uri.toString(),
-        'headers': options.headers.cast<String, String>(),
-        'data': options.data,
-      });
-      handler.next(options);
-    },
-    onResponse: (response, handler) {
-      dioInterceptor.onResponse({
-        'data': response.data,
-        'statusCode': response.statusCode,
-        'requestOptions': {
-          'method': response.requestOptions.method,
-          'uri': response.requestOptions.uri,
-        },
-      });
-      handler.next(response);
-    },
-    onError: (error, handler) {
-      dioInterceptor.onError({
-        'message': error.message,
-        'response': error.response != null ? {
-          'data': error.response!.data,
-          'statusCode': error.response!.statusCode,
-        } : null,
-        'requestOptions': {
-          'method': error.requestOptions.method,
-          'uri': error.requestOptions.uri,
-        },
-      });
-      handler.next(error);
-    },
-  ),
-);
-```
-
-### 网络请求（HTTP 包）
-
-HTTP 包的请求在初始化后会通过 `HttpOverrides` 自动拦截。无需额外配置，正常使用 http 包即可：
-
+**http 包：**
 ```dart
 import 'package:http/http.dart' as http;
 
@@ -196,6 +158,24 @@ final response = await http.post(
   body: {'key': 'value'},
 );
 ```
+
+**Dio（零侵入）：**
+```dart
+import 'package:dio/dio.dart';
+
+final Dio dio = Dio();
+
+// GET 请求（自动捕获）
+final response = await dio.get('https://api.example.com/data');
+
+// POST 请求（自动捕获）
+final response = await dio.post(
+  'https://api.example.com/data',
+  data: {'key': 'value'},
+);
+```
+
+**注意：** Dio 默认使用 `IOHttpClientAdapter`，内部使用 `dart:io` 的 `HttpClient`。这使得检查器可以通过 `HttpOverrides` 自动捕获 Dio 请求，无需任何额外配置。
 
 ### 数据库提供者
 

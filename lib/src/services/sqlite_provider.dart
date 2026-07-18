@@ -4,8 +4,8 @@ import 'package:sqflite/sqflite.dart';
 import '../models/database_info.dart';
 import 'database_provider.dart';
 
-/// SQLite数据库提供者实现
-/// 自动扫描应用目录下的.db和.sqlite文件
+/// SQLite数据库提供者实现 / SQLite database provider implementation
+/// 自动扫描应用目录下的.db和.sqlite文件 / Auto-scan .db and .sqlite files in application directory
 class SqliteDatabaseProvider implements DatabaseProvider {
   @override
   String get name => 'sqlite';
@@ -54,7 +54,7 @@ class SqliteDatabaseProvider implements DatabaseProvider {
     return databases;
   }
 
-  /// 获取数据库中的所有表信息
+  /// 获取数据库中的所有表信息 / Get all table info in database
   Future<List<TableInfo>> _getTables(Database db) async {
     final tables = <TableInfo>[];
     try {
@@ -78,7 +78,7 @@ class SqliteDatabaseProvider implements DatabaseProvider {
     return tables;
   }
 
-  /// 获取表的列信息
+  /// 获取表的列信息 / Get column info of table
   Future<List<ColumnInfo>> _getColumns(Database db, String tableName) async {
     final columns = <ColumnInfo>[];
     try {
@@ -94,7 +94,7 @@ class SqliteDatabaseProvider implements DatabaseProvider {
     return columns;
   }
 
-  /// 获取表的行数
+  /// 获取表的行数 / Get row count of table
   Future<int> _getRowCount(Database db, String tableName) async {
     try {
       final result = await db.rawQuery('SELECT COUNT(*) FROM $tableName');

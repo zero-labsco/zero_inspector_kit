@@ -6,10 +6,10 @@ import 'log_viewer.dart';
 import 'database_viewer.dart';
 import 'route_viewer.dart';
 
-/// 检查器面板
-/// 包含网络请求、日志、数据库、路由四个查看器
+/// 检查器面板 / Inspector panel
+/// 包含网络请求、日志、数据库、路由四个查看器 / Contains four viewers: network requests, logs, database, routes
 class InspectorPanel extends StatefulWidget {
-  /// 关闭面板回调
+  /// 关闭面板回调 / Close panel callback
   final VoidCallback onClose;
 
   const InspectorPanel({
@@ -22,10 +22,10 @@ class InspectorPanel extends StatefulWidget {
 }
 
 class _InspectorPanelState extends State<InspectorPanel> {
-  /// 当前选中的标签页索引
+  /// 当前选中的标签页索引 / Currently selected tab index
   int _selectedIndex = 0;
 
-  /// 各个标签页的内容
+  /// 各个标签页的内容 / Contents of each tab
   final List<Widget> _pages = const [
     NetworkViewer(),
     LogViewer(),
@@ -33,7 +33,7 @@ class _InspectorPanelState extends State<InspectorPanel> {
     RouteViewer(),
   ];
 
-  /// 标签页标题
+  /// 标签页标题 / Tab titles
   final List<String> _titles = [
     'Network',
     'Logs',
@@ -67,7 +67,7 @@ class _InspectorPanelState extends State<InspectorPanel> {
     );
   }
 
-  /// 构建面板头部
+  /// 构建面板头部 / Build panel header
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -108,7 +108,7 @@ class _InspectorPanelState extends State<InspectorPanel> {
     );
   }
 
-  /// 构建标签栏
+  /// 构建标签栏 / Build tab bar
   Widget _buildTabBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -127,7 +127,7 @@ class _InspectorPanelState extends State<InspectorPanel> {
     );
   }
 
-  /// 构建单个标签
+  /// 构建单个标签 / Build single tab
   Widget _buildTab(int index) {
     final isSelected = _selectedIndex == index;
     final count = _getCount(index);
@@ -180,7 +180,7 @@ class _InspectorPanelState extends State<InspectorPanel> {
     );
   }
 
-  /// 获取标签页的计数（错误数量等）
+  /// 获取标签页的计数（错误数量等）/ Get tab count (error count, etc.)
   int _getCount(int index) {
     final service = InspectorService.instance;
     switch (index) {

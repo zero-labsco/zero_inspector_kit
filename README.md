@@ -4,7 +4,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 
 ## Features
 
-- **Zero Invasion**: Integrate with just **1 line of code**, no need to modify any existing project code.
+- **Zero Invasion**: Integrate with just **1 line of code**, no need to modify any existing project code (http package users only).
 - **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency.
 - **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
 - **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
@@ -20,7 +20,7 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.0.2
+  zero_inspector_kit: ^1.0.3
 ```
 
 ### GitHub
@@ -71,10 +71,10 @@ class MyApp extends StatelessWidget {
 After integration, the inspector automatically does the following without modifying any other project code:
 
 - ✅ **Log Capture**: Automatically captures all `print()`, `debugPrint()` calls and Flutter errors via Zone
-- ✅ **Network Interception**: Automatically intercepts all http package network requests via HttpOverrides
+- ✅ **Network Interception**: Automatically intercepts all **http package** and **Dio** network requests via HttpOverrides (Dio uses HttpClient by default).
 - ✅ **Database Scan**: Automatically scans and registers SQLite databases
 - ✅ **Floating Button**: Automatically displayed via Overlay, no need to manually add any components
-- ✅ **Route Tracking**: Monitors navigation history via `InspectorRouteObserver`
+- ✅ **Route Tracking**: Monitors navigation history via `InspectorRouteObserver` (automatically injected into MaterialApp)
 
 **Production Build**: The inspector is automatically disabled in release mode. You don't need to remove any code - Flutter's tree-shaking will remove all inspector-related code from production builds.
 
@@ -102,7 +102,10 @@ InspectorLogInterceptor.instance.start();
 - Flutter framework errors and exceptions
 - Unhandled exceptions caught by `runZonedGuarded`
 
-**Manual logging:**
+**Manual logging (Optional):**
+
+For more precise log level control, you can use the inspector's log methods. This is **optional** and does not affect auto-capture functionality:
+
 ```dart
 InspectorLogInterceptor.instance.verbose('Verbose log');
 InspectorLogInterceptor.instance.debug('Debug log');
@@ -111,11 +114,17 @@ InspectorLogInterceptor.instance.warning('Warning log');
 InspectorLogInterceptor.instance.error('Error log');
 ```
 
-**Third-party log library integration:**
+**Third-party log library integration (Automatic):**
 
-Third-party log libraries (e.g., logger, flutter_logger) that use `print()` internally will be captured automatically. These logs are categorized as **INFO level** since each library has its own level indicators (emoji, prefixes, etc.) that users can identify from the log content.
+**No configuration needed!** The plugin automatically captures logs from all third-party logging libraries (e.g., logger, flutter_logger, logcat) that use `print()` or `debugPrint()`.
 
-To integrate with other log libraries using the `onLogCaptured` callback:
+How it works: The plugin captures all `print()` calls by overriding `debugPrint` and using Zone mechanism. Most third-party logging libraries internally output logs via `print()`.
+
+These logs are categorized as **INFO level** since each library has its own level indicators (emoji, prefixes, etc.) that users can identify from the log content.
+
+**Bidirectional Sync (Optional):**
+
+If you need to sync inspector-captured logs to your third-party logging library (make inspector logs also appear in your logging service), use the `onLogCaptured` callback:
 
 ```dart
 import 'package:logger/logger.dart';
@@ -130,58 +139,11 @@ InspectorLogInterceptor.instance.onLogCaptured = (entry) {
 };
 ```
 
-### Network Requests (Dio)
+### Network Requests
 
-```dart
-import 'package:dio/dio.dart';
+All HTTP requests (both **http package** and **Dio**) are automatically intercepted via `HttpOverrides` after initialization. No additional setup is required!
 
-final Dio dio = Dio();
-final InspectorDioInterceptor dioInterceptor = InspectorDioInterceptor();
-
-dio.interceptors.add(
-  InterceptorsWrapper(
-    onRequest: (options, handler) {
-      dioInterceptor.onRequest({
-        'method': options.method,
-        'url': options.uri.toString(),
-        'headers': options.headers.cast<String, String>(),
-        'data': options.data,
-      });
-      handler.next(options);
-    },
-    onResponse: (response, handler) {
-      dioInterceptor.onResponse({
-        'data': response.data,
-        'statusCode': response.statusCode,
-        'requestOptions': {
-          'method': response.requestOptions.method,
-          'uri': response.requestOptions.uri,
-        },
-      });
-      handler.next(response);
-    },
-    onError: (error, handler) {
-      dioInterceptor.onError({
-        'message': error.message,
-        'response': error.response != null ? {
-          'data': error.response!.data,
-          'statusCode': error.response!.statusCode,
-        } : null,
-        'requestOptions': {
-          'method': error.requestOptions.method,
-          'uri': error.requestOptions.uri,
-        },
-      });
-      handler.next(error);
-    },
-  ),
-);
-```
-
-### Network Requests (HTTP Package)
-
-HTTP package requests are automatically intercepted via `HttpOverrides` after initialization. No additional setup is required - just use http package as normal:
-
+**http package:**
 ```dart
 import 'package:http/http.dart' as http;
 
@@ -196,6 +158,24 @@ final response = await http.post(
   body: {'key': 'value'},
 );
 ```
+
+**Dio (zero-invasion):**
+```dart
+import 'package:dio/dio.dart';
+
+final Dio dio = Dio();
+
+// GET request (automatically captured)
+final response = await dio.get('https://api.example.com/data');
+
+// POST request (automatically captured)
+final response = await dio.post(
+  'https://api.example.com/data',
+  data: {'key': 'value'},
+);
+```
+
+**Note:** Dio uses `IOHttpClientAdapter` by default, which internally uses `dart:io`'s `HttpClient`. This allows the inspector to capture Dio requests automatically via `HttpOverrides` without any additional configuration.
 
 ### Database Provider
 

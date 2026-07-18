@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.3
+
+**改进 / Improvements:**
+- 更新 SDK 约束为范围版本，支持 Dart 3.11.x 和 3.12.x
+  - Updated SDK constraint to range version, supporting Dart 3.11.x and 3.12.x
+- 为所有源码文件添加中英双语注释，提高代码可读性和国际化支持
+  - Added Chinese-English bilingual comments to all source files, improving code readability and international support
+- 更新 iOS podspec 配置（版本号、描述、作者信息）
+  - Updated iOS podspec configuration (version, description, author info)
+
+**文档更新 / Documentation Updates:**
+- 更新 README 说明零侵入范围：http 包用户真正零侵入，Dio 用户需要额外配置拦截器
+  - Updated README to clarify zero-invasion scope: true zero-invasion for http package users, Dio users need additional interceptor configuration
+- 更新 README 说明第三方日志库集成是自动的，无需任何配置
+  - Updated README to clarify third-party log library integration is automatic, no configuration needed
+- 更新 README 明确区分可选功能和自动功能
+  - Updated README to clearly distinguish optional features from automatic features
+
 ## 1.0.2
 
 **文档更新 / Documentation Updates:**

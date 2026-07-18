@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/database_info.dart';
 import '../services/database_service.dart';
 
-/// 数据库查看器
-/// 显示应用中的所有数据库和表结构，支持查看表数据
+/// 数据库查看器 / Database viewer
+/// 显示应用中的所有数据库和表结构，支持查看表数据 / Display all databases and table structures in the app, support viewing table data
 class DatabaseViewer extends StatefulWidget {
   const DatabaseViewer({super.key});
 
@@ -12,19 +12,19 @@ class DatabaseViewer extends StatefulWidget {
 }
 
 class _DatabaseViewerState extends State<DatabaseViewer> {
-  /// 所有数据库列表
+  /// 所有数据库列表 / All database list
   List<DatabaseInfo> _databases = [];
 
-  /// 当前选中的数据库
+  /// 当前选中的数据库 / Currently selected database
   DatabaseInfo? _selectedDatabase;
 
-  /// 当前选中的表
+  /// 当前选中的表 / Currently selected table
   TableInfo? _selectedTable;
 
-  /// 表查询结果
+  /// 表查询结果 / Table query result
   QueryResult? _tableData;
 
-  /// 是否正在加载
+  /// 是否正在加载 / Whether loading
   bool _isLoading = true;
 
   @override
@@ -33,14 +33,14 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
     _loadDatabases();
   }
 
-  /// 加载数据库列表
+  /// 加载数据库列表 / Load database list
   Future<void> _loadDatabases() async {
     setState(() => _isLoading = true);
     _databases = await DatabaseService.instance.getDatabases();
     setState(() => _isLoading = false);
   }
 
-  /// 加载表数据
+  /// 加载表数据 / Load table data
   Future<void> _loadTableData(String dbPath, String tableName) async {
     setState(() => _isLoading = true);
     _tableData = await DatabaseService.instance.queryTable(dbPath, tableName);
@@ -65,7 +65,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
     );
   }
 
-  /// 构建工具栏
+  /// 构建工具栏 / Build toolbar
   Widget _buildToolbar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -95,7 +95,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
     );
   }
 
-  /// 返回上一层
+  /// 返回上一层 / Go back to previous level
   void _goBack() {
     setState(() {
       _selectedTable = null;
@@ -103,7 +103,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
     });
   }
 
-  /// 构建数据库列表
+  /// 构建数据库列表 / Build database list
   Widget _buildDatabaseList() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -121,7 +121,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
     );
   }
 
-  /// 构建单个数据库项
+  /// 构建单个数据库项 / Build single database item
   Widget _buildDatabaseItem(DatabaseInfo database) {
     final isSelected = _selectedDatabase?.name == database.name;
 
@@ -157,7 +157,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
     );
   }
 
-  /// 构建表数据视图
+  /// 构建表数据视图 / Build table data view
   Widget _buildTableData() {
     if (_isLoading || _selectedTable == null || _tableData == null) {
       return const Center(child: CircularProgressIndicator());
