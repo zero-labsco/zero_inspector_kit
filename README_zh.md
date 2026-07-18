@@ -14,7 +14,18 @@
 
 ## 安装
 
+### Pub.dev（推荐）
+
 在 `pubspec.yaml` 中添加以下依赖：
+
+```yaml
+dependencies:
+  zero_inspector_kit: ^1.0.1
+```
+
+### GitHub
+
+或者，你也可以从 GitHub 安装：
 
 ```yaml
 dependencies:

@@ -14,7 +14,18 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 
 ## Installation
 
+### Pub.dev (Recommended)
+
 Add the following to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  zero_inspector_kit: ^1.0.1
+```
+
+### GitHub
+
+Alternatively, you can install from GitHub:
 
 ```yaml
 dependencies:
