@@ -2,6 +2,8 @@
 
 A powerful Flutter plugin for in-app developer console, providing real-time debugging tools including network request inspection, logging, database viewing, and route tracking.
 
+🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
+
 ## Features
 
 - **Zero Invasion**: Integrate with just **1 line of code**, no need to modify any existing project code (http package users only).

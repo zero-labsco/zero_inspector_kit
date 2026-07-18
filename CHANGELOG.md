@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.4
+
+**改进 / Improvements:**
+- Dio 请求支持零侵入自动捕获（通过 HttpOverrides，无需手动添加拦截器）
+  - Dio requests support zero-invasion auto-capture via HttpOverrides, no manual interceptor setup needed
+
+**文档更新 / Documentation Updates:**
+- 更新 README，说明 Dio 请求无需额外配置，通过 HttpOverrides 自动捕获（真正零侵入）
+  - Updated README to clarify Dio requests require no extra configuration, auto-captured via HttpOverrides (true zero-invasion)
+- 更新 README，添加 GitHub 仓库链接
+  - Updated README to add GitHub repository link
+- 更新示例 app，移除 Dio 手动拦截器配置代码
+  - Updated example app to remove Dio manual interceptor configuration code
+
 ## 1.0.3
 
 **改进 / Improvements:**
