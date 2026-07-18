@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2
+
+**文档更新 / Documentation Updates:**
+- 更新 README 安装方式，将 pub.dev 作为推荐方式
+  - Updated README installation section, making pub.dev the recommended method
+
 ## 1.0.1
 
 **新增功能 / New Features:**

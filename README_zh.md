@@ -20,7 +20,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.0.1
+  zero_inspector_kit: ^1.0.2
 ```
 
 ### GitHub
