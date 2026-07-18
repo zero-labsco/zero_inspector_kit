@@ -12,8 +12,8 @@ void main() {
   /// 对于 http 包用户：真正的零侵入，无需修改任何其他代码！
   /// For http package users: True zero-invasion, no other code modifications needed!
   ///
-  /// 对于 Dio 用户：需要额外添加 Dio 拦截器配置（见 _setupDioInterceptor 方法）
-  /// For Dio users: Need to add Dio interceptor configuration (see _setupDioInterceptor method)
+  /// 对于 Dio 用户：同样零侵入！Dio 默认使用 HttpClient，会被 HttpOverrides 自动捕获
+  /// For Dio users: Also zero-invasion! Dio uses HttpClient by default, auto-captured by HttpOverrides
   ///
   /// runAppWithInspector 会自动：/ runAppWithInspector automatically:
   /// 1. 初始化检查器（日志捕获、网络拦截、数据库扫描）/ 1. Initialize inspector (log capture, network interception, database scan)
@@ -71,7 +71,6 @@ class _HomePageState extends State<HomePage> {
     /// DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider()); // 这行已不需要 / This line is no longer needed
 
     _setupLoggerIntegration();
-    //_setupDioInterceptor();
     _initTestDatabase();
   }
 
