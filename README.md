@@ -11,8 +11,9 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 - **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
 - **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
 - **Route Tracker**: Monitor navigation history and current route information.
-- **Floating Button**: Accessible floating inspector button that slides in/out from the edge of the screen.
-- **Cross-platform**: Works on both Android and iOS.
+- **Floating Button**: Accessible floating inspector button with breathing animation that slides in/out from the edge of the screen.
+- **Modern UI**: Beautiful dark theme with gradient design, customizable colors via centralized theme configuration.
+- **Cross-platform**: Works on Android, iOS, Linux, macOS, and Windows.
 
 ## Installation
 
@@ -22,7 +23,7 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.0.3
+  zero_inspector_kit: ^1.0.5
 ```
 
 ### GitHub
@@ -218,8 +219,6 @@ DatabaseRegistry.instance.registerProvider(MyCustomDatabaseProvider());
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | enabled | bool | Whether the inspector is enabled (default: true, automatically disabled in release mode) |
-| position | FloatingButtonPosition | Position of the button (left/right) |
-| color | Color | Background color of the button |
 
 ### ConditionalInspector
 

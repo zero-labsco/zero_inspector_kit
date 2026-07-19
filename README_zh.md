@@ -22,7 +22,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.0.3
+  zero_inspector_kit: ^1.0.5
 ```
 
 ### GitHub
@@ -218,8 +218,6 @@ DatabaseRegistry.instance.registerProvider(MyCustomDatabaseProvider());
 | 参数 | 类型 | 描述 |
 |------|------|------|
 | enabled | bool | 是否启用检查器（默认：true，release 模式下自动禁用） |
-| position | FloatingButtonPosition | 按钮位置（左/右） |
-| color | Color | 按钮背景颜色 |
 
 ### ConditionalInspector
 
