@@ -123,7 +123,7 @@ class InspectorDioInterceptor extends InspectorDioInterceptorBase {
     return DateTime.now().microsecond % max;
   }
 
-  /// 转换headers为Map<String, String>格式 / Convert headers to Map<String, String> format
+  /// 转换headers为 `Map<String, String>` 格式 / Convert headers to `Map<String, String>` format
   /// Dio的headers可能包含非String类型的值（如content-length是int），需要转换 / Dio headers may contain non-String values (e.g., content-length is int), need conversion
   Map<String, String>? _convertHeaders(dynamic headers) {
     if (headers == null) return null;

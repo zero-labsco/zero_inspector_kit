@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/log_entry.dart';
-import '../services/inspector_service.dart';
 import 'theme/inspector_theme.dart';
 import 'network_viewer.dart';
 import 'log_viewer.dart';
@@ -13,10 +11,7 @@ class InspectorPanel extends StatefulWidget {
   /// 关闭面板回调 / Close panel callback
   final VoidCallback onClose;
 
-  const InspectorPanel({
-    super.key,
-    required this.onClose,
-  });
+  const InspectorPanel({super.key, required this.onClose});
 
   @override
   State<InspectorPanel> createState() => _InspectorPanelState();
@@ -24,9 +19,6 @@ class InspectorPanel extends StatefulWidget {
 
 class _InspectorPanelState extends State<InspectorPanel>
     with SingleTickerProviderStateMixin {
-  /// 当前选中的标签页索引 / Currently selected tab index
-  int _selectedIndex = 0;
-
   /// 标签页控制器 / Tab controller
   late final TabController _tabController;
 
@@ -39,12 +31,7 @@ class _InspectorPanelState extends State<InspectorPanel>
   ];
 
   /// 标签页标题 / Tab titles
-  final List<String> _titles = [
-    'Network',
-    'Logs',
-    'Database',
-    'Routes',
-  ];
+  final List<String> _titles = ['Network', 'Logs', 'Database', 'Routes'];
 
   /// 标签页图标 / Tab icons
   final List<IconData> _icons = [
@@ -57,13 +44,7 @@ class _InspectorPanelState extends State<InspectorPanel>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: _titles.length,
-      vsync: this,
-    );
-    _tabController.addListener(() {
-      setState(() => _selectedIndex = _tabController.index);
-    });
+    _tabController = TabController(length: _titles.length, vsync: this);
   }
 
   @override
@@ -80,10 +61,7 @@ class _InspectorPanelState extends State<InspectorPanel>
       decoration: BoxDecoration(
         gradient: InspectorGradients.background,
         borderRadius: BorderRadius.circular(InspectorDimensions.panelRadius),
-        border: Border.all(
-          color: InspectorColors.border,
-          width: 1,
-        ),
+        border: Border.all(color: InspectorColors.border, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.5),
@@ -100,10 +78,7 @@ class _InspectorPanelState extends State<InspectorPanel>
             _buildHeader(),
             _buildTabBar(),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: _pages,
-              ),
+              child: TabBarView(controller: _tabController, children: _pages),
             ),
           ],
         ),
@@ -137,8 +112,11 @@ class _InspectorPanelState extends State<InspectorPanel>
                 ),
               ],
             ),
-            child: Icon(Icons.bug_report_rounded,
-                color: InspectorColors.textPrimary, size: 20),
+            child: Icon(
+              Icons.bug_report_rounded,
+              color: InspectorColors.textPrimary,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Column(
@@ -173,8 +151,11 @@ class _InspectorPanelState extends State<InspectorPanel>
                 color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.close_rounded,
-                  color: InspectorColors.textPrimary, size: 18),
+              child: Icon(
+                Icons.close_rounded,
+                color: InspectorColors.textPrimary,
+                size: 18,
+              ),
             ),
           ),
         ],
@@ -203,10 +184,7 @@ class _InspectorPanelState extends State<InspectorPanel>
         dividerColor: Colors.transparent,
         labelColor: InspectorColors.textPrimary,
         unselectedLabelColor: InspectorColors.textSecondary,
-        labelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
+        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         unselectedLabelStyle: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w400,

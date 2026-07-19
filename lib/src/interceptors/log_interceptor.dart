@@ -142,6 +142,7 @@ class InspectorLogInterceptor {
 
   /// 通过 print 输出日志并捕获 / Output log via print and capture
   void logPrint(String message) {
+    // ignore: avoid_print
     print(message);
     captureLog(message, LogLevel.debug);
   }
