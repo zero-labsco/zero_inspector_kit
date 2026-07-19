@@ -531,10 +531,10 @@ packages:
     dependency: "direct main"
     description:
       name: zero_inspector_kit
-      sha256: "19259166f43a8db5ede9f16a87e89a61cd0b77c1f339e5c3303e7c4478d6680e"
+      sha256: "105f858864aa573e92b3fac7de641df700bb2ee19badb9d88343a29a7c04009d"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "1.0.4"
+    version: "1.0.5"
 sdks:
   dart: "3.11.5"
   flutter: ">=3.38.4"
