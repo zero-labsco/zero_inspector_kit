@@ -9,8 +9,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  zero_inspector_kit:
-    path: ..
+  zero_inspector_kit: ^1.0.4
 
   dio: '5.4.3+1'
   http: '1.2.1'
