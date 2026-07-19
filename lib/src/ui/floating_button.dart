@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'theme/inspector_theme.dart';
 import 'inspector_panel.dart';
 
 /// 悬浮检查器按钮 / Floating inspector button
@@ -18,7 +19,8 @@ class FloatingInspectorButton extends StatefulWidget {
       _FloatingInspectorButtonState();
 }
 
-class _FloatingInspectorButtonState extends State<FloatingInspectorButton> {
+class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
+    with SingleTickerProviderStateMixin {
   /// 按钮X坐标 / Button X coordinate
   double _x = 0;
 
@@ -43,14 +45,39 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton> {
   /// 拖动开始时的Y坐标 / Y coordinate at drag start
   double? _startY;
 
+  /// 呼吸动画控制器 / Breathing animation controller
+  late final AnimationController _breathController;
+
+  /// 呼吸动画 / Breathing animation
+  late final Animation<double> _breathAnimation;
+
+  /// 按钮尺寸 / Button size
+  final double _buttonSize = InspectorDimensions.floatingButtonSize;
+
   @override
   void initState() {
     super.initState();
+    _breathController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+    _breathAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
+    );
+
     if (widget.enabled) {
       Future.delayed(const Duration(seconds: 1), () {
-        setState(() => _isVisible = true);
+        if (mounted) {
+          setState(() => _isVisible = true);
+        }
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _breathController.dispose();
+    super.dispose();
   }
 
   @override
@@ -69,62 +96,77 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton> {
   /// 构建可拖动的悬浮按钮 / Build draggable floating button
   Widget _buildDraggableButton() {
     return Positioned(
-      left: _isExpanded ? -50 : _x,
+      left: _isExpanded ? -_buttonSize : _x,
       top: _y,
-      child: AnimatedContainer(
+      child: AnimatedOpacity(
         duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-        child: GestureDetector(
-          onTap: _toggleExpanded,
-          onPanStart: (details) {
-            _isDragging = true;
-            _dragStart = details.globalPosition;
-            _startX = _x;
-            _startY = _y;
-          },
-          onPanUpdate: (details) {
-            if (!_isDragging || _dragStart == null) return;
-            final deltaX = details.globalPosition.dx - _dragStart!.dx;
-            final deltaY = details.globalPosition.dy - _dragStart!.dy;
+        opacity: _isExpanded ? 0 : 1,
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 300),
+          scale: _isExpanded ? 0.5 : 1,
+          child: GestureDetector(
+            onTap: _toggleExpanded,
+            onPanStart: (details) {
+              _isDragging = true;
+              _dragStart = details.globalPosition;
+              _startX = _x;
+              _startY = _y;
+            },
+            onPanUpdate: (details) {
+              if (!_isDragging || _dragStart == null) return;
+              final deltaX = details.globalPosition.dx - _dragStart!.dx;
+              final deltaY = details.globalPosition.dy - _dragStart!.dy;
 
-            setState(() {
-              _x = (_startX! + deltaX).clamp(
-                0.0,
-                MediaQuery.of(context).size.width - 50,
-              );
-              _y = (_startY! + deltaY).clamp(
-                0.0,
-                MediaQuery.of(context).size.height - 50,
-              );
-            });
-          },
-          onPanEnd: (_) {
-            _isDragging = false;
-            if (_x > MediaQuery.of(context).size.width / 2) {
-              setState(() => _x = MediaQuery.of(context).size.width - 50);
-            } else {
-              setState(() => _x = 0);
-            }
-          },
-          child: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.blueAccent,
-              borderRadius: BorderRadius.circular(25),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 8,
-                  offset: const Offset(2, 2),
+              setState(() {
+                _x = (_startX! + deltaX).clamp(
+                  0.0,
+                  MediaQuery.of(context).size.width - _buttonSize,
+                );
+                _y = (_startY! + deltaY).clamp(
+                  0.0,
+                  MediaQuery.of(context).size.height - _buttonSize,
+                );
+              });
+            },
+            onPanEnd: (_) {
+              _isDragging = false;
+              if (_x > MediaQuery.of(context).size.width / 2) {
+                setState(
+                  () => _x = MediaQuery.of(context).size.width - _buttonSize,
+                );
+              } else {
+                setState(() => _x = 0);
+              }
+            },
+            child: ScaleTransition(
+              scale: _breathAnimation,
+              child: Container(
+                width: _buttonSize,
+                height: _buttonSize,
+                decoration: BoxDecoration(
+                  gradient: InspectorGradients.primary,
+                  borderRadius: BorderRadius.circular(_buttonSize / 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: InspectorColors.primary.withValues(alpha: 0.4),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(2, 2),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Center(
-              child: Icon(
-                _isExpanded ? Icons.close : Icons.bug_report,
-                color: Colors.white,
-                size: 24,
+                child: Center(
+                  child: Icon(
+                    Icons.bug_report_rounded,
+                    color: InspectorColors.textPrimary,
+                    size: InspectorDimensions.floatingButtonIconSize,
+                  ),
+                ),
               ),
             ),
           ),
@@ -145,6 +187,7 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton> {
           setState(() => _isExpanded = false);
         },
         child: Container(
+          // 全透明遮罩，不阻挡背景显示 / Fully transparent overlay, doesn't block background
           color: Colors.transparent,
           child: Center(
             child: GestureDetector(

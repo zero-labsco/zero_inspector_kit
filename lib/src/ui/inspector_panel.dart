@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/log_entry.dart';
 import '../services/inspector_service.dart';
+import 'theme/inspector_theme.dart';
 import 'network_viewer.dart';
 import 'log_viewer.dart';
 import 'database_viewer.dart';
@@ -21,9 +22,13 @@ class InspectorPanel extends StatefulWidget {
   State<InspectorPanel> createState() => _InspectorPanelState();
 }
 
-class _InspectorPanelState extends State<InspectorPanel> {
+class _InspectorPanelState extends State<InspectorPanel>
+    with SingleTickerProviderStateMixin {
   /// 当前选中的标签页索引 / Currently selected tab index
   int _selectedIndex = 0;
+
+  /// 标签页控制器 / Tab controller
+  late final TabController _tabController;
 
   /// 各个标签页的内容 / Contents of each tab
   final List<Widget> _pages = const [
@@ -41,28 +46,67 @@ class _InspectorPanelState extends State<InspectorPanel> {
     'Routes',
   ];
 
+  /// 标签页图标 / Tab icons
+  final List<IconData> _icons = [
+    Icons.http_rounded,
+    Icons.article_rounded,
+    Icons.storage_rounded,
+    Icons.route_rounded,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(
+      length: _titles.length,
+      vsync: this,
+    );
+    _tabController.addListener(() {
+      setState(() => _selectedIndex = _tabController.index);
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: MediaQuery.of(context).size.width * 0.9,
-      height: MediaQuery.of(context).size.height * 0.85,
+      width: MediaQuery.of(context).size.width * 0.92,
+      height: MediaQuery.of(context).size.height * 0.88,
       decoration: BoxDecoration(
-        color: const Color(0xFF1a1a2e),
-        borderRadius: BorderRadius.circular(16),
+        gradient: InspectorGradients.background,
+        borderRadius: BorderRadius.circular(InspectorDimensions.panelRadius),
+        border: Border.all(
+          color: InspectorColors.border,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black54,
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
+            spreadRadius: -5,
           ),
         ],
       ),
-      child: Column(
-        children: [
-          _buildHeader(),
-          _buildTabBar(),
-          Expanded(child: _pages[_selectedIndex]),
-        ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(InspectorDimensions.panelRadius),
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildTabBar(),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: _pages,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -70,38 +114,68 @@ class _InspectorPanelState extends State<InspectorPanel> {
   /// 构建面板头部 / Build panel header
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Color(0xFF16213e),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
+      padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+      decoration: BoxDecoration(
+        gradient: InspectorGradients.header,
+        border: Border(
+          bottom: BorderSide(color: InspectorColors.border, width: 1),
         ),
       ),
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: Colors.blueAccent,
-              borderRadius: BorderRadius.circular(8),
+              gradient: InspectorGradients.primary,
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: InspectorColors.primary.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: const Icon(Icons.bug_report, color: Colors.white, size: 18),
+            child: Icon(Icons.bug_report_rounded,
+                color: InspectorColors.textPrimary, size: 20),
           ),
           const SizedBox(width: 12),
-          const Text(
-            'Zero Inspector Kit',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Zero Inspector Kit',
+                style: TextStyle(
+                  color: InspectorColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              Text(
+                'Developer Tools',
+                style: TextStyle(
+                  color: InspectorColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
           ),
           const Spacer(),
           IconButton(
             onPressed: widget.onClose,
-            icon: const Icon(Icons.close, color: Colors.white),
+            icon: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.close_rounded,
+                  color: InspectorColors.textPrimary, size: 18),
+            ),
           ),
         ],
       ),
@@ -111,89 +185,40 @@ class _InspectorPanelState extends State<InspectorPanel> {
   /// 构建标签栏 / Build tab bar
   Widget _buildTabBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: InspectorColors.surface,
         border: Border(
-          bottom: BorderSide(color: Color(0xFF2d2d44)),
+          bottom: BorderSide(color: InspectorColors.border, width: 1),
         ),
       ),
-      child: Row(
-        children: List.generate(_titles.length, (index) {
-          return Expanded(
-            child: _buildTab(index),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          gradient: InspectorGradients.tabIndicator,
+          borderRadius: BorderRadius.circular(InspectorDimensions.chipRadius),
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicatorPadding: const EdgeInsets.symmetric(vertical: 4),
+        dividerColor: Colors.transparent,
+        labelColor: InspectorColors.textPrimary,
+        unselectedLabelColor: InspectorColors.textSecondary,
+        labelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+        ),
+        tabs: List.generate(_titles.length, (index) {
+          return Tab(
+            icon: Icon(_icons[index], size: 18),
+            text: _titles[index],
+            height: 44,
           );
         }),
       ),
     );
-  }
-
-  /// 构建单个标签 / Build single tab
-  Widget _buildTab(int index) {
-    final isSelected = _selectedIndex == index;
-    final count = _getCount(index);
-
-    return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: isSelected
-            ? const BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Colors.blueAccent, width: 2),
-                ),
-              )
-            : null,
-        child: Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _titles[index],
-                style: TextStyle(
-                  color: isSelected ? Colors.blueAccent : Colors.grey,
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-              if (count > 0) ...[
-                const SizedBox(width: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    count.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 获取标签页的计数（错误数量等）/ Get tab count (error count, etc.)
-  int _getCount(int index) {
-    final service = InspectorService.instance;
-    switch (index) {
-      case 0:
-        return service.networkRequests.length;
-      case 1:
-        return service.logEntries.where((e) => e.level == LogLevel.error).length;
-      case 2:
-        return 0;
-      case 3:
-        return service.routeEntries.length;
-      default:
-        return 0;
-    }
   }
 }

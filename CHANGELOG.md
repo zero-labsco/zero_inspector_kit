@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.5
+
+**改进 / Improvements:**
+- UI 全面美化：现代渐变设计、深色主题、图标增强
+  - Comprehensive UI redesign: modern gradient design, dark theme, enhanced icons
+- 移除标签页红色计数气泡，改用工具栏紫色胶囊徽章
+  - Removed red count badges on tabs, replaced with purple pill badges in toolbar
+- 悬浮按钮添加呼吸动画，展开时淡出缩小过渡
+  - Floating button adds breathing animation, fade-out scale transition on expand
+- 悬浮按钮遮罩改为全透明
+  - Floating button overlay changed to fully transparent
+- 新增主题配置文件，集中管理所有颜色、渐变和尺寸
+  - Added theme configuration file for centralized management of all colors, gradients, and dimensions
+- 日志过滤选项改为简写（V/D/I/W/E）
+  - Log filter options changed to abbreviations (V/D/I/W/E)
+
 ## 1.0.4
 
 **改进 / Improvements:**
