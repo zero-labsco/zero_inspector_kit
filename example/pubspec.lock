@@ -530,10 +530,9 @@ packages:
   zero_inspector_kit:
     dependency: "direct main"
     description:
-      name: zero_inspector_kit
-      sha256: "105f858864aa573e92b3fac7de641df700bb2ee19badb9d88343a29a7c04009d"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
+      path: ".."
+      relative: true
+    source: path
     version: "1.0.5"
 sdks:
   dart: "3.11.5"

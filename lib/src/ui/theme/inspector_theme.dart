@@ -50,6 +50,9 @@ class InspectorColors {
   /// 次要文本色 / Secondary text color
   static const Color textSecondary = Colors.grey;
 
+  /// 提示文本色 / Hint text color
+  static const Color textHint = Color(0xFF6b7280);
+
   // ===== 状态色 / Status colors =====
 
   /// 成功色 / Success color

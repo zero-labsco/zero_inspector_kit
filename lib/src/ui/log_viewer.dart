@@ -4,7 +4,7 @@ import '../services/inspector_service.dart';
 import 'theme/inspector_theme.dart';
 
 /// 日志查看器 / Log viewer
-/// 显示所有捕获的日志，支持按级别过滤 / Display all captured logs, support filtering by level
+/// 显示所有捕获的日志，支持按级别过滤和搜索 / Display all captured logs, support filtering by level and search
 class LogViewer extends StatefulWidget {
   const LogViewer({super.key});
 
@@ -16,34 +16,90 @@ class _LogViewerState extends State<LogViewer> {
   /// 当前过滤的日志级别 / Currently filtered log level
   LogLevel? _filterLevel;
 
+  /// 搜索关键词 / Search keyword
+  String _searchKeyword = '';
+
+  /// 搜索控制器 / Search controller
+  final TextEditingController _searchController = TextEditingController();
+
   /// 所有日志级别 / All log levels
   final List<LogLevel> _levels = LogLevel.values;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         _buildToolbar(),
+        _buildSearchBar(),
         _buildFilterBar(),
         Expanded(
           child: ListenableBuilder(
             listenable: InspectorService.instance,
             builder: (context, child) {
-              final logs = InspectorService.instance.logEntries;
-              final filteredLogs = _filterLevel != null
-                  ? logs.where((e) => e.level == _filterLevel).toList()
-                  : logs;
+              final logs = _filterLogs(InspectorService.instance.logEntries);
+
+              if (logs.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.subject_rounded,
+                          size: 36,
+                          color: InspectorColors.textHint,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _searchKeyword.isEmpty && _filterLevel == null
+                              ? 'No logs yet'
+                              : 'No matching logs',
+                          style: TextStyle(
+                            color: InspectorColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
 
               return ListView.builder(
-                itemCount: filteredLogs.length,
-                itemBuilder: (context, index) =>
-                    _buildLogItem(filteredLogs[index]),
+                itemCount: logs.length,
+                itemBuilder: (context, index) => _buildLogItem(logs[index]),
               );
             },
           ),
         ),
       ],
     );
+  }
+
+  /// 模糊搜索和级别过滤日志 / Filter logs with fuzzy search and level filter
+  List<LogEntry> _filterLogs(List<LogEntry> logs) {
+    var result = logs;
+
+    if (_filterLevel != null) {
+      result = result.where((e) => e.level == _filterLevel).toList();
+    }
+
+    if (_searchKeyword.isNotEmpty) {
+      final keyword = _searchKeyword.toLowerCase();
+      result = result.where((e) {
+        return e.message.toLowerCase().contains(keyword) ||
+            (e.tag != null && e.tag!.toLowerCase().contains(keyword));
+      }).toList();
+    }
+
+    return result;
   }
 
   /// 构建工具栏 / Build toolbar
@@ -81,6 +137,69 @@ class _LogViewerState extends State<LogViewer> {
           ),
         );
       },
+    );
+  }
+
+  /// 构建搜索栏 / Build search bar
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: InspectorColors.surface,
+        border: Border(bottom: BorderSide(color: InspectorColors.border)),
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (value) => setState(() => _searchKeyword = value),
+        style: TextStyle(
+          color: InspectorColors.textPrimary,
+          fontSize: 12,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Search message, tag...',
+          hintStyle: TextStyle(
+            color: InspectorColors.textHint,
+            fontSize: 12,
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            size: 16,
+            color: InspectorColors.textSecondary,
+          ),
+          suffixIcon: _searchKeyword.isNotEmpty
+              ? GestureDetector(
+                  onTap: () {
+                    _searchController.clear();
+                    setState(() => _searchKeyword = '');
+                  },
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: InspectorColors.textSecondary,
+                  ),
+                )
+              : null,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          filled: true,
+          fillColor: InspectorColors.card,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
+            borderSide: BorderSide(color: InspectorColors.border, width: 1),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
+            borderSide: BorderSide(color: InspectorColors.border, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
+            borderSide: BorderSide(color: InspectorColors.accent, width: 1),
+          ),
+        ),
+      ),
     );
   }
 

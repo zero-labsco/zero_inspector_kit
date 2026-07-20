@@ -5,7 +5,7 @@ import '../services/inspector_service.dart';
 import 'theme/inspector_theme.dart';
 
 /// 网络请求查看器 / Network request viewer
-/// 显示所有捕获的网络请求，支持查看详细信息 / Display all captured network requests, support viewing detailed information
+/// 显示所有捕获的网络请求，支持搜索和查看详细信息 / Display all captured network requests, support search and viewing details
 class NetworkViewer extends StatefulWidget {
   const NetworkViewer({super.key});
 
@@ -14,44 +14,35 @@ class NetworkViewer extends StatefulWidget {
 }
 
 class _NetworkViewerState extends State<NetworkViewer> {
-  /// 当前选中的请求 / Currently selected request
+  /// 搜索关键词 / Search keyword
+  String _searchKeyword = '';
+
+  /// 搜索控制器 / Search controller
+  final TextEditingController _searchController = TextEditingController();
+
+  /// 当前选中的请求（null 显示列表，非 null 显示详情）/ Currently selected request
   NetworkRequest? _selectedRequest;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         _buildToolbar(),
+        _buildSearchBar(),
         Expanded(
           child: ListenableBuilder(
             listenable: InspectorService.instance,
             builder: (context, child) {
-              final requests = InspectorService.instance.networkRequests;
-
-              return Row(
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          right: BorderSide(color: InspectorColors.border),
-                        ),
-                      ),
-                      child: ListView.builder(
-                        itemCount: requests.length,
-                        itemBuilder: (context, index) =>
-                            _buildRequestItem(requests[index]),
-                      ),
-                    ),
-                  ),
-                  if (_selectedRequest != null)
-                    Expanded(
-                      flex: 1,
-                      child: _buildRequestDetail(_selectedRequest!),
-                    ),
-                ],
-              );
+              if (_selectedRequest != null) {
+                return _buildRequestDetail(_selectedRequest!);
+              }
+              return _buildRequestList();
             },
           ),
         ),
@@ -72,12 +63,18 @@ class _NetworkViewerState extends State<NetworkViewer> {
           ),
           child: Row(
             children: [
+              if (_selectedRequest != null)
+                _buildIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  tooltip: 'Back',
+                  onTap: () => setState(() => _selectedRequest = null),
+                ),
               _buildCountBadge(
                 '${InspectorService.instance.networkRequests.length}',
               ),
               const SizedBox(width: 8),
               Text(
-                'Requests',
+                _selectedRequest != null ? 'Request Detail' : 'Requests',
                 style: TextStyle(
                   color: InspectorColors.textPrimary,
                   fontSize: 13,
@@ -94,6 +91,71 @@ class _NetworkViewerState extends State<NetworkViewer> {
           ),
         );
       },
+    );
+  }
+
+  /// 构建搜索栏 / Build search bar
+  Widget _buildSearchBar() {
+    if (_selectedRequest != null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: InspectorColors.surface,
+        border: Border(bottom: BorderSide(color: InspectorColors.border)),
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (value) => setState(() => _searchKeyword = value),
+        style: TextStyle(
+          color: InspectorColors.textPrimary,
+          fontSize: 12,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Search URL, method...',
+          hintStyle: TextStyle(
+            color: InspectorColors.textHint,
+            fontSize: 12,
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            size: 16,
+            color: InspectorColors.textSecondary,
+          ),
+          suffixIcon: _searchKeyword.isNotEmpty
+              ? GestureDetector(
+                  onTap: () {
+                    _searchController.clear();
+                    setState(() => _searchKeyword = '');
+                  },
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: InspectorColors.textSecondary,
+                  ),
+                )
+              : null,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          filled: true,
+          fillColor: InspectorColors.card,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
+            borderSide: BorderSide(color: InspectorColors.border, width: 1),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
+            borderSide: BorderSide(color: InspectorColors.border, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
+            borderSide: BorderSide(color: InspectorColors.accent, width: 1),
+          ),
+        ),
+      ),
     );
   }
 
@@ -122,26 +184,75 @@ class _NetworkViewerState extends State<NetworkViewer> {
     required String tooltip,
     required VoidCallback onTap,
   }) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            child: Icon(icon, color: InspectorColors.textSecondary, size: 18),
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              child: Icon(icon, color: InspectorColors.textSecondary, size: 18),
+            ),
           ),
         ),
       ),
     );
   }
 
+  /// 模糊搜索过滤请求 / Filter requests with fuzzy search
+  List<NetworkRequest> _filterRequests(List<NetworkRequest> requests) {
+    if (_searchKeyword.isEmpty) return requests;
+    final keyword = _searchKeyword.toLowerCase();
+    return requests.where((req) {
+      return req.url.toLowerCase().contains(keyword) ||
+          req.method.toLowerCase().contains(keyword);
+    }).toList();
+  }
+
+  /// 构建请求列表 / Build request list
+  Widget _buildRequestList() {
+    final requests = _filterRequests(InspectorService.instance.networkRequests);
+
+    if (requests.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.http_rounded,
+                size: 36,
+                color: InspectorColors.textHint,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _searchKeyword.isEmpty
+                    ? 'No requests yet'
+                    : 'No matching requests',
+                style: TextStyle(
+                  color: InspectorColors.textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: requests.length,
+      itemBuilder: (context, index) => _buildRequestItem(requests[index]),
+    );
+  }
+
   /// 构建单个请求项 / Build single request item
   Widget _buildRequestItem(NetworkRequest request) {
-    final isSelected = _selectedRequest?.id == request.id;
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -149,7 +260,6 @@ class _NetworkViewerState extends State<NetworkViewer> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? InspectorColors.selected : Colors.transparent,
             border: Border(
               left: BorderSide(
                 color: _getStatusColor(request.status),

@@ -2,6 +2,8 @@
 
 一个功能强大的 Flutter 插件，用于应用内开发者控制台，提供实时调试工具，包括网络请求检查、日志记录、数据库查看和路由追踪。
 
+🌐 **[官方网站](https://www.zerolabsco.com/)**
+
 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
 ## 功能特性
@@ -22,7 +24,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.0.5
+  zero_inspector_kit: ^1.0.6
 ```
 
 ### GitHub
