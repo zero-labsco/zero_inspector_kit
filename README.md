@@ -15,7 +15,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 - **Route Tracker**: Monitor navigation history and current route information.
 - **Floating Button**: Accessible floating inspector button with breathing animation that slides in/out from the edge of the screen.
 - **Modern UI**: Beautiful dark theme with gradient design, customizable colors via centralized theme configuration.
-- **Cross-platform**: Works on Android, iOS, Linux, macOS, and Windows.
+- **Cross-platform**: Works on Android and iOS.
 
 ## Installation
 
