@@ -8,7 +8,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 
 ## Features
 
-- **Zero Invasion**: Integrate with just **1 line of code**, no need to modify any existing project code (http package users only).
+- **Zero Invasion**: Integrate with just **1 line of code**, no need to modify any existing project code.
 - **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency. Supports modifying request parameters via interceptor rules.
 - **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
 - **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
