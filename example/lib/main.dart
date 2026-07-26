@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
@@ -356,6 +357,69 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // ==================== Memory 测试 / Memory Tests ====================
+
+  /// 保存加载的图片引用，防止被 GC 回收 / Keep image references to prevent GC
+  final List<Widget> _loadedImages = [];
+
+  /// 加载测试图片（测试图片缓存）/ Load test images (test image cache)
+  Future<void> _loadTestImages() async {
+    final imageUrls = [
+      'https://picsum.photos/200/200?random=1',
+      'https://picsum.photos/200/200?random=2',
+      'https://picsum.photos/200/200?random=3',
+      'https://picsum.photos/200/200?random=4',
+      'https://picsum.photos/400/400?random=5',
+    ];
+
+    for (final url in imageUrls) {
+      try {
+        final imageProvider = NetworkImage(url);
+        final completer = Completer<void>();
+        final stream = imageProvider.resolve(const ImageConfiguration());
+        final listener = ImageStreamListener(
+          (_, __) {
+            if (!completer.isCompleted) {
+              completer.complete();
+            }
+          },
+          onError: (error, stackTrace) {
+            if (!completer.isCompleted) {
+              completer.completeError(error, stackTrace);
+            }
+          },
+        );
+        stream.addListener(listener);
+        await completer.future;
+        _loadedImages.add(Image.network(url, width: 100, height: 100));
+      } catch (e) {
+        print('Failed to load image: $url - $e');
+      }
+    }
+    print(
+      'Loaded ${imageUrls.length} test images (total: ${_loadedImages.length})',
+    );
+  }
+
+  /// 分配内存（测试堆内存监控）/ Allocate memory (test heap monitoring)
+  void _allocateMemory() {
+    // 分配约 10MB 的内存 / Allocate approximately 10MB of memory
+    final data = List.generate(10000, (_) => List.filled(1000, 'x' * 100));
+    print('Allocated ~10MB of memory (${data.length} lists)');
+    // 保持引用，防止立即被 GC 回收 / Keep reference to prevent immediate GC
+    _memoryHolders.add(data);
+  }
+
+  /// 保持内存引用的列表 / List to hold memory references
+  final List<dynamic> _memoryHolders = [];
+
+  /// 手动触发 GC / Manually trigger GC
+  void _triggerGC() {
+    // 清除引用，让 GC 可以回收 / Clear references for GC
+    _memoryHolders.clear();
+    print('Cleared memory references, GC will collect them');
+  }
+
   /// 使用 print() 输出不同级别的日志 / Output logs of different levels using print()
   /// 检查器会根据前缀自动识别日志级别（[VERBOSE]、[DEBUG]、[INFO]、[WARNING]、[ERROR]）
   /// Inspector auto-detects log level based on prefix ([VERBOSE], [DEBUG], [INFO], [WARNING], [ERROR])
@@ -504,6 +568,36 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 12),
               const Text(
                 'Test database with users and posts tables\nis auto-created on app startup',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Memory',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () {
+                  _loadTestImages();
+                },
+                child: const Text('Load Test Images'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _allocateMemory,
+                child: const Text('Allocate Memory (10MB)'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _triggerGC,
+                child: const Text('Trigger GC'),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Load images to test image cache\n'
+                'Allocate memory to test heap monitoring\n'
+                'Trigger GC to test garbage collection',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey, fontSize: 14),
               ),

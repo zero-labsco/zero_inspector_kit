@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.0.9
+
+**新功能 / New Features:**
+
+- 新增内存监控面板（Memory Viewer）
+  - Added memory monitoring panel (Memory Viewer)
+- 图片缓存监控：实时显示缓存大小、数量、加载中/使用中状态
+  - Image cache monitoring: real-time display of cache size, count, pending/live status
+- 图片缓存清理：一键清除所有图片缓存
+  - Image cache cleanup: one-click clear all image cache
+- 应用存储统计：文档目录、临时缓存、数据库文件大小统计
+  - App storage stats: documents directory, temp cache, database file size statistics
+- 应用缓存清理：一键清除应用临时缓存
+  - App cache cleanup: one-click clear app temp cache
+
+**修复 / Bug Fixes:**
+
+- 修复 SQLite 警告：将 SQL 语句中的双引号字符串改为单引号
+  - Fix SQLite warning: change double-quoted strings to single quotes in SQL statements
+- 修复 TabBar 在小屏幕设备上的溢出问题，支持自适应滚动
+  - Fix TabBar overflow on small screen devices, support adaptive scrolling
+
+**说明 / Notes:**
+
+- Dart VM Heap 内存监控和趋势图功能暂时移除（Android 真机上 VM Service 连接问题），将在后续版本恢复
+  - Dart VM Heap memory monitoring and trend chart features are temporarily removed (VM Service connection issue on Android real devices), will be restored in future versions
+
 ## 1.0.8
 
 **修复 / Bug Fixes:**

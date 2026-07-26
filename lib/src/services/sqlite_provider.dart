@@ -59,7 +59,7 @@ class SqliteDatabaseProvider implements DatabaseProvider {
     final tables = <TableInfo>[];
     try {
       final result = await db.rawQuery(
-        'SELECT name FROM sqlite_master WHERE type="table"',
+        "SELECT name FROM sqlite_master WHERE type='table'",
       );
 
       for (final row in result) {

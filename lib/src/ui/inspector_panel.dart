@@ -3,6 +3,7 @@ import 'theme/inspector_theme.dart';
 import 'network_viewer.dart';
 import 'log_viewer.dart';
 import 'database_viewer.dart';
+import 'memory_viewer.dart';
 import 'route_viewer.dart';
 
 /// 检查器面板 / Inspector panel
@@ -27,17 +28,25 @@ class _InspectorPanelState extends State<InspectorPanel>
     NetworkViewer(),
     LogViewer(),
     DatabaseViewer(),
+    MemoryViewer(),
     RouteViewer(),
   ];
 
   /// 标签页标题 / Tab titles
-  final List<String> _titles = ['Network', 'Logs', 'Database', 'Routes'];
+  final List<String> _titles = const [
+    'Network',
+    'Logs',
+    'Database',
+    'Memory',
+    'Routes',
+  ];
 
   /// 标签页图标 / Tab icons
-  final List<IconData> _icons = [
+  final List<IconData> _icons = const [
     Icons.http_rounded,
     Icons.article_rounded,
     Icons.storage_rounded,
+    Icons.memory_rounded,
     Icons.route_rounded,
   ];
 
@@ -173,29 +182,45 @@ class _InspectorPanelState extends State<InspectorPanel>
           bottom: BorderSide(color: InspectorColors.border, width: 1),
         ),
       ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          gradient: InspectorGradients.tabIndicator,
-          borderRadius: BorderRadius.circular(InspectorDimensions.chipRadius),
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicatorPadding: const EdgeInsets.symmetric(vertical: 4),
-        dividerColor: Colors.transparent,
-        labelColor: InspectorColors.textPrimary,
-        unselectedLabelColor: InspectorColors.textSecondary,
-        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
-        ),
-        tabs: List.generate(_titles.length, (index) {
-          return Tab(
-            icon: Icon(_icons[index], size: 18),
-            text: _titles[index],
-            height: 44,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 5个Tab(图标+文字)在宽度小于360时需要滚动，否则均匀分布 / 5 tabs need scrolling when width < 360, otherwise evenly distributed
+          final isScrollable = constraints.maxWidth < 360;
+          return TabBar(
+            controller: _tabController,
+            isScrollable: isScrollable,
+            tabAlignment: isScrollable ? TabAlignment.start : TabAlignment.fill,
+            indicator: BoxDecoration(
+              gradient: InspectorGradients.tabIndicator,
+              borderRadius: BorderRadius.circular(InspectorDimensions.chipRadius),
+            ),
+            indicatorSize: isScrollable
+                ? TabBarIndicatorSize.label
+                : TabBarIndicatorSize.tab,
+            indicatorPadding: const EdgeInsets.symmetric(vertical: 4),
+            labelPadding: isScrollable
+                ? const EdgeInsets.symmetric(horizontal: 16)
+                : null,
+            dividerColor: Colors.transparent,
+            labelColor: InspectorColors.textPrimary,
+            unselectedLabelColor: InspectorColors.textSecondary,
+            labelStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+            ),
+            tabs: List.generate(_titles.length, (index) {
+              return Tab(
+                icon: Icon(_icons[index], size: 18),
+                text: _titles[index],
+                height: 44,
+              );
+            }),
           );
-        }),
+        },
       ),
     );
   }

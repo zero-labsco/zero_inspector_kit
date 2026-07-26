@@ -1,6 +1,6 @@
 # Zero Inspector Kit
 
-A powerful Flutter plugin for in-app developer console, providing real-time debugging tools including network request inspection, logging, database viewing, and route tracking.
+A powerful Flutter plugin for in-app developer console, providing real-time debugging tools including network request inspection, logging, database viewing, memory monitoring, and route tracking.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)**
 
@@ -9,9 +9,10 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 ## Features
 
 - **Zero Invasion**: Integrate with just **1 line of code**, no need to modify any existing project code.
-- **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency. Supports modifying request parameters via interceptor rules.
+- **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency. Supports modifying request body and headers via interceptor rules (for POST/PUT/PATCH requests).
 - **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
 - **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
+- **Memory Monitor**: Real-time image cache monitoring and app storage statistics. One-click cache cleanup.
 - **Route Tracker**: Monitor navigation history and current route information.
 - **Floating Button**: Accessible floating inspector button with breathing animation that slides in/out from the edge of the screen.
 - **Modern UI**: Beautiful dark theme with gradient design, customizable colors via centralized theme configuration.
@@ -25,7 +26,7 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.0.7
+  zero_inspector_kit: ^1.0.9
 ```
 
 ### GitHub
@@ -184,7 +185,7 @@ final response = await dio.post(
 
 ### Network Request Interceptor
 
-The inspector supports intercepting and modifying network requests via rules. This is useful for testing different API responses without modifying server code.
+The inspector supports intercepting and modifying network requests via rules. This is useful for testing different request parameters without modifying app code.
 
 **Workflow:**
 1. Send a request normally (it will be captured in the Network panel)
@@ -193,7 +194,17 @@ The inspector supports intercepting and modifying network requests via rules. Th
 4. Save the rule — subsequent matching requests will use the modified parameters
 
 **Supported modifications:**
-- Request body and headers
+- Request body and request headers
+- Only for requests with body (POST, PUT, PATCH, etc.)
+- GET requests are view-only and cannot be modified
+
+**Why can't GET requests be modified?**
+- The interceptor currently supports modifying request body and headers only
+- GET requests don't have a request body
+- Modifying GET request parameters would require URL modification
+- URL modification may cause unexpected issues with request routing and parameter encoding
+
+**Rule matching:**
 - URL pattern matching (exact match or regex)
 - HTTP method filtering (GET, POST, PUT, DELETE, PATCH, HEAD, or Any)
 
@@ -204,6 +215,24 @@ The inspector supports intercepting and modifying network requests via rules. Th
 ```dart
 DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
 ```
+
+### Memory Monitor
+
+The memory monitor provides real-time image cache monitoring and app storage statistics.
+
+**Image Cache Monitoring:**
+- Real-time display of image cache size and count
+- Shows pending (loading) and live (in use) image counts
+- Visual progress bar of cache usage
+- One-click clear all image cache
+
+**App Storage Statistics:**
+- Documents directory size
+- Temp cache directory size
+- Total database file size
+- One-click clear app temp cache
+
+**Note:** Dart VM Heap memory monitoring and trend chart are temporarily unavailable on Android real devices due to VM Service connection issues. These features will be restored in future versions.
 
 ## Custom Database Provider
 
