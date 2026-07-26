@@ -27,6 +27,51 @@ class _NetworkViewerState extends State<NetworkViewer> {
     super.dispose();
   }
 
+  void _showInterceptorEditor() {
+    final request = _selectedRequest!;
+    final existingRule = InspectorService.instance.findMatchingRule(
+      request.url,
+      request.method,
+    );
+
+    setState(() {
+      _editingRule =
+          existingRule ??
+          RequestInterceptorRule(
+            id: 'rule_${DateTime.now().millisecondsSinceEpoch}',
+            name: 'Rule for ${request.method} ${_getHost(request.url)}',
+            urlPattern: request.url,
+            method: request.method,
+            enabled: true,
+            useRegex: false,
+          );
+      _showInterceptorPanel = true;
+    });
+  }
+
+  void _saveRule(RequestInterceptorRule rule) {
+    InspectorService.instance.addInterceptorRule(rule);
+    setState(() {
+      _showInterceptorPanel = false;
+      _editingRule = null;
+    });
+  }
+
+  void _deleteRule(String ruleId) {
+    InspectorService.instance.removeInterceptorRule(ruleId);
+    setState(() {
+      _showInterceptorPanel = false;
+      _editingRule = null;
+    });
+  }
+
+  void _closePanel() {
+    setState(() {
+      _showInterceptorPanel = false;
+      _editingRule = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -48,12 +93,12 @@ class _NetworkViewerState extends State<NetworkViewer> {
               if (_showInterceptorPanel &&
                   _editingRule != null &&
                   _selectedRequest != null)
-                _InterceptorRulePanel(
+                InterceptorRulePanel(
                   request: _selectedRequest!,
-                  rule: _editingRule!,
-                  onUpdate: _updateEditingRule,
+                  initialRule: _editingRule!,
                   onSave: _saveRule,
                   onDelete: _deleteRule,
+                  onClose: _closePanel,
                 ),
             ],
           ),
@@ -66,8 +111,9 @@ class _NetworkViewerState extends State<NetworkViewer> {
     return ListenableBuilder(
       listenable: InspectorService.instance,
       builder: (context, child) {
+        final interceptorOn = InspectorService.instance.isInterceptorEnabled;
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: InspectorColors.surface,
             border: Border(bottom: BorderSide(color: InspectorColors.border)),
@@ -88,7 +134,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
               _buildCountBadge(
                 '${InspectorService.instance.networkRequests.length}',
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 _selectedRequest != null ? 'Request Detail' : 'Requests',
                 style: TextStyle(
@@ -98,7 +144,12 @@ class _NetworkViewerState extends State<NetworkViewer> {
                 ),
               ),
               const Spacer(),
-              if (_selectedRequest != null)
+              // 拦截总开关 / Interceptor master switch（仅列表页显示）
+              if (_selectedRequest == null)
+                _buildInterceptorSwitch(interceptorOn),
+              if (_selectedRequest != null &&
+                  interceptorOn &&
+                  _selectedRequest!.method.toUpperCase() != 'GET')
                 _buildIconButton(
                   icon: Icons.edit_note_rounded,
                   tooltip: 'Interceptor',
@@ -114,6 +165,55 @@ class _NetworkViewerState extends State<NetworkViewer> {
           ),
         );
       },
+    );
+  }
+
+  /// 构建拦截总开关 / Build interceptor master switch
+  /// 盾牌图标 + Intercept 字样，点击切换 / Shield icon + Intercept text, tap to toggle
+  Widget _buildInterceptorSwitch(bool enabled) {
+    return Tooltip(
+      message: enabled ? 'Interceptor: ON' : 'Interceptor: OFF',
+      child: GestureDetector(
+        onTap: () {
+          InspectorService.instance.isInterceptorEnabled = !enabled;
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: enabled
+                ? InspectorColors.accent.withValues(alpha: 0.15)
+                : InspectorColors.card,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: enabled ? InspectorColors.accent : InspectorColors.border,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                enabled ? Icons.shield_rounded : Icons.shield_outlined,
+                size: 14,
+                color: enabled
+                    ? InspectorColors.accent
+                    : InspectorColors.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Intercept',
+                style: TextStyle(
+                  color: enabled
+                      ? InspectorColors.accent
+                      : InspectorColors.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -415,6 +515,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
           request.method,
         ) !=
         null;
+    final interceptorOn = InspectorService.instance.isInterceptorEnabled;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -440,15 +541,16 @@ class _NetworkViewerState extends State<NetworkViewer> {
                     color: InspectorColors.accent,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Interceptor enabled for this request',
-                    style: TextStyle(
-                      color: InspectorColors.accent,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Text(
+                      'Interceptor rule active',
+                      style: TextStyle(
+                        color: InspectorColors.accent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   TextButton(
                     onPressed: () => _showInterceptorEditor(),
                     child: Text(
@@ -457,6 +559,40 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         color: InspectorColors.accent,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (!interceptorOn)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: InspectorColors.textSecondary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(
+                  InspectorDimensions.smallRadius,
+                ),
+                border: Border.all(
+                  color: InspectorColors.textSecondary,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.shield_outlined,
+                    size: 14,
+                    color: InspectorColors.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Interceptor is OFF. Enable it from the request list to modify requests.',
+                      style: TextStyle(
+                        color: InspectorColors.textSecondary,
+                        fontSize: 11,
                       ),
                     ),
                   ),
@@ -582,71 +718,94 @@ class _NetworkViewerState extends State<NetworkViewer> {
       return data.toString();
     }
   }
-
-  void _showInterceptorEditor() {
-    final request = _selectedRequest!;
-    final existingRule = InspectorService.instance.findMatchingRule(
-      request.url,
-      request.method,
-    );
-
-    setState(() {
-      _editingRule =
-          existingRule ??
-          RequestInterceptorRule(
-            id: 'rule_${DateTime.now().millisecondsSinceEpoch}',
-            name: 'Rule for ${request.method} ${_getHost(request.url)}',
-            urlPattern: request.url,
-            method: request.method,
-            enabled: true,
-            useRegex: false,
-          );
-      _showInterceptorPanel = true;
-    });
-  }
-
-  void _saveRule() {
-    if (_editingRule != null) {
-      InspectorService.instance.addInterceptorRule(_editingRule!);
-      setState(() {
-        _showInterceptorPanel = false;
-        _editingRule = null;
-      });
-    }
-  }
-
-  void _deleteRule() {
-    if (_editingRule != null) {
-      InspectorService.instance.removeInterceptorRule(_editingRule!.id);
-      setState(() {
-        _showInterceptorPanel = false;
-        _editingRule = null;
-      });
-    }
-  }
-
-  void _updateEditingRule(RequestInterceptorRule rule) {
-    setState(() {
-      _editingRule = rule;
-    });
-  }
 }
 
 /// 拦截规则编辑面板 / Interceptor rule editor panel
-class _InterceptorRulePanel extends StatelessWidget {
+/// StatefulWidget 管理内部 controllers 避免焦点丢失
+/// StatefulWidget manages internal controllers to prevent focus loss
+class InterceptorRulePanel extends StatefulWidget {
   final NetworkRequest request;
-  final RequestInterceptorRule rule;
-  final void Function(RequestInterceptorRule) onUpdate;
-  final VoidCallback onSave;
-  final VoidCallback onDelete;
+  final RequestInterceptorRule initialRule;
+  final void Function(RequestInterceptorRule) onSave;
+  final void Function(String) onDelete;
+  final VoidCallback onClose;
 
-  const _InterceptorRulePanel({
+  const InterceptorRulePanel({
+    super.key,
     required this.request,
-    required this.rule,
-    required this.onUpdate,
+    required this.initialRule,
     required this.onSave,
     required this.onDelete,
+    required this.onClose,
   });
+
+  @override
+  State<InterceptorRulePanel> createState() => _InterceptorRulePanelState();
+}
+
+class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
+  late RequestInterceptorRule _rule;
+  late TextEditingController _nameController;
+  late TextEditingController _urlPatternController;
+  late TextEditingController _requestBodyController;
+  late TextEditingController _responseStatusCodeController;
+  late TextEditingController _responseBodyController;
+
+  @override
+  void initState() {
+    super.initState();
+    _rule = widget.initialRule;
+
+    _nameController = TextEditingController(text: _rule.name);
+    _urlPatternController = TextEditingController(text: _rule.urlPattern);
+    _requestBodyController = TextEditingController(
+      text: _formatBody(_rule.requestBody ?? widget.request.body),
+    );
+    _responseStatusCodeController = TextEditingController(
+      text:
+          _rule.responseStatusCode?.toString() ??
+          widget.request.statusCode?.toString() ??
+          '',
+    );
+    _responseBodyController = TextEditingController(
+      text: _formatBody(_rule.responseBody ?? widget.request.responseBody),
+    );
+  }
+
+  String _formatBody(dynamic body) {
+    if (body == null) return '';
+    if (body is String) return body;
+    try {
+      return const JsonEncoder.withIndent('  ').convert(body);
+    } catch (_) {
+      return body.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _urlPatternController.dispose();
+    _requestBodyController.dispose();
+    _responseStatusCodeController.dispose();
+    _responseBodyController.dispose();
+    super.dispose();
+  }
+
+  void _updateRule(RequestInterceptorRule newRule) {
+    setState(() {
+      _rule = newRule;
+    });
+  }
+
+  dynamic _parseBody(String value) {
+    if (value.isEmpty) return null;
+    try {
+      return jsonDecode(value);
+    } catch (_) {
+      return value;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -667,6 +826,9 @@ class _InterceptorRulePanel extends StatelessWidget {
   }
 
   Widget _buildHeader() {
+    final isExisting = InspectorService.instance.interceptorRules.any(
+      (r) => r.id == _rule.id,
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -689,12 +851,9 @@ class _InterceptorRulePanel extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          if (rule.id.isNotEmpty &&
-              InspectorService.instance.interceptorRules.any(
-                (r) => r.id == rule.id,
-              ))
+          if (isExisting)
             TextButton(
-              onPressed: onDelete,
+              onPressed: () => widget.onDelete(_rule.id),
               child: Text(
                 'Delete',
                 style: TextStyle(
@@ -703,6 +862,16 @@ class _InterceptorRulePanel extends StatelessWidget {
                 ),
               ),
             ),
+          TextButton(
+            onPressed: widget.onClose,
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: InspectorColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -737,33 +906,31 @@ class _InterceptorRulePanel extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         TextField(
-          controller: TextEditingController(text: rule.name),
+          controller: _nameController,
           style: TextStyle(color: InspectorColors.textPrimary, fontSize: 13),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: InspectorColors.card,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(
-                InspectorDimensions.smallRadius,
-              ),
-              borderSide: BorderSide(color: InspectorColors.border, width: 1),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(
-                InspectorDimensions.smallRadius,
-              ),
-              borderSide: BorderSide(color: InspectorColors.border, width: 1),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(
-                InspectorDimensions.smallRadius,
-              ),
-              borderSide: BorderSide(color: InspectorColors.accent, width: 1),
-            ),
-          ),
-          onChanged: (value) => onUpdate(rule.copyWith(name: value)),
+          decoration: _buildInputDecoration(),
+          onChanged: (value) => _updateRule(_rule.copyWith(name: value)),
         ),
       ],
+    );
+  }
+
+  InputDecoration _buildInputDecoration() {
+    return InputDecoration(
+      filled: true,
+      fillColor: InspectorColors.card,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: InspectorColors.border, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: InspectorColors.border, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: InspectorColors.accent, width: 1),
+      ),
     );
   }
 
@@ -792,15 +959,16 @@ class _InterceptorRulePanel extends StatelessWidget {
               ),
               const Spacer(),
               Switch(
-                value: rule.enabled,
-                onChanged: (value) => onUpdate(rule.copyWith(enabled: value)),
+                value: _rule.enabled,
+                onChanged: (value) =>
+                    _updateRule(_rule.copyWith(enabled: value)),
                 activeThumbColor: InspectorColors.accent,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               Text(
-                rule.enabled ? 'Enabled' : 'Disabled',
+                _rule.enabled ? 'Enabled' : 'Disabled',
                 style: TextStyle(
-                  color: rule.enabled
+                  color: _rule.enabled
                       ? InspectorColors.statusSuccess
                       : InspectorColors.textSecondary,
                   fontSize: 11,
@@ -824,7 +992,7 @@ class _InterceptorRulePanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'URL Pattern',
+          'URL Pattern (for matching)',
           style: TextStyle(
             color: InspectorColors.textSecondary,
             fontSize: 11,
@@ -833,25 +1001,10 @@ class _InterceptorRulePanel extends StatelessWidget {
         ),
         const SizedBox(height: 5),
         TextField(
-          controller: TextEditingController(text: rule.urlPattern),
+          controller: _urlPatternController,
           style: TextStyle(color: InspectorColors.textPrimary, fontSize: 12),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: InspectorColors.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: InspectorColors.border, width: 1),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: InspectorColors.border, width: 1),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: InspectorColors.accent, width: 1),
-            ),
-          ),
-          onChanged: (value) => onUpdate(rule.copyWith(urlPattern: value)),
+          decoration: _buildInputDecoration(),
+          onChanged: (value) => _updateRule(_rule.copyWith(urlPattern: value)),
         ),
       ],
     );
@@ -871,34 +1024,20 @@ class _InterceptorRulePanel extends StatelessWidget {
         ),
         const SizedBox(height: 5),
         DropdownButtonFormField<String>(
-          initialValue: rule.method.isNotEmpty ? rule.method : null,
-          items: [
-            const DropdownMenuItem(value: '', child: Text('Any')),
-            const DropdownMenuItem(value: 'GET', child: Text('GET')),
-            const DropdownMenuItem(value: 'POST', child: Text('POST')),
-            const DropdownMenuItem(value: 'PUT', child: Text('PUT')),
-            const DropdownMenuItem(value: 'DELETE', child: Text('DELETE')),
-            const DropdownMenuItem(value: 'PATCH', child: Text('PATCH')),
-            const DropdownMenuItem(value: 'HEAD', child: Text('HEAD')),
+          initialValue: _rule.method.isNotEmpty ? _rule.method : null,
+          items: const [
+            DropdownMenuItem(value: '', child: Text('Any')),
+            DropdownMenuItem(value: 'GET', child: Text('GET')),
+            DropdownMenuItem(value: 'POST', child: Text('POST')),
+            DropdownMenuItem(value: 'PUT', child: Text('PUT')),
+            DropdownMenuItem(value: 'DELETE', child: Text('DELETE')),
+            DropdownMenuItem(value: 'PATCH', child: Text('PATCH')),
+            DropdownMenuItem(value: 'HEAD', child: Text('HEAD')),
           ],
-          onChanged: (value) => onUpdate(rule.copyWith(method: value ?? '')),
+          onChanged: (value) =>
+              _updateRule(_rule.copyWith(method: value ?? '')),
           style: TextStyle(color: InspectorColors.textPrimary, fontSize: 12),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: InspectorColors.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: InspectorColors.border, width: 1),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: InspectorColors.border, width: 1),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: InspectorColors.accent, width: 1),
-            ),
-          ),
+          decoration: _buildInputDecoration(),
         ),
       ],
     );
@@ -908,9 +1047,9 @@ class _InterceptorRulePanel extends StatelessWidget {
     return Row(
       children: [
         Checkbox(
-          value: rule.useRegex,
+          value: _rule.useRegex,
           onChanged: (value) =>
-              onUpdate(rule.copyWith(useRegex: value ?? false)),
+              _updateRule(_rule.copyWith(useRegex: value ?? false)),
           activeColor: InspectorColors.accent,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
@@ -952,78 +1091,108 @@ class _InterceptorRulePanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          _buildRequestBodyField(),
+          // 请求URL（置灰不可编辑）/ Request URL (disabled)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Request URL',
+                style: TextStyle(
+                  color: InspectorColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 5),
+              TextField(
+                controller: TextEditingController(text: widget.request.url),
+                readOnly: true,
+                enabled: false,
+                style: TextStyle(
+                  color: InspectorColors.textSecondary,
+                  fontSize: 11.5,
+                  fontFamily: 'monospace',
+                ),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: InspectorColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(
+                      color: InspectorColors.border,
+                      width: 1,
+                    ),
+                  ),
+                  disabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(
+                      color: InspectorColors.border,
+                      width: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // 请求体 / Request body
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Request Body',
+                style: TextStyle(
+                  color: InspectorColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 5),
+              SizedBox(
+                height: 120,
+                child: TextField(
+                  controller: _requestBodyController,
+                  maxLines: null,
+                  expands: true,
+                  style: TextStyle(
+                    color: InspectorColors.textPrimary,
+                    fontSize: 11.5,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: InspectorColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: InspectorColors.border,
+                        width: 1,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: InspectorColors.border,
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: InspectorColors.accent,
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    _updateRule(_rule.copyWith(requestBody: _parseBody(value)));
+                  },
+                ),
+              ),
+            ],
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildRequestBodyField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Request Body',
-          style: TextStyle(
-            color: InspectorColors.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 5),
-        SizedBox(
-          height: 120,
-          child: TextField(
-            maxLines: null,
-            expands: true,
-            controller: TextEditingController(
-              text: rule.requestBody != null
-                  ? (rule.requestBody is String
-                        ? rule.requestBody
-                        : const JsonEncoder.withIndent(
-                            '  ',
-                          ).convert(rule.requestBody))
-                  : (request.body != null
-                        ? (request.body is String
-                              ? request.body
-                              : const JsonEncoder.withIndent(
-                                  '  ',
-                                ).convert(request.body))
-                        : ''),
-            ),
-            style: TextStyle(
-              color: InspectorColors.textPrimary,
-              fontSize: 11.5,
-              fontFamily: 'monospace',
-            ),
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: InspectorColors.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: InspectorColors.border, width: 1),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: InspectorColors.border, width: 1),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: InspectorColors.accent, width: 1),
-              ),
-            ),
-            onChanged: (value) {
-              dynamic parsedBody;
-              try {
-                parsedBody = jsonDecode(value);
-              } catch (_) {
-                parsedBody = value;
-              }
-              onUpdate(rule.copyWith(requestBody: parsedBody));
-            },
-          ),
-        ),
-      ],
     );
   }
 
@@ -1057,138 +1226,129 @@ class _InterceptorRulePanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          _buildResponseStatusCodeField(),
+          // 状态码 / Status code
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Status Code',
+                style: TextStyle(
+                  color: InspectorColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 5),
+              TextField(
+                controller: _responseStatusCodeController,
+                keyboardType: TextInputType.number,
+                style: TextStyle(
+                  color: InspectorColors.textPrimary,
+                  fontSize: 12,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Leave empty to use original',
+                  hintStyle: TextStyle(
+                    color: InspectorColors.textHint,
+                    fontSize: 11,
+                  ),
+                  filled: true,
+                  fillColor: InspectorColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(
+                      color: InspectorColors.border,
+                      width: 1,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(
+                      color: InspectorColors.border,
+                      width: 1,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(
+                      color: InspectorColors.accent,
+                      width: 1,
+                    ),
+                  ),
+                ),
+                onChanged: (value) {
+                  final code = int.tryParse(value);
+                  _updateRule(_rule.copyWith(responseStatusCode: code));
+                },
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
-          _buildResponseBodyField(),
+          // 响应体 / Response body
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Response Body',
+                style: TextStyle(
+                  color: InspectorColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 5),
+              SizedBox(
+                height: 150,
+                child: TextField(
+                  controller: _responseBodyController,
+                  maxLines: null,
+                  expands: true,
+                  style: TextStyle(
+                    color: InspectorColors.textPrimary,
+                    fontSize: 11.5,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Leave empty to use original',
+                    hintStyle: TextStyle(
+                      color: InspectorColors.textHint,
+                      fontSize: 11,
+                    ),
+                    filled: true,
+                    fillColor: InspectorColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: InspectorColors.border,
+                        width: 1,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: InspectorColors.border,
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: InspectorColors.accent,
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    _updateRule(
+                      _rule.copyWith(responseBody: _parseBody(value)),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildResponseStatusCodeField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Status Code',
-          style: TextStyle(
-            color: InspectorColors.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 5),
-        TextField(
-          keyboardType: TextInputType.number,
-          controller: TextEditingController(
-            text:
-                rule.responseStatusCode?.toString() ??
-                request.statusCode?.toString() ??
-                '',
-          ),
-          style: TextStyle(color: InspectorColors.textPrimary, fontSize: 12),
-          decoration: InputDecoration(
-            hintText: 'Leave empty to use original',
-            hintStyle: TextStyle(color: InspectorColors.textHint, fontSize: 11),
-            filled: true,
-            fillColor: InspectorColors.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: InspectorColors.border, width: 1),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: InspectorColors.border, width: 1),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: InspectorColors.accent, width: 1),
-            ),
-          ),
-          onChanged: (value) {
-            final code = int.tryParse(value);
-            onUpdate(rule.copyWith(responseStatusCode: code));
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildResponseBodyField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Response Body',
-          style: TextStyle(
-            color: InspectorColors.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 5),
-        SizedBox(
-          height: 150,
-          child: TextField(
-            maxLines: null,
-            expands: true,
-            controller: TextEditingController(
-              text: rule.responseBody != null
-                  ? (rule.responseBody is String
-                        ? rule.responseBody
-                        : const JsonEncoder.withIndent(
-                            '  ',
-                          ).convert(rule.responseBody))
-                  : (request.responseBody != null
-                        ? (request.responseBody is String
-                              ? request.responseBody
-                              : const JsonEncoder.withIndent(
-                                  '  ',
-                                ).convert(request.responseBody))
-                        : ''),
-            ),
-            style: TextStyle(
-              color: InspectorColors.textPrimary,
-              fontSize: 11.5,
-              fontFamily: 'monospace',
-            ),
-            decoration: InputDecoration(
-              hintText: 'Leave empty to use original',
-              hintStyle: TextStyle(
-                color: InspectorColors.textHint,
-                fontSize: 11,
-              ),
-              filled: true,
-              fillColor: InspectorColors.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: InspectorColors.border, width: 1),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: InspectorColors.border, width: 1),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: InspectorColors.accent, width: 1),
-              ),
-            ),
-            onChanged: (value) {
-              if (value.isEmpty) {
-                onUpdate(rule.copyWith(responseBody: null));
-                return;
-              }
-              dynamic parsedBody;
-              try {
-                parsedBody = jsonDecode(value);
-              } catch (_) {
-                parsedBody = value;
-              }
-              onUpdate(rule.copyWith(responseBody: parsedBody));
-            },
-          ),
-        ),
-      ],
     );
   }
 
@@ -1202,7 +1362,7 @@ class _InterceptorRulePanel extends StatelessWidget {
         children: [
           Expanded(
             child: ElevatedButton(
-              onPressed: onSave,
+              onPressed: () => widget.onSave(_rule),
               style: ElevatedButton.styleFrom(
                 backgroundColor: InspectorColors.accent,
                 padding: const EdgeInsets.symmetric(vertical: 10),

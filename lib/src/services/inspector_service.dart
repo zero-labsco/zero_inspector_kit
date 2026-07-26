@@ -32,6 +32,18 @@ class InspectorService extends ChangeNotifier {
   /// 拦截规则列表 / Interceptor rule list
   final List<RequestInterceptorRule> _interceptorRules = [];
 
+  /// 拦截总开关 / Interceptor master switch
+  bool _interceptorEnabled = false;
+
+  /// 获取拦截总开关状态 / Get interceptor master switch state
+  bool get isInterceptorEnabled => _interceptorEnabled;
+
+  /// 设置拦截总开关 / Set interceptor master switch
+  set isInterceptorEnabled(bool value) {
+    _interceptorEnabled = value;
+    notifyListeners();
+  }
+
   /// 最大存储条目数，超过后自动裁剪 / Maximum number of items to store, auto-trim when exceeded
   final int _maxItems = 100;
 
@@ -135,6 +147,7 @@ class InspectorService extends ChangeNotifier {
   /// [url] 请求URL / Request URL
   /// [method] 请求方法 / Request method
   RequestInterceptorRule? findMatchingRule(String url, String method) {
+    if (!_interceptorEnabled) return null;
     for (final rule in _interceptorRules) {
       if (rule.matches(url, method)) {
         return rule;
