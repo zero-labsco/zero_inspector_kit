@@ -1216,7 +1216,7 @@ class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
               ),
               const SizedBox(width: 6),
               Text(
-                'Modify Response',
+                'Response',
                 style: TextStyle(
                   color: InspectorColors.success,
                   fontSize: 12,
@@ -1241,17 +1241,14 @@ class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
               const SizedBox(height: 5),
               TextField(
                 controller: _responseStatusCodeController,
+                enabled: false,
+                readOnly: true,
                 keyboardType: TextInputType.number,
                 style: TextStyle(
-                  color: InspectorColors.textPrimary,
+                  color: InspectorColors.textSecondary,
                   fontSize: 12,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Leave empty to use original',
-                  hintStyle: TextStyle(
-                    color: InspectorColors.textHint,
-                    fontSize: 11,
-                  ),
                   filled: true,
                   fillColor: InspectorColors.surface,
                   border: OutlineInputBorder(
@@ -1261,25 +1258,14 @@ class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
                       width: 1,
                     ),
                   ),
-                  enabledBorder: OutlineInputBorder(
+                  disabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(6),
                     borderSide: BorderSide(
                       color: InspectorColors.border,
                       width: 1,
                     ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(
-                      color: InspectorColors.accent,
-                      width: 1,
-                    ),
-                  ),
                 ),
-                onChanged: (value) {
-                  final code = int.tryParse(value);
-                  _updateRule(_rule.copyWith(responseStatusCode: code));
-                },
               ),
             ],
           ),
@@ -1301,19 +1287,16 @@ class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
                 height: 150,
                 child: TextField(
                   controller: _responseBodyController,
+                  enabled: false,
+                  readOnly: true,
                   maxLines: null,
                   expands: true,
                   style: TextStyle(
-                    color: InspectorColors.textPrimary,
+                    color: InspectorColors.textSecondary,
                     fontSize: 11.5,
                     fontFamily: 'monospace',
                   ),
                   decoration: InputDecoration(
-                    hintText: 'Leave empty to use original',
-                    hintStyle: TextStyle(
-                      color: InspectorColors.textHint,
-                      fontSize: 11,
-                    ),
                     filled: true,
                     fillColor: InspectorColors.surface,
                     border: OutlineInputBorder(
@@ -1323,26 +1306,14 @@ class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
                         width: 1,
                       ),
                     ),
-                    enabledBorder: OutlineInputBorder(
+                    disabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(6),
                       borderSide: BorderSide(
                         color: InspectorColors.border,
                         width: 1,
                       ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(
-                        color: InspectorColors.accent,
-                        width: 1,
-                      ),
-                    ),
                   ),
-                  onChanged: (value) {
-                    _updateRule(
-                      _rule.copyWith(responseBody: _parseBody(value)),
-                    );
-                  },
                 ),
               ),
             ],

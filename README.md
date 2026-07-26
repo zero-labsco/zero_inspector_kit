@@ -9,7 +9,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 ## Features
 
 - **Zero Invasion**: Integrate with just **1 line of code**, no need to modify any existing project code (http package users only).
-- **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency.
+- **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency. Supports modifying request parameters via interceptor rules.
 - **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
 - **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
 - **Route Tracker**: Monitor navigation history and current route information.
@@ -189,12 +189,11 @@ The inspector supports intercepting and modifying network requests via rules. Th
 **Workflow:**
 1. Send a request normally (it will be captured in the Network panel)
 2. Open the request detail and tap the Interceptor icon
-3. Configure the modification rule (URL pattern, HTTP method, request/response modifications)
+3. Configure the modification rule (URL pattern, HTTP method, request modifications)
 4. Save the rule — subsequent matching requests will use the modified parameters
 
 **Supported modifications:**
 - Request body and headers
-- Response body, status code, and headers
 - URL pattern matching (exact match or regex)
 - HTTP method filtering (GET, POST, PUT, DELETE, PATCH, HEAD, or Any)
 

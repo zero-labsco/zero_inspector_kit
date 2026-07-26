@@ -1,15 +1,26 @@
 # Changelog
 
+## 1.0.8
+
+**修复 / Bug Fixes:**
+
+- 网络请求拦截修改功能：响应体和响应状态码改为只读，不允许修改
+  - Network request interceptor: response body and response status code are now read-only and cannot be modified
+- 修复拦截规则编辑面板中 Response 部分输入框可编辑的问题
+  - Fix issue where Response section input fields in interceptor rule editor were editable
+- 拦截功能现在仅支持修改请求体和请求头
+  - Interceptor now only supports modifying request body and request headers
+
 ## 1.0.7
 
 **新功能 / New Features:**
 
-- 网络请求拦截修改功能：支持拦截请求并修改请求参数和响应参数
-  - Network request interceptor: support intercepting requests and modifying request/response parameters
+- 网络请求拦截修改功能：支持拦截请求并修改请求参数
+  - Network request interceptor: support intercepting requests and modifying request parameters
 - 支持基于 URL + HTTP Method 的规则匹配（精确匹配和正则匹配）
   - Support URL + HTTP Method based rule matching (exact match and regex match)
-- 支持修改请求体、请求头、响应体、响应状态码
-  - Support modifying request body, request headers, response body, and response status code
+- 支持修改请求体和请求头
+  - Support modifying request body and request headers
 - 网络面板新增拦截规则编辑器，可创建/编辑/启用/禁用/删除规则
   - Network panel adds interceptor rule editor, can create/edit/enable/disable/delete rules
 - 请求列表显示拦截规则状态标识
