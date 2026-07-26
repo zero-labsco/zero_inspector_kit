@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/network_request.dart';
 import '../models/log_entry.dart';
 import '../models/route_entry.dart';
+import '../models/interceptor_rule.dart';
 
 /// 检查器服务，用于管理所有收集的数据 / Inspector service for managing all collected data
 ///
@@ -28,12 +29,19 @@ class InspectorService extends ChangeNotifier {
   /// 路由记录列表 / Route record list
   final List<RouteEntry> _routeEntries = [];
 
+  /// 拦截规则列表 / Interceptor rule list
+  final List<RequestInterceptorRule> _interceptorRules = [];
+
   /// 最大存储条目数，超过后自动裁剪 / Maximum number of items to store, auto-trim when exceeded
   final int _maxItems = 100;
 
   /// 获取网络请求列表（只读）/ Get network request list (read-only)
   List<NetworkRequest> get networkRequests =>
       List.unmodifiable(_networkRequests);
+
+  /// 获取拦截规则列表（只读）/ Get interceptor rule list (read-only)
+  List<RequestInterceptorRule> get interceptorRules =>
+      List.unmodifiable(_interceptorRules);
 
   /// 获取日志条目列表（只读）/ Get log entry list (read-only)
   List<LogEntry> get logEntries => List.unmodifiable(_logEntries);
@@ -98,11 +106,49 @@ class InspectorService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 清空所有数据（网络请求、日志、路由）/ Clear all data (network requests, logs, routes)
+  /// 添加拦截规则 / Add interceptor rule
+  /// [rule] 拦截规则对象 / Interceptor rule object
+  void addInterceptorRule(RequestInterceptorRule rule) {
+    final index = _interceptorRules.indexWhere((r) => r.id == rule.id);
+    if (index != -1) {
+      _interceptorRules[index] = rule;
+    } else {
+      _interceptorRules.add(rule);
+    }
+    notifyListeners();
+  }
+
+  /// 删除拦截规则 / Remove interceptor rule
+  /// [id] 规则ID / Rule ID
+  void removeInterceptorRule(String id) {
+    _interceptorRules.removeWhere((r) => r.id == id);
+    notifyListeners();
+  }
+
+  /// 更新拦截规则 / Update interceptor rule
+  /// [rule] 更新后的规则 / Updated rule
+  void updateInterceptorRule(RequestInterceptorRule rule) {
+    addInterceptorRule(rule);
+  }
+
+  /// 查找匹配指定请求的规则 / Find matching rule for specified request
+  /// [url] 请求URL / Request URL
+  /// [method] 请求方法 / Request method
+  RequestInterceptorRule? findMatchingRule(String url, String method) {
+    for (final rule in _interceptorRules) {
+      if (rule.matches(url, method)) {
+        return rule;
+      }
+    }
+    return null;
+  }
+
+  /// 清空所有数据（网络请求、日志、路由、拦截规则）/ Clear all data (network requests, logs, routes, interceptor rules)
   void clearAll() {
     _networkRequests.clear();
     _logEntries.clear();
     _routeEntries.clear();
+    _interceptorRules.clear();
     notifyListeners();
   }
 

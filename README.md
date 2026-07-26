@@ -25,7 +25,7 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.0.6
+  zero_inspector_kit: ^1.0.7
 ```
 
 ### GitHub
@@ -181,6 +181,24 @@ final response = await dio.post(
 ```
 
 **Note:** Dio uses `IOHttpClientAdapter` by default, which internally uses `dart:io`'s `HttpClient`. This allows the inspector to capture Dio requests automatically via `HttpOverrides` without any additional configuration.
+
+### Network Request Interceptor
+
+The inspector supports intercepting and modifying network requests via rules. This is useful for testing different API responses without modifying server code.
+
+**Workflow:**
+1. Send a request normally (it will be captured in the Network panel)
+2. Open the request detail and tap the Interceptor icon
+3. Configure the modification rule (URL pattern, HTTP method, request/response modifications)
+4. Save the rule — subsequent matching requests will use the modified parameters
+
+**Supported modifications:**
+- Request body and headers
+- Response body, status code, and headers
+- URL pattern matching (exact match or regex)
+- HTTP method filtering (GET, POST, PUT, DELETE, PATCH, HEAD, or Any)
+
+**Note:** When no rules are configured or rules are disabled, all requests are sent normally without any modification.
 
 ### Database Provider
 

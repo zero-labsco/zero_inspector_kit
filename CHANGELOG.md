@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.7
+
+**新功能 / New Features:**
+
+- 网络请求拦截修改功能：支持拦截请求并修改请求参数和响应参数
+  - Network request interceptor: support intercepting requests and modifying request/response parameters
+- 支持基于 URL + HTTP Method 的规则匹配（精确匹配和正则匹配）
+  - Support URL + HTTP Method based rule matching (exact match and regex match)
+- 支持修改请求体、请求头、响应体、响应状态码
+  - Support modifying request body, request headers, response body, and response status code
+- 网络面板新增拦截规则编辑器，可创建/编辑/启用/禁用/删除规则
+  - Network panel adds interceptor rule editor, can create/edit/enable/disable/delete rules
+- 请求列表显示拦截规则状态标识
+  - Request list displays interceptor rule status indicator
+
 ## 1.0.6
 
 **新功能 / New Features:**

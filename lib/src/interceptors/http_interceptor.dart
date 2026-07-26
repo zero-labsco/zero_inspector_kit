@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import '../models/network_request.dart';
+import '../models/interceptor_rule.dart';
 import '../services/inspector_service.dart';
 
 /// HTTP 请求拦截器 / HTTP request interceptor
@@ -267,26 +268,73 @@ class _InspectorHttpClient implements HttpClient {
 
 /// 检查器 HttpClientRequest 代理 / Inspector HttpClientRequest proxy
 /// 包装原始 HttpClientRequest，在响应返回时记录响应信息，同时捕获请求体数据
+/// 支持在发送前应用拦截规则修改请求参数
 /// Wrap original HttpClientRequest, record response info when response is received, capture request body data
+/// Support applying interceptor rules to modify request parameters before sending
 class _InspectorRequestProxy implements HttpClientRequest {
   final HttpClientRequest _request;
   final String? _requestId;
   final List<int> _bodyBytes = [];
+  bool _isClosed = false;
 
   _InspectorRequestProxy(this._request, this._requestId);
 
   @override
-  Future<HttpClientResponse> close() {
+  Future<HttpClientResponse> close() async {
+    if (_isClosed) {
+      return _request.done.then(
+        (response) => _InspectorResponseProxy(response, _requestId),
+      );
+    }
+    _isClosed = true;
+
+    List<int> finalBodyBytes = List.from(_bodyBytes);
+    String? finalBody;
+
     try {
-      if (_bodyBytes.isNotEmpty && _requestId != null) {
-        final body = utf8.decode(_bodyBytes);
+      final rule = InspectorService.instance.findMatchingRule(
+        _request.uri.toString(),
+        _request.method,
+      );
+
+      if (rule != null) {
+        if (rule.requestHeaders != null) {
+          for (final entry in rule.requestHeaders!.entries) {
+            _request.headers.set(entry.key, entry.value);
+          }
+        }
+
+        if (rule.requestBody != null) {
+          final modifiedBody = rule.requestBody;
+          finalBody = modifiedBody is String
+              ? modifiedBody
+              : jsonEncode(modifiedBody);
+          finalBodyBytes = utf8.encode(finalBody);
+          _request.contentLength = finalBodyBytes.length;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      if (finalBodyBytes.isNotEmpty && _requestId != null) {
+        final body = utf8.decode(finalBodyBytes);
         InspectorService.instance.updateNetworkRequest(_requestId, body: body);
       }
     } catch (_) {}
+
+    try {
+      await _request.addStream(Stream.value(finalBodyBytes));
+    } catch (_) {}
+
     return _request
         .close()
         .then((response) {
-          return _InspectorResponseProxy(response, _requestId);
+          return _InspectorResponseProxy(
+            response,
+            _requestId,
+            requestUrl: _request.uri.toString(),
+            requestMethod: _request.method,
+          );
         })
         .catchError((error, stackTrace) {
           try {
@@ -304,8 +352,9 @@ class _InspectorRequestProxy implements HttpClientRequest {
 
   @override
   void add(List<int> data) {
-    _bodyBytes.addAll(data);
-    _request.add(data);
+    if (!_isClosed) {
+      _bodyBytes.addAll(data);
+    }
   }
 
   @override
@@ -314,9 +363,12 @@ class _InspectorRequestProxy implements HttpClientRequest {
 
   @override
   Future<void> addStream(Stream<List<int>> stream) async {
+    if (_isClosed) {
+      await _request.addStream(stream);
+      return;
+    }
     await for (final chunk in stream) {
       _bodyBytes.addAll(chunk);
-      _request.add(chunk);
     }
   }
 
@@ -325,29 +377,33 @@ class _InspectorRequestProxy implements HttpClientRequest {
 
   @override
   void write(Object? obj) {
-    final bytes = utf8.encode(obj?.toString() ?? '');
-    _bodyBytes.addAll(bytes);
-    _request.write(obj);
+    if (!_isClosed) {
+      final bytes = utf8.encode(obj?.toString() ?? '');
+      _bodyBytes.addAll(bytes);
+    }
   }
 
   @override
   void writeAll(Iterable objects, [String separator = '']) {
-    final bytes = utf8.encode(objects.join(separator));
-    _bodyBytes.addAll(bytes);
-    _request.writeAll(objects, separator);
+    if (!_isClosed) {
+      final bytes = utf8.encode(objects.join(separator));
+      _bodyBytes.addAll(bytes);
+    }
   }
 
   @override
   void writeCharCode(int charCode) {
-    _bodyBytes.add(charCode);
-    _request.writeCharCode(charCode);
+    if (!_isClosed) {
+      _bodyBytes.add(charCode);
+    }
   }
 
   @override
   void writeln([Object? obj = '']) {
-    final bytes = utf8.encode('${obj ?? ''}\n');
-    _bodyBytes.addAll(bytes);
-    _request.writeln(obj);
+    if (!_isClosed) {
+      final bytes = utf8.encode('${obj ?? ''}\n');
+      _bodyBytes.addAll(bytes);
+    }
   }
 
   @override
@@ -413,16 +469,26 @@ class _InspectorRequestProxy implements HttpClientRequest {
 
 /// 检查器 HttpClientResponse 代理 / Inspector HttpClientResponse proxy
 /// 包装原始 HttpClientResponse，在响应返回时记录响应信息到检查器服务
+/// 支持应用拦截规则修改响应参数
 /// Wrap original HttpClientResponse, record response info to inspector service when received
+/// Support applying interceptor rules to modify response parameters
 class _InspectorResponseProxy implements HttpClientResponse {
   final HttpClientResponse _response;
   final String? _requestId;
+  final String? _requestUrl;
+  final String? _requestMethod;
   final List<int> _bodyBytes = [];
   bool _isCaptured = false;
 
-  _InspectorResponseProxy(this._response, this._requestId);
+  _InspectorResponseProxy(
+    this._response,
+    this._requestId, {
+    String? requestUrl,
+    String? requestMethod,
+  }) : _requestUrl = requestUrl,
+       _requestMethod = requestMethod;
 
-  void _captureResponse() {
+  void _captureResponse([bool isError = false]) {
     if (_isCaptured) return;
     _isCaptured = true;
     try {
@@ -437,8 +503,22 @@ class _InspectorResponseProxy implements HttpClientResponse {
     } catch (_) {}
   }
 
+  RequestInterceptorRule? _getRule() {
+    if (_requestUrl == null || _requestMethod == null) return null;
+    return InspectorService.instance.findMatchingRule(
+      _requestUrl,
+      _requestMethod,
+    );
+  }
+
   @override
-  int get statusCode => _response.statusCode;
+  int get statusCode {
+    final rule = _getRule();
+    if (rule?.responseStatusCode != null) {
+      return rule!.responseStatusCode!;
+    }
+    return _response.statusCode;
+  }
 
   @override
   String get reasonPhrase => _response.reasonPhrase;
@@ -447,7 +527,15 @@ class _InspectorResponseProxy implements HttpClientResponse {
   HttpHeaders get headers => _response.headers;
 
   @override
-  int get contentLength => _response.contentLength;
+  int get contentLength {
+    final rule = _getRule();
+    if (rule?.responseBody != null) {
+      final body = rule!.responseBody;
+      final bodyStr = body is String ? body : jsonEncode(body);
+      return utf8.encode(bodyStr).length;
+    }
+    return _response.contentLength;
+  }
 
   @override
   bool get isRedirect => _response.isRedirect;
@@ -488,19 +576,10 @@ class _InspectorResponseProxy implements HttpClientResponse {
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    return _response.listen(
-      (chunk) {
-        _bodyBytes.addAll(chunk);
-        onData?.call(chunk);
-      },
-      onError: (error, stackTrace) {
-        _captureResponse();
-        onError?.call(error, stackTrace);
-      },
-      onDone: () {
-        _captureResponse();
-        onDone?.call();
-      },
+    return _wrappedStream.listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
       cancelOnError: cancelOnError,
     );
   }
@@ -555,6 +634,12 @@ class _InspectorResponseProxy implements HttpClientResponse {
       _wrappedStream.transform(streamTransformer);
 
   Stream<List<int>> get _wrappedStream {
+    final rule = _getRule();
+
+    if (rule?.responseBody != null) {
+      return Stream.fromFuture(_getModifiedResponse(rule!));
+    }
+
     return _response.transform(
       StreamTransformer<List<int>, List<int>>.fromHandlers(
         handleData: (chunk, sink) {
@@ -566,11 +651,37 @@ class _InspectorResponseProxy implements HttpClientResponse {
           sink.close();
         },
         handleError: (error, stackTrace, sink) {
-          _captureResponse();
+          _captureResponse(true);
           sink.addError(error, stackTrace);
         },
       ),
     );
+  }
+
+  Future<List<int>> _getModifiedResponse(RequestInterceptorRule rule) async {
+    await _consumeOriginalResponse();
+
+    try {
+      if (_requestId != null) {
+        final body = rule.responseBody;
+        final bodyStr = body is String ? body : jsonEncode(body);
+        InspectorService.instance.updateNetworkRequest(
+          _requestId,
+          statusCode: rule.responseStatusCode ?? _response.statusCode,
+          responseBody: bodyStr,
+        );
+      }
+    } catch (_) {}
+
+    final body = rule.responseBody;
+    final bodyStr = body is String ? body : jsonEncode(body);
+    return utf8.encode(bodyStr);
+  }
+
+  Future<void> _consumeOriginalResponse() async {
+    try {
+      await _response.drain();
+    } catch (_) {}
   }
 
   @override
