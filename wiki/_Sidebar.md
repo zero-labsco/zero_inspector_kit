@@ -11,6 +11,7 @@
 - 📝 [Log Viewer](Log-Viewer)
 - 💾 [Database Viewer](Database-Viewer)
 - 🧭 [Route Tracker](Route-Tracker)
+- 📊 [Memory Viewer](Memory-Viewer)
 
 ## 🛠 Advanced
 
