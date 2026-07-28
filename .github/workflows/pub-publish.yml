@@ -1,0 +1,111 @@
+name: Publish to pub.dev
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']  # e.g. v1.1.0, v1.1.1
+
+# 发布任务需要通过 CI 检查后才能运行
+# Publish job requires CI to pass first
+jobs:
+  # Reuse CI workflow as prerequisite
+  ci-check:
+    name: CI Check
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  publish:
+    name: Publish to pub.dev
+    needs: ci-check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 用于创建 GitHub Release / for creating GitHub Release
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      # ========== 发布前校验 / Pre-publish validation ==========
+
+      - name: Extract tag version
+        id: extract-tag
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"  # e.g. "v1.1.0"
+          VERSION="${TAG_NAME#v}"         # e.g. "1.1.0"
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version matches pubspec.yaml
+        run: |
+          PUBSPEC_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}')
+          TAG_VERSION="${{ steps.extract-tag.outputs.version }}"
+          if [ "$PUBSPEC_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::pubspec.yaml version ($PUBSPEC_VERSION) does not match tag version ($TAG_VERSION)"
+            exit 1
+          fi
+          echo "✅ Version match: $PUBSPEC_VERSION"
+
+      - name: Verify CHANGELOG has version entry
+        run: |
+          TAG_VERSION="${{ steps.extract-tag.outputs.version }}"
+          if ! grep -qE "^## ${TAG_VERSION}($| )" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md is missing entry for version $TAG_VERSION"
+            exit 1
+          fi
+          echo "✅ CHANGELOG has entry for $TAG_VERSION"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Dry-run pub publish validation
+        run: dart pub publish --dry-run
+
+      # ========== 正式发布到 pub.dev / Actual publish to pub.dev ==========
+      # 社区成熟 Action：k-paxian/dart-package-publisher（内部自动处理 OAuth2 credentials）
+      # Community-maintained Action that internally handles OAuth2 credentials
+
+      - name: Publish to pub.dev
+        uses: k-paxian/dart-package-publisher@v1.6
+        with:
+          # 读取 pub-credentials.json 的完整内容（从 Secret PUB_CREDENTIALS_JSON 注入）
+          # Read full content of pub-credentials.json (injected from Secret PUB_CREDENTIALS_JSON)
+          accessToken: ${{ fromJson(secrets.PUB_CREDENTIALS_JSON).accessToken }}
+          refreshToken: ${{ fromJson(secrets.PUB_CREDENTIALS_JSON).refreshToken }}
+          idToken: ${{ fromJson(secrets.PUB_CREDENTIALS_JSON).idToken }}
+          tokenEndpoint: ${{ fromJson(secrets.PUB_CREDENTIALS_JSON).tokenEndpoint }}
+          scopes: ${{ join(fromJson(secrets.PUB_CREDENTIALS_JSON).scopes, ' ') }}
+          # 跳过格式和静态分析（已在 CI 中检查过）
+          # Skip format and static analysis (already verified in CI)
+          flutter_package: true
+          skipTests: true
+          force: true
+
+      # ========== 创建 GitHub Release ==========
+
+      - name: Extract CHANGELOG entry for this version
+        id: changelog
+        run: |
+          TAG_VERSION="${{ steps.extract-tag.outputs.version }}"
+          # Extract between "## X.Y.Z" and next "##" heading
+          AWK_PROG='
+            /^## [0-9]+\.[0-9]+\.[0-9]+/ {
+              if (found) { exit }
+              if (match($0, /^## ([0-9]+\.[0-9]+\.[0-9]+)/, m) && m[1] == "'"$TAG_VERSION"'") { found = 1; next }
+            }
+            found { print }
+          '
+          awk "$AWK_PROG" CHANGELOG.md > release_notes.md
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release v${{ steps.extract-tag.outputs.version }}
+          tag_name: ${{ steps.extract-tag.outputs.tag_name }}
+          body_path: release_notes.md
+          generate_release_notes: false
