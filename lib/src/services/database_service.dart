@@ -24,10 +24,18 @@ class DatabaseService {
 
   /// 查询指定表的数据 / Query specified table data
   /// 按顺序尝试所有已注册的数据库提供者，返回第一个成功的结果 / Try all registered database providers in order, return the first successful result
-  Future<QueryResult> queryTable(String dbPath, String tableName, {int limit = 50}) async {
+  Future<QueryResult> queryTable(
+    String dbPath,
+    String tableName, {
+    int limit = 50,
+  }) async {
     for (final provider in DatabaseRegistry.instance.providers) {
       try {
-        final result = await provider.queryTable(dbPath, tableName, limit: limit);
+        final result = await provider.queryTable(
+          dbPath,
+          tableName,
+          limit: limit,
+        );
         if (result.rows.isNotEmpty) return result;
       } catch (_) {}
     }

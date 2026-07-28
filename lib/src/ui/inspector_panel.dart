@@ -192,7 +192,9 @@ class _InspectorPanelState extends State<InspectorPanel>
             tabAlignment: isScrollable ? TabAlignment.start : TabAlignment.fill,
             indicator: BoxDecoration(
               gradient: InspectorGradients.tabIndicator,
-              borderRadius: BorderRadius.circular(InspectorDimensions.chipRadius),
+              borderRadius: BorderRadius.circular(
+                InspectorDimensions.chipRadius,
+              ),
             ),
             indicatorSize: isScrollable
                 ? TabBarIndicatorSize.label

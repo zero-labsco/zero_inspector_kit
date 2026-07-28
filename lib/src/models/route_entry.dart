@@ -43,11 +43,4 @@ class RouteEntry {
 }
 
 /// 路由操作类型枚举 / Route action type enumeration
-enum RouteAction {
-  push,
-  pop,
-  pushReplacement,
-  popUntil,
-  pushNamed,
-  unknown,
-}
+enum RouteAction { push, pop, pushReplacement, popUntil, pushNamed, unknown }

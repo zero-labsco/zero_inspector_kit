@@ -1,10 +1,10 @@
 /// 请求拦截规则模型 / Request interceptor rule model
-/// 
+///
 /// 用于定义网络请求的修改规则，支持：
 /// - URL + Method 匹配
 /// - 请求参数修改（headers、body）
 /// - 响应参数修改（statusCode、headers、body）
-/// 
+///
 /// Used to define modification rules for network requests, supporting:
 /// - URL + Method matching
 /// - Request parameter modification (headers, body)
@@ -63,8 +63,9 @@ class RequestInterceptorRule {
   /// [method] 请求方法 / Request method
   bool matches(String url, String method) {
     if (!enabled) return false;
-    
-    final methodMatches = this.method.isEmpty || 
+
+    final methodMatches =
+        this.method.isEmpty ||
         this.method.toUpperCase() == method.toUpperCase();
     if (!methodMatches) return false;
 

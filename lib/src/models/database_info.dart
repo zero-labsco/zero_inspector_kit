@@ -9,11 +9,7 @@ class DatabaseInfo {
   /// 数据库表列表 / Database table list
   final List<TableInfo> tables;
 
-  DatabaseInfo({
-    required this.name,
-    required this.path,
-    required this.tables,
-  });
+  DatabaseInfo({required this.name, required this.path, required this.tables});
 }
 
 /// 数据表信息模型 / Table info model
@@ -42,10 +38,7 @@ class ColumnInfo {
   /// 列类型 / Column type
   final String type;
 
-  ColumnInfo({
-    required this.name,
-    required this.type,
-  });
+  ColumnInfo({required this.name, required this.type});
 }
 
 /// 查询结果模型 / Query result model
@@ -56,8 +49,5 @@ class QueryResult {
   /// 列名列表 / Column name list
   final List<String> columns;
 
-  QueryResult({
-    required this.rows,
-    required this.columns,
-  });
+  QueryResult({required this.rows, required this.columns});
 }

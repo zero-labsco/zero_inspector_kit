@@ -1,11 +1,5 @@
 /// 日志级别枚举 / Log level enumeration
-enum LogLevel {
-  verbose,
-  debug,
-  info,
-  warning,
-  error,
-}
+enum LogLevel { verbose, debug, info, warning, error }
 
 /// 日志条目模型 / Log entry model
 class LogEntry {

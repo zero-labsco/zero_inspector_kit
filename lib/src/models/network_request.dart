@@ -47,7 +47,8 @@ class NetworkRequest {
   int get status => statusCode ?? -1;
 
   /// 判断请求是否成功（200-299）/ Check if request is successful (200-299)
-  bool get isSuccess => statusCode != null && statusCode! >= 200 && statusCode! < 300;
+  bool get isSuccess =>
+      statusCode != null && statusCode! >= 200 && statusCode! < 300;
 
   /// 格式化后的耗时文本 / Formatted duration text
   String get durationText {

@@ -151,16 +151,10 @@ class _LogViewerState extends State<LogViewer> {
       child: TextField(
         controller: _searchController,
         onChanged: (value) => setState(() => _searchKeyword = value),
-        style: TextStyle(
-          color: InspectorColors.textPrimary,
-          fontSize: 12,
-        ),
+        style: TextStyle(color: InspectorColors.textPrimary, fontSize: 12),
         decoration: InputDecoration(
           hintText: 'Search message, tag...',
-          hintStyle: TextStyle(
-            color: InspectorColors.textHint,
-            fontSize: 12,
-          ),
+          hintStyle: TextStyle(color: InspectorColors.textHint, fontSize: 12),
           prefixIcon: Icon(
             Icons.search_rounded,
             size: 16,
@@ -187,15 +181,21 @@ class _LogViewerState extends State<LogViewer> {
           filled: true,
           fillColor: InspectorColors.card,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
+            borderRadius: BorderRadius.circular(
+              InspectorDimensions.smallRadius,
+            ),
             borderSide: BorderSide(color: InspectorColors.border, width: 1),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
+            borderRadius: BorderRadius.circular(
+              InspectorDimensions.smallRadius,
+            ),
             borderSide: BorderSide(color: InspectorColors.border, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
+            borderRadius: BorderRadius.circular(
+              InspectorDimensions.smallRadius,
+            ),
             borderSide: BorderSide(color: InspectorColors.accent, width: 1),
           ),
         ),

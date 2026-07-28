@@ -4,10 +4,10 @@ import 'floating_button.dart';
 
 /// 条件检查器组件 / Conditional inspector widget
 /// 根据编译模式自动决定是否显示检查器 / Automatically determine whether to show inspector based on build mode
-/// 
+///
 /// 在 release 模式下，此组件会返回空容器，检查器代码不会被打包 / In release mode, this widget returns an empty container, inspector code won't be bundled
 /// 在 debug/profile 模式下，会显示检查器按钮 / In debug/profile mode, inspector button will be shown
-/// 
+///
 /// 使用方式 / Usage:
 /// ```dart
 /// Widget build(BuildContext context) {
@@ -36,10 +36,7 @@ class ConditionalInspector extends StatelessWidget {
     }
 
     return Stack(
-      children: [
-        child,
-        if (enabled) const FloatingInspectorButton(),
-      ],
+      children: [child, if (enabled) const FloatingInspectorButton()],
     );
   }
 }

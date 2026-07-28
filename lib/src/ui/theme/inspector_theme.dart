@@ -155,11 +155,7 @@ class InspectorGradients {
   static const LinearGradient header = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
-    colors: [
-      Color(0x4D7c3aed),
-      Color(0x332563eb),
-      Colors.transparent,
-    ],
+    colors: [Color(0x4D7c3aed), Color(0x332563eb), Colors.transparent],
   );
 
   /// 标签指示器渐变 / Tab indicator gradient

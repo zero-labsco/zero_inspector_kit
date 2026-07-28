@@ -72,7 +72,9 @@ class _RouteViewerState extends State<RouteViewer> {
           ),
           child: Row(
             children: [
-              _buildCountBadge('${InspectorService.instance.routeEntries.length}'),
+              _buildCountBadge(
+                '${InspectorService.instance.routeEntries.length}',
+              ),
               const SizedBox(width: 8),
               Text(
                 'Routes',
@@ -150,10 +152,7 @@ class _RouteViewerState extends State<RouteViewer> {
           decoration: BoxDecoration(
             color: isSelected ? InspectorColors.selected : Colors.transparent,
             border: Border(
-              left: BorderSide(
-                color: actionColor,
-                width: 3,
-              ),
+              left: BorderSide(color: actionColor, width: 3),
               bottom: BorderSide(color: InspectorColors.divider, width: 0.5),
             ),
           ),
@@ -163,8 +162,10 @@ class _RouteViewerState extends State<RouteViewer> {
               Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: actionColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(5),
@@ -196,7 +197,10 @@ class _RouteViewerState extends State<RouteViewer> {
               const SizedBox(height: 4),
               Text(
                 _formatTimestamp(entry.timestamp),
-                style: TextStyle(color: InspectorColors.textSecondary, fontSize: 11),
+                style: TextStyle(
+                  color: InspectorColors.textSecondary,
+                  fontSize: 11,
+                ),
               ),
             ],
           ),
@@ -244,7 +248,11 @@ class _RouteViewerState extends State<RouteViewer> {
 
   /// 构建详情分段 / Build detail section
   Widget _buildDetailSection(
-      String title, String content, IconData icon, Color color) {
+    String title,
+    String content,
+    IconData icon,
+    Color color,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
@@ -270,9 +278,10 @@ class _RouteViewerState extends State<RouteViewer> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: InspectorColors.card,
-              borderRadius: BorderRadius.circular(InspectorDimensions.cardRadius),
-              border:
-                  Border.all(color: InspectorColors.border, width: 0.5),
+              borderRadius: BorderRadius.circular(
+                InspectorDimensions.cardRadius,
+              ),
+              border: Border.all(color: InspectorColors.border, width: 0.5),
             ),
             child: Text(
               content,
