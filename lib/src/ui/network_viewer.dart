@@ -1050,7 +1050,11 @@ class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
           value: _rule.useRegex,
           onChanged: (value) =>
               _updateRule(_rule.copyWith(useRegex: value ?? false)),
-          activeColor: InspectorColors.accent,
+          fillColor: WidgetStateProperty.resolveWith<Color?>(
+            (states) => states.contains(WidgetState.selected)
+                ? InspectorColors.accent
+                : null,
+          ),
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         Text(

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.1
+
+**修复 / Bug Fixes:**
+
+- 修复 Flutter 3.31+ 中 `activeColor` 属性废弃导致的静态分析警告
+  - Fix static analysis warning caused by deprecated `activeColor` property in Flutter 3.31+
+  - Switch 组件：`activeColor` → `activeThumbColor`
+    - Switch widget: `activeColor` → `activeThumbColor`
+  - Checkbox 组件：`activeColor` → `fillColor` + `WidgetStateProperty.resolveWith`
+    - Checkbox widget: `activeColor` → `fillColor` + `WidgetStateProperty.resolveWith`
+
 ## 1.1.0
 
 **新功能 / New Features:**

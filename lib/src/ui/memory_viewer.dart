@@ -169,7 +169,7 @@ class _MemoryViewerState extends State<MemoryViewer> {
           ),
           Switch.adaptive(
             value: enabled,
-            activeColor: InspectorColors.success,
+            activeThumbColor: InspectorColors.success,
             activeTrackColor: InspectorColors.success.withValues(alpha: 0.3),
             inactiveThumbColor: InspectorColors.textHint,
             inactiveTrackColor: InspectorColors.border,
