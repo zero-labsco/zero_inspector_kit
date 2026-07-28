@@ -26,7 +26,7 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.1.1
+  zero_inspector_kit: ^1.1.2
 ```
 
 ### GitHub
@@ -110,7 +110,19 @@ InspectorLogInterceptor.instance.start();
 
 **Manual logging (Optional):**
 
-For more precise log level control, you can use the inspector's log methods. This is **optional** and does not affect auto-capture functionality:
+For more precise log level control, you can use the inspector's log methods. This is **optional** and does not affect auto-capture functionality.
+
+Quick shorthand (recommended):
+
+```dart
+InspectorLog.v('Verbose log');
+InspectorLog.d('Debug log');
+InspectorLog.i('Info log');
+InspectorLog.w('Warning log');
+InspectorLog.e('Error log');
+```
+
+You can also use the full form if needed:
 
 ```dart
 InspectorLogInterceptor.instance.verbose('Verbose log');
@@ -246,14 +258,21 @@ The memory monitor provides comprehensive memory analysis with a master switch t
 - UI shows suspected leaks (red), tracking objects, and released objects
 
 ```dart
-// Register an object for leak tracking
+// Quick shorthand (recommended)
+myBloc.trackMemoryLeak(tag: 'HomePage_myBloc');
+
+// Or use top-level function
+trackMemoryLeak(myBloc, tag: 'HomePage_myBloc');
+
+// Cancel tracking
+myBloc.untrackMemoryLeak();
+
+// Or use the full form if needed
 MemoryInspectorService.instance.trackObject(
   myBloc,
   tag: 'HomePage_myBloc',
   expectedReleaseAfter: Duration(seconds: 60),
 );
-
-// Cancel tracking
 MemoryInspectorService.instance.untrackObject(myBloc);
 
 // Clear all records
@@ -347,6 +366,25 @@ ConditionalInspector(
 | Property | Type | Description |
 |----------|------|-------------|
 | onLogCaptured | `void Function(LogEntry)?` | Callback when a log is captured, used for third-party log library integration |
+
+### InspectorLog
+
+A shorthand wrapper around `InspectorLogInterceptor.instance` for shorter log calls.
+
+| Method | Description |
+|--------|-------------|
+| start() | Start capturing logs |
+| stop() | Stop capturing logs |
+| log(level, message, {tag}) | Add a log entry |
+| v(message, {tag}) | Add verbose log |
+| d(message, {tag}) | Add debug log |
+| i(message, {tag}) | Add info log |
+| w(message, {tag}) | Add warning log |
+| e(message, {tag}) | Add error log |
+
+| Property | Type | Description |
+|----------|------|-------------|
+| isRunning | bool | Whether log capture is currently active |
 
 ### InspectorRouteObserver
 

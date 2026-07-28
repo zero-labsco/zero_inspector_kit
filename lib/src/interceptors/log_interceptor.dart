@@ -24,6 +24,9 @@ class InspectorLogInterceptor {
   /// 是否正在捕获日志（防止递归调用）/ Whether currently capturing logs (prevents recursive calls)
   bool _isCapturing = false;
 
+  /// 当前是否已启动日志捕获 / Whether log capture has been started
+  bool get isRunning => _isStarted;
+
   /// 日志捕获回调，供外部日志库集成使用 / Log capture callback for external logging library integration
   void Function(LogEntry)? onLogCaptured;
 

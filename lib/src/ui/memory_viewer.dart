@@ -1665,35 +1665,13 @@ class _MemoryViewerState extends State<MemoryViewer> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Call MemoryInspectorService.instance.trackObject() to '
-            'register objects for leak tracking. Objects held via WeakReference '
-            'will not be prevented from being GC\'d.',
+            'Register objects you expect to be released with the leak '
+            'tracking API. Once an object outlives its expected release '
+            'window, it will be reported here as a suspected leak.',
             style: TextStyle(
               color: InspectorColors.textHint,
               fontSize: 10,
               height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: InspectorColors.card,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: InspectorColors.border, width: 0.5),
-            ),
-            child: Text(
-              "MemoryInspectorService.instance.trackObject(\n"
-              "  myBloc,\n"
-              "  tag: 'HomePage_myBloc',\n"
-              "  expectedReleaseAfter: Duration(seconds: 60),\n"
-              ");",
-              style: TextStyle(
-                color: InspectorColors.accent,
-                fontSize: 10,
-                fontFamily: 'monospace',
-                height: 1.4,
-              ),
             ),
           ),
         ],

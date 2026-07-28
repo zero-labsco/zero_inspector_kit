@@ -78,13 +78,30 @@ class _InspectorHttpClient implements HttpClient {
 
   static const String _dioRequestIdHeader = 'x-inspector-request-id';
 
+  /// 判断是否为 WebSocket 升级握手请求 / Check if this is a WebSocket upgrade handshake
+  ///
+  /// WebSocket 握手本质上是带 Upgrade: websocket 的 HTTP 请求，
+  /// 会被 HttpOverrides 拦截并显示在网络列表中，造成刷屏。
+  /// WebSocket handshake is essentially an HTTP request with Upgrade: websocket,
+  /// which gets intercepted by HttpOverrides and floods the network list.
+  /// 这里通过 URL path 以 `/ws` 结尾进行过滤（覆盖 VM Service 等常见端点）
+  /// Filters by URL path ending with `/ws` (covers common VM Service endpoints)
+  bool _isWebSocketHandshake(Uri url) {
+    final path = url.path;
+    return path.endsWith('/ws');
+  }
+
   @override
   Future<HttpClientRequest> openUrl(String method, Uri url) {
+    final isWs = _isWebSocketHandshake(url);
+
     String? requestId;
-    try {
-      requestId =
-          'req_${DateTime.now().millisecondsSinceEpoch}_${_randomString(8)}';
-    } catch (_) {}
+    if (!isWs) {
+      try {
+        requestId =
+            'req_${DateTime.now().millisecondsSinceEpoch}_${_randomString(8)}';
+      } catch (_) {}
+    }
 
     return _client
         .openUrl(method, url)
@@ -92,6 +109,11 @@ class _InspectorHttpClient implements HttpClient {
           final dioRequestId = request.headers.value(_dioRequestIdHeader);
           if (dioRequestId != null) {
             return _InspectorRequestProxy(request, dioRequestId);
+          }
+          // 跳过 WebSocket 握手请求，避免网络列表被 VM Service 等连接刷屏
+          // Skip WebSocket handshake requests to avoid flooding the network list
+          if (isWs) {
+            return _InspectorRequestProxy(request, null);
           }
           try {
             if (requestId != null) {

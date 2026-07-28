@@ -170,30 +170,99 @@ class MemoryTrendChart extends StatelessWidget {
 
     final values = snapshots.map((s) => _getValue(s)).toList();
     final maxValue = values.reduce((a, b) => a > b ? a : b);
+    final minValue = values.reduce((a, b) => a < b ? a : b);
     final currentValue = values.last;
 
     // 避免 maxValue 为 0 导致除零
     // Avoid division by zero when maxValue is 0
     final safeMax = maxValue > 0 ? maxValue : 1;
 
+    // Y 轴刻度值（3 个：最大值、中间值、最小值）/ Y-axis tick values (3: max, mid, min)
+    final yLabels = <String>[
+      _formatBytes(maxValue),
+      _formatBytes(((maxValue + minValue) / 2).round()),
+      _formatBytes(minValue),
+    ];
+
+    // X 轴时间标签（3 个：2分钟前、1分钟前、现在）/ X-axis time labels (3: 2min ago, 1min ago, Now)
+    final xLabels = <String>['-2m', '-1m', 'Now'];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: 100,
-          child: CustomPaint(
-            size: const Size(double.infinity, 100),
-            painter: _LineChartPainter(
-              values: values,
-              maxValue: safeMax,
-              lineColor: metric.color,
-              fillColor: metric.color.withValues(alpha: 0.2),
-              backgroundColor: InspectorColors.surface,
-              gridColor: InspectorColors.divider,
-            ),
+        // 图表主体：左侧 Y 轴标签 + 中间折线图 / Chart body: left Y-axis labels + center line chart
+        // 使用 IntrinsicHeight 确保 Y 轴标签高度与折线图区域一致
+        // Use IntrinsicHeight so Y-axis labels match chart area height
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 左侧 Y 轴标签 / Left Y-axis labels
+              SizedBox(
+                width: 52,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: yLabels
+                      .map(
+                        (label) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              color: InspectorColors.textHint,
+                              fontSize: 9,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+              // 中间折线图 + 底部 X 轴标签 / Center line chart + bottom X-axis labels
+              Expanded(
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 100,
+                      width: double.infinity,
+                      child: CustomPaint(
+                        painter: _LineChartPainter(
+                          values: values,
+                          maxValue: safeMax,
+                          lineColor: metric.color,
+                          fillColor: metric.color.withValues(alpha: 0.2),
+                          backgroundColor: InspectorColors.surface,
+                          gridColor: InspectorColors.divider,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // 底部 X 轴标签 / Bottom X-axis labels
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: xLabels
+                          .map(
+                            (label) => Text(
+                              label,
+                              style: TextStyle(
+                                color: InspectorColors.textHint,
+                                fontSize: 9,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
+        // 图例：Current / Peak / Min / Legend: Current / Peak / Min
         Row(
           children: [
             Expanded(
@@ -208,6 +277,13 @@ class MemoryTrendChart extends StatelessWidget {
                 'Peak',
                 _formatBytes(maxValue),
                 InspectorColors.warning,
+              ),
+            ),
+            Expanded(
+              child: _buildChartLegend(
+                'Min',
+                _formatBytes(minValue),
+                InspectorColors.textSecondary,
               ),
             ),
           ],

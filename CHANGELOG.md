@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.2
+
+**优化 / Improvements:**
+
+- 简化内存泄漏检测 UI 文案，移除代码示例，仅保留使用提醒
+  - Simplified memory leak detection UI instructions by removing code demo and keeping only usage reminders
+- 过滤网络请求列表中的 WebSocket 握手请求（如 VM Service `/ws` 端点），避免连接重试时刷屏
+  - Filtered WebSocket handshake requests (e.g. VM Service `/ws` endpoints) from the network request list to prevent flooding during connection retries
+- 优化内存趋势图：新增 X 轴（时间轴 -2m/-1m/Now）和 Y 轴（内存值 Max/Mid/Min）刻度标签，新增 Min 最小值图例，让趋势变化更清晰直观
+  - Optimized memory trend chart: added X-axis (time axis -2m/-1m/Now) and Y-axis (memory value Max/Mid/Min) tick labels, added Min value legend, making trend changes clearer and more intuitive
+- 新增简化的日志记录 API：`InspectorLog` 静态类，支持 `InspectorLog.v/d/i/w/e()` 短名方法调用
+  - Added simplified logging API: `InspectorLog` static class, supporting `InspectorLog.v/d/i/w/e()` short-name method calls
+- 新增简化的内存泄漏追踪 API：`trackMemoryLeak` / `untrackMemoryLeak` 顶层函数和 `Object.trackMemoryLeak()` 扩展方法
+  - Added simplified memory leak tracking API: `trackMemoryLeak` / `untrackMemoryLeak` top-level functions and `Object.trackMemoryLeak()` extension method
+- 补充单元测试覆盖新 API，总测试数达到 112 条
+  - Added unit tests covering the new API, total tests reached 112
+
 ## 1.1.1
 
 **修复 / Bug Fixes:**

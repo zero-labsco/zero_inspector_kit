@@ -25,7 +25,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.1.1
+  zero_inspector_kit: ^1.1.2
 ```
 
 ### GitHub
@@ -109,7 +109,19 @@ InspectorLogInterceptor.instance.start();
 
 **手动记录日志（可选）：**
 
-如果需要更精确的日志级别控制，可以使用检查器提供的日志方法。这是**可选功能**，不影响自动捕获功能：
+如果需要更精确的日志级别控制，可以使用检查器提供的日志方法。这是**可选功能**，不影响自动捕获功能。
+
+简写形式（推荐）：
+
+```dart
+InspectorLog.v('详细日志');
+InspectorLog.d('调试日志');
+InspectorLog.i('信息日志');
+InspectorLog.w('警告日志');
+InspectorLog.e('错误日志');
+```
+
+如有需要，也可以使用完整形式：
 
 ```dart
 InspectorLogInterceptor.instance.verbose('详细日志');
@@ -245,14 +257,22 @@ DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
 - UI 显示疑似泄漏（红色高亮）、追踪中、已释放的对象列表
 
 ```dart
-// 注册对象进行泄漏追踪
+// 简写形式（推荐）
+myBloc.trackMemoryLeak(tag: 'HomePage_myBloc');
+
+// 或使用顶层函数
+// Or use top-level function
+trackMemoryLeak(myBloc, tag: 'HomePage_myBloc');
+
+// 取消追踪
+myBloc.untrackMemoryLeak();
+
+// 如有需要，也可以使用完整形式
 MemoryInspectorService.instance.trackObject(
   myBloc,
   tag: 'HomePage_myBloc',
   expectedReleaseAfter: Duration(seconds: 60),
 );
-
-// 取消追踪
 MemoryInspectorService.instance.untrackObject(myBloc);
 
 // 清空所有记录
@@ -346,6 +366,25 @@ ConditionalInspector(
 | 属性 | 类型 | 描述 |
 |------|------|------|
 | onLogCaptured | `void Function(LogEntry)?` | 日志捕获回调，用于第三方日志库集成 |
+
+### InspectorLog
+
+`InspectorLogInterceptor.instance` 的简写包装类，用于更短的手动日志调用。
+
+| 方法 | 描述 |
+|------|------|
+| start() | 开始捕获日志 |
+| stop() | 停止捕获日志 |
+| log(level, message, {tag}) | 添加日志条目 |
+| v(message, {tag}) | 添加详细日志 |
+| d(message, {tag}) | 添加调试日志 |
+| i(message, {tag}) | 添加信息日志 |
+| w(message, {tag}) | 添加警告日志 |
+| e(message, {tag}) | 添加错误日志 |
+
+| 属性 | 类型 | 描述 |
+|------|------|------|
+| isRunning | bool | 当前是否正在捕获日志 |
 
 ### InspectorRouteObserver
 

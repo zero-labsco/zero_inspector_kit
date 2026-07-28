@@ -14,6 +14,8 @@ export 'src/ui/network_viewer.dart';
 export 'src/ui/database_viewer.dart';
 export 'src/ui/route_viewer.dart';
 export 'src/utils/environment.dart';
+export 'src/utils/inspector_log.dart';
+export 'src/utils/memory_leak_tracking.dart';
 
 export 'zero_inspector_kit_platform_interface.dart';
 
