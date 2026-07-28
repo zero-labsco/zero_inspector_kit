@@ -5,6 +5,9 @@ on:
     branches: [main, 'v*.*.*']
   pull_request:
     branches: [main]
+  # 支持被其他工作流复用（如 pub-publish.yml）
+  # Support being reused by other workflows (e.g. pub-publish.yml)
+  workflow_call:
 
 # 允许仅保留最新的同分支运行，取消旧的运行
 # Allow only keeping the latest run per branch, cancel older runs
