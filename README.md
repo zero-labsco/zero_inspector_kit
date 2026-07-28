@@ -12,7 +12,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 - **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency. Supports modifying request body and headers via interceptor rules (for POST/PUT/PATCH requests).
 - **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
 - **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
-- **Memory Monitor**: Real-time image cache monitoring and app storage statistics. One-click cache cleanup.
+- **Memory Monitor**: Real-time memory monitoring with trend chart, Dart Heap details, Native memory breakdown (Android PSS / iOS physicalFootprint), memory leak detection, image cache monitoring, and app storage statistics. Master switch to avoid performance overhead.
 - **Route Tracker**: Monitor navigation history and current route information.
 - **Floating Button**: Accessible floating inspector button with breathing animation that slides in/out from the edge of the screen.
 - **Modern UI**: Beautiful dark theme with gradient design, customizable colors via centralized theme configuration.
@@ -26,7 +26,7 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.0.9
+  zero_inspector_kit: ^1.1.0
 ```
 
 ### GitHub
@@ -218,7 +218,47 @@ DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
 
 ### Memory Monitor
 
-The memory monitor provides real-time image cache monitoring and app storage statistics.
+The memory monitor provides comprehensive memory analysis with a master switch to control data collection (off by default to avoid performance overhead).
+
+**Master Switch:**
+- Top switch in the Memory panel controls whether monitoring is enabled
+- When disabled: all timers stop, VM Service connection is cleared (no WebSocket overhead)
+- When enabled: starts data collection and attempts VM Service connection
+
+**Memory Trend Chart:**
+- Real-time line chart with 2-minute history window (240 snapshots × 500ms)
+- Switchable between 4 metrics: Process RSS / Dart Heap / New Space / Old Space
+
+**Dart Heap Overview (requires VM Service):**
+- Heap Usage / Capacity / External usage with progress bar
+- New/Old space detailed breakdown (Usage / Capacity / External)
+- Manual GC trigger button (disabled when VM Service unavailable)
+
+**Native Memory (100% available on real devices):**
+- Android: Total PSS, Dalvik PSS, Native PSS, Native Private Dirty, Device Memory status
+- iOS: Physical Footprint, Compressed memory, Process RSS, Device available memory
+- Low memory warning indicator
+
+**Memory Leak Detection (based on Dart 2.17+ WeakReference):**
+- Register objects for leak tracking via `trackObject()` API
+- Four-state transition: tracking → verifying → leaked / released
+- Auto-trigger GC verification after exceeding expected release time
+- UI shows suspected leaks (red), tracking objects, and released objects
+
+```dart
+// Register an object for leak tracking
+MemoryInspectorService.instance.trackObject(
+  myBloc,
+  tag: 'HomePage_myBloc',
+  expectedReleaseAfter: Duration(seconds: 60),
+);
+
+// Cancel tracking
+MemoryInspectorService.instance.untrackObject(myBloc);
+
+// Clear all records
+MemoryInspectorService.instance.clearLeakRecords();
+```
 
 **Image Cache Monitoring:**
 - Real-time display of image cache size and count
@@ -232,7 +272,15 @@ The memory monitor provides real-time image cache monitoring and app storage sta
 - Total database file size
 - One-click clear app temp cache
 
-**Note:** Dart VM Heap memory monitoring and trend chart are temporarily unavailable on Android real devices due to VM Service connection issues. These features will be restored in future versions.
+**⚠️ Important: VM Service availability**
+
+**When debugging via PC with `flutter run`, Dart VM Heap data may be unavailable (VM: OFF).**
+
+**Reason:** When using `flutter run` to debug via PC, the flutter tool sets up port forwarding between PC and device via `adb reverse`, allowing PC-side DevTools to access the device's VM Service. However, `Service.getInfo()` returns a `serverUri` from PC's perspective; when the app process internally accesses `127.0.0.1:PC_port`, the device doesn't have that port listening locally, resulting in `Connection refused` and VM Service showing OFF.
+
+**Does not affect actual usage:** When opening the debug app directly without PC connection (no flutter tool involved), VM Service listens directly on the device's local port, the app can connect normally, and Dart Heap data displays correctly.
+
+**Fallback:** When VM Service is unavailable, Native memory (Android PSS / iOS physicalFootprint) still displays normally, and process RSS is always available. Only Dart Heap details and manual GC are unavailable.
 
 ## Custom Database Provider
 

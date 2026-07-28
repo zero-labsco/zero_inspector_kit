@@ -36,4 +36,38 @@ class PlatformChannel {
       await _channel.invokeMethod<void>('stopNativeLogListener');
     } catch (_) {}
   }
+
+  /// 获取进程级内存信息 / Get process-level memory info
+  ///
+  /// 通过原生 Platform Channel 调用 Android 的 Debug.MemoryInfo 或 iOS 的 mach task_info，
+  /// 获取进程级内存数据（不依赖 VM Service，在真机上 100% 可用）。
+  /// Calls Android's Debug.MemoryInfo or iOS's mach task_info via native Platform Channel,
+  /// gets process-level memory data (doesn't depend on VM Service, 100% available on real devices).
+  ///
+  /// 返回 Map 包含以下字段（单位：字节）/ Returns Map with following fields (in bytes):
+  /// - rss:                   进程 RSS（Android: Process.myRss(), iOS: resident_size）
+  /// - totalPss:              总 PSS（仅 Android / Android only）
+  /// - dalvikPss:             Dalvik/ART PSS（仅 Android / Android only）
+  /// - nativePss:             Native PSS（仅 Android / Android only）
+  /// - totalPrivateDirty:     总私有脏页（仅 Android / Android only）
+  /// - nativePrivateDirty:    Native 私有脏页（仅 Android / Android only）
+  /// - totalRss:              总 RSS 分项（仅 Android API 23+ / Android API 23+ only）
+  /// - physicalFootprint:    物理内存占用（仅 iOS / iOS only，最准确的内存指标）
+  /// - internalCompressed:   已压缩内存（仅 iOS / iOS only）
+  /// - internalSize:         内部内存总量（仅 iOS / iOS only）
+  /// - totalMem:              设备物理内存总量
+  /// - availMem:              设备可用物理内存
+  /// - lowMemory:            是否处于低内存状态
+  static Future<Map<String, dynamic>?> getProcessMemoryInfo() async {
+    try {
+      final result = await _channel.invokeMethod<Map>('getProcessMemoryInfo');
+      if (result == null) return null;
+      // 将 Map<dynamic, dynamic> 转为 Map<String, dynamic>
+      // Convert Map<dynamic, dynamic> to Map<String, dynamic>
+      return result.map((key, value) => MapEntry(key.toString(), value));
+    } catch (e) {
+      // 平台不支持时返回 null / Return null when platform not supported
+      return null;
+    }
+  }
 }

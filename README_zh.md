@@ -12,7 +12,7 @@
 - **网络检查器**: 实时捕获和查看所有 HTTP 请求，包括请求/响应头、请求体、状态码和延迟时间。支持通过拦截规则修改请求体和请求头（仅 POST/PUT/PATCH 请求）。
 - **日志系统**: 自动捕获应用中的日志，包括 print() 调用、Flutter 错误和异常。支持多种日志级别（verbose、debug、info、warning、error），并支持第三方日志库集成。
 - **数据库查看器**: 支持 SQLite 和其他数据库的检查，支持自定义数据库提供者。
-- **内存监控**: 实时图片缓存监控和应用存储统计。一键清理缓存。
+- **内存监控**: 实时内存监控，包含趋势图、Dart Heap 详情、Native 内存分项（Android PSS / iOS physicalFootprint）、内存泄漏检测、图片缓存监控和应用存储统计。提供总开关避免性能开销。
 - **路由追踪器**: 监控导航历史和当前路由信息。
 - **悬浮按钮**: 从屏幕边缘滑入/滑出的可访问悬浮检查按钮。
 - **跨平台**: 支持 Android 和 iOS 平台。
@@ -25,7 +25,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.0.9
+  zero_inspector_kit: ^1.1.0
 ```
 
 ### GitHub
@@ -217,7 +217,47 @@ DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
 
 ### 内存监控
 
-内存监控提供实时图片缓存监控和应用存储统计功能。
+内存监控提供全面的内存分析功能，顶部总开关控制数据采集（默认关闭以避免性能开销）。
+
+**总开关：**
+- 内存面板顶部开关控制是否启用监控
+- 关闭时：停止所有定时器、清空 VM Service 连接（无 WebSocket 开销）
+- 开启时：启动数据采集并尝试连接 VM Service
+
+**内存趋势图：**
+- 实时折线图，2 分钟历史窗口（240 条快照 × 500ms）
+- 可切换 4 种指标：进程 RSS / Dart Heap / 新生代 / 老生代
+
+**Dart Heap 概览（需要 VM Service）：**
+- Heap Usage / Capacity / External 三个核心指标 + 进度条
+- 新生代/老生代详细数据（Usage / Capacity / External）
+- 手动触发 GC 按钮（VM Service 不可用时禁用）
+
+**Native 内存（真机 100% 可用）：**
+- Android：Total PSS、Dalvik PSS、Native PSS、Native Private Dirty、设备内存状态
+- iOS：Physical Footprint、压缩内存、进程 RSS、设备可用内存
+- 低内存警告标识
+
+**内存泄漏检测（基于 Dart 2.17+ WeakReference）：**
+- 通过 `trackObject()` API 注册对象进行泄漏追踪
+- 四状态流转：tracking → verifying → leaked / released
+- 超过预期释放时间自动触发 GC 验证
+- UI 显示疑似泄漏（红色高亮）、追踪中、已释放的对象列表
+
+```dart
+// 注册对象进行泄漏追踪
+MemoryInspectorService.instance.trackObject(
+  myBloc,
+  tag: 'HomePage_myBloc',
+  expectedReleaseAfter: Duration(seconds: 60),
+);
+
+// 取消追踪
+MemoryInspectorService.instance.untrackObject(myBloc);
+
+// 清空所有记录
+MemoryInspectorService.instance.clearLeakRecords();
+```
 
 **图片缓存监控：**
 - 实时显示图片缓存大小和数量
@@ -231,7 +271,15 @@ DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
 - 数据库文件总大小
 - 一键清理应用临时缓存
 
-**注意：** 由于 Android 真机上 VM Service 连接问题，Dart VM Heap 内存监控和趋势图功能暂时不可用，将在后续版本恢复。
+**⚠️ 重要说明：VM Service 可用性**
+
+**通过 PC 使用 `flutter run` 调试时，Dart VM Heap 数据可能不可用（VM: OFF）。**
+
+**原因：** 使用 `flutter run` 连接 PC 调试时，flutter tool 会通过 `adb reverse` 在 PC 和设备之间做端口转发，让 PC 上的 DevTools 能访问设备的 VM Service。但应用进程内部 `Service.getInfo()` 返回的 `serverUri` 是 PC 视角的端口，应用进程访问 `127.0.0.1:PC端口` 时设备本地并没有监听该端口，导致 Connection refused，VM Service 显示 OFF。
+
+**不影响实际使用：** 不连接 PC 直接打开 debug 应用时（没有 flutter tool 介入），VM Service 直接监听设备本地端口，应用能正常连接，Dart Heap 数据正常显示。
+
+**降级方案：** VM Service 不可用时，Native 内存（Android PSS / iOS physicalFootprint）仍然正常显示；进程 RSS 始终可用。仅 Dart Heap 详情和手动 GC 不可用。
 
 ## 自定义数据库提供者
 

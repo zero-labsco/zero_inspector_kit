@@ -1,11 +1,35 @@
 # Changelog
 
-## 1.0.9
+## 1.1.0
 
 **新功能 / New Features:**
 
-- 新增内存监控面板（Memory Viewer）
-  - Added memory monitoring panel (Memory Viewer)
+- 新增内存监控面板（Memory Viewer），提供全面的内存分析能力
+  - Added memory monitoring panel (Memory Viewer) with comprehensive memory analysis capabilities
+- 新增内存趋势图（折线图，可切换 RSS / Heap / New / Old 四种指标，2 分钟历史窗口）
+  - Added memory trend chart (line chart, switchable between RSS / Heap / New / Old metrics, 2-minute history window)
+- 新增 Dart Heap 概览卡片：Usage / Capacity / External 三个核心指标 + 进度条
+  - Added Dart Heap overview card: Usage / Capacity / External three core metrics + progress bar
+- 新增新生代/老生代详细内存数据卡片
+  - Added new/old space detailed memory data card
+- 新增手动触发 GC 功能（VM Service 可用时）
+  - Added manual GC trigger feature (when VM Service is available)
+- 新增历史快照清理功能
+  - Added history snapshot clear feature
+- 新增 Native 内存采集（Android Debug.MemoryInfo + iOS mach task_info），真机 100% 可用
+  - Added Native memory collection (Android Debug.MemoryInfo + iOS mach task_info), 100% available on real devices
+  - Android: Total PSS / Dalvik PSS / Native PSS / Native Private Dirty
+  - iOS: Physical Footprint / Compressed / Internal / Device Memory
+- 新增内存泄漏检测功能（基于 Dart 2.17+ WeakReference）
+  - Added memory leak detection feature (based on Dart 2.17+ WeakReference)
+  - 四状态流转：tracking → verifying → leaked / released
+    - Four-state transition: tracking → verifying → leaked / released
+  - 超过预期释放时间自动触发 GC 验证（VM Service 可用时）
+    - Auto-trigger GC verification after exceeding expected release time (when VM Service available)
+  - 提供 `trackObject()` / `untrackObject()` / `clearLeakRecords()` 三个公开 API
+    - Provides three public APIs: `trackObject()` / `untrackObject()` / `clearLeakRecords()`
+- 新增内存监控总开关（UI 顶部 Switch），关闭时停止所有定时器和 VM Service 连接，避免性能开销
+  - Added memory monitoring master switch (top Switch in UI), stops all timers and VM Service connection when off, avoiding performance overhead
 - 图片缓存监控：实时显示缓存大小、数量、加载中/使用中状态
   - Image cache monitoring: real-time display of cache size, count, pending/live status
 - 图片缓存清理：一键清除所有图片缓存
@@ -15,6 +39,19 @@
 - 应用缓存清理：一键清除应用临时缓存
   - App cache cleanup: one-click clear app temp cache
 
+**改进 / Improvements:**
+
+- VM Service 连接采用 HTTP + WebSocket 双模式自动降级
+  - VM Service connection uses HTTP + WebSocket dual-mode automatic fallback
+- VM Service 连接增加 500ms 初始延迟 + 最多 5 次重试（1 秒间隔）
+  - VM Service connection adds 500ms initial delay + up to 5 retries (1-second interval)
+- VM Service 不可用时 UI 优雅降级显示 N/A 占位
+  - UI gracefully degrades to show N/A placeholder when VM Service is unavailable
+- 历史快照数量为 240 条（500ms × 240 = 2 分钟历史窗口）
+  - Historical snapshot count is 240 (500ms × 240 = 2-minute history window)
+- 泄漏检测每 2 秒检查一次追踪对象状态，上限 500 条记录
+  - Leak detection checks tracked object status every 2 seconds, up to 500 records
+
 **修复 / Bug Fixes:**
 
 - 修复 SQLite 警告：将 SQL 语句中的双引号字符串改为单引号
@@ -22,10 +59,16 @@
 - 修复 TabBar 在小屏幕设备上的溢出问题，支持自适应滚动
   - Fix TabBar overflow on small screen devices, support adaptive scrolling
 
-**说明 / Notes:**
+**重要说明 / Important Notes:**
 
-- Dart VM Heap 内存监控和趋势图功能暂时移除（Android 真机上 VM Service 连接问题），将在后续版本恢复
-  - Dart VM Heap memory monitoring and trend chart features are temporarily removed (VM Service connection issue on Android real devices), will be restored in future versions
+- **Dart VM Heap 数据在通过 PC 调试时可能不可用**
+  - **Dart VM Heap data may be unavailable when debugging via PC**
+- **原因**：使用 `flutter run` 连接 PC 调试时，flutter tool 会通过 `adb reverse` 在 PC 和设备之间做端口转发，让 PC 上的 DevTools 能访问设备的 VM Service。但应用进程内部 `Service.getInfo()` 返回的 `serverUri` 是 PC 视角的端口，应用进程访问 `127.0.0.1:PC端口` 时设备本地并没有监听该端口，导致 Connection refused，VM Service 显示 OFF
+  - **Reason**: When debugging via PC with `flutter run`, flutter tool sets up port forwarding between PC and device via `adb reverse`, allowing PC-side DevTools to access device's VM Service. However, `Service.getInfo()` returns a `serverUri` from PC's perspective; when the app process accesses `127.0.0.1:PC_port`, the device doesn't have that port listening locally, resulting in Connection refused and VM Service showing OFF
+- **不影响实际使用**：不连接 PC 直接打开 debug 应用时，没有 flutter tool 介入，VM Service 直接监听设备本地端口，应用能正常连接，Dart Heap 数据正常显示
+  - **Does not affect actual usage**: When opening debug app without PC connection, no flutter tool is involved, VM Service listens directly on device's local port, app can connect normally, Dart Heap data displays correctly
+- **降级方案**：VM Service 不可用时，Native 内存（Android PSS / iOS physicalFootprint）仍然正常显示；进程 RSS 始终可用
+  - **Fallback**: When VM Service is unavailable, Native memory (Android PSS / iOS physicalFootprint) still displays normally; process RSS is always available
 
 ## 1.0.8
 

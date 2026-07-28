@@ -378,7 +378,7 @@ class _HomePageState extends State<HomePage> {
         final completer = Completer<void>();
         final stream = imageProvider.resolve(const ImageConfiguration());
         final listener = ImageStreamListener(
-          (_, __) {
+          (_, _) {
             if (!completer.isCompleted) {
               completer.complete();
             }
