@@ -18,10 +18,10 @@ class ExportService {
 
   /// 日志 → JSON / Logs to JSON
   String logsToJson(List<LogEntry> logs) => jsonEncode({
-        'exportedAt': DateTime.now().toIso8601String(),
-        'count': logs.length,
-        'logs': logs.map((e) => e.toJson()).toList(),
-      });
+    'exportedAt': DateTime.now().toIso8601String(),
+    'count': logs.length,
+    'logs': logs.map((e) => e.toJson()).toList(),
+  });
 
   /// 日志 → 纯文本 / Logs to text
   String logsToText(List<LogEntry> logs) {
@@ -32,7 +32,8 @@ class ExportService {
       ..writeln('=' * 50);
     for (final log in logs) {
       buf.writeln('${log.timestamp} [${_lvl(log.level)}] ${log.message}');
-      if (log.tag != null && log.tag!.isNotEmpty) buf.writeln('  Tag: ${log.tag}');
+      if (log.tag != null && log.tag!.isNotEmpty)
+        buf.writeln('  Tag: ${log.tag}');
       buf.writeln('');
     }
     return buf.toString();
@@ -40,10 +41,10 @@ class ExportService {
 
   /// 网络请求 → JSON / Network to JSON
   String netToJson(List<NetworkRequest> requests) => jsonEncode({
-        'exportedAt': DateTime.now().toIso8601String(),
-        'count': requests.length,
-        'requests': requests.map((e) => e.toJson()).toList(),
-      });
+    'exportedAt': DateTime.now().toIso8601String(),
+    'count': requests.length,
+    'requests': requests.map((e) => e.toJson()).toList(),
+  });
 
   // ==================== 复制方法 / Copy methods ====================
 
