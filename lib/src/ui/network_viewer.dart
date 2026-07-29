@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/network_request.dart';
 import '../models/interceptor_rule.dart';
 import '../services/inspector_service.dart';
+import '../services/export_service.dart';
 import 'theme/inspector_theme.dart';
 
 /// 网络请求查看器 / Network request viewer
@@ -156,6 +157,25 @@ class _NetworkViewerState extends State<NetworkViewer> {
                   onTap: () => _showInterceptorEditor(),
                   color: InspectorColors.accent,
                 ),
+              _buildIconButton(
+                icon: Icons.content_copy_rounded,
+                tooltip: 'Copy as JSON',
+                onTap: () async {
+                  final requests = InspectorService.instance.networkRequests;
+                  if (requests.isEmpty) return;
+                  final messenger = ScaffoldMessenger.of(context);
+                  await ExportService.instance.copyNet(requests);
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Copied ${requests.length} requests as JSON',
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
               _buildIconButton(
                 icon: Icons.delete_outline_rounded,
                 tooltip: 'Clear',

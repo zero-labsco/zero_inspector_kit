@@ -2,6 +2,8 @@
 
 A powerful Flutter plugin for in-app developer console, providing real-time debugging tools including network request inspection, logging, database viewing, memory monitoring, and route tracking.
 
+> **🔔 Upgrade recommended:** v1.2.0 fixes fundamental stability issues with the floating button and inspector panel (button never properly displayed via Overlay, panel unclickable, FPS Tab state loss). All users should upgrade to `^1.2.0`.
+
 🌐 **[Official Website](https://www.zerolabsco.com/)**
 
 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
@@ -13,8 +15,9 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 - **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
 - **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
 - **Memory Monitor**: Real-time memory monitoring with trend chart, Dart Heap details, Native memory breakdown (Android PSS / iOS physicalFootprint), memory leak detection, image cache monitoring, and app storage statistics. Master switch to avoid performance overhead.
+- **FPS Monitor**: Real-time FPS measurement, frame duration stats, jank detection, and FPS trend chart (30-second window). Master switch to avoid performance overhead.
 - **Route Tracker**: Monitor navigation history and current route information.
-- **Floating Button**: Accessible floating inspector button with breathing animation that slides in/out from the edge of the screen.
+- **Floating Button**: Accessible floating inspector button with breathing animation, rendered via root `Overlay` so it stays independent of any page's widget tree. Drag and release to auto-dock and tuck into the nearest screen edge (only a small peek visible); tap the peek to smoothly pull it out, then tap again to open the panel. This avoids conflicts with system back-gesture edges.
 - **Modern UI**: Beautiful dark theme with gradient design, customizable colors via centralized theme configuration.
 - **Cross-platform**: Works on Android and iOS.
 
@@ -26,7 +29,7 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.1.2
+  zero_inspector_kit: ^1.2.0
 ```
 
 ### GitHub
@@ -301,6 +304,47 @@ MemoryInspectorService.instance.clearLeakRecords();
 
 **Fallback:** When VM Service is unavailable, Native memory (Android PSS / iOS physicalFootprint) still displays normally, and process RSS is always available. Only Dart Heap details and manual GC are unavailable.
 
+### FPS Monitor
+
+The FPS Monitor provides real-time frame performance analysis with a master switch to control data collection (off by default to avoid performance overhead).
+
+**Master Switch:**
+- Top switch in the FPS panel controls whether monitoring is enabled
+- When disabled: no frame timings callbacks, no timer, no overhead
+- When enabled: starts collecting frame data via `WidgetsBinding.instance.addTimingsCallback`
+
+**Features:**
+- Current FPS, jank rate, total frame count
+- FPS trend line chart (30-second window, 60 data points)
+- Janky frame list with duration and timestamp (frames > 16ms)
+- Reset button to clear all statistics
+
+**Programmatic control (optional):**
+
+```dart
+// Start / Stop FPS monitoring from code
+FpsService.instance.start();
+FpsService.instance.stop();
+
+// Read current stats
+final fps = FpsService.instance.currentFps;
+final jankRate = FpsService.instance.jankRate;
+final totalFrames = FpsService.instance.totalFrameCount;
+final jankyFrames = FpsService.instance.totalJankyCount;
+
+// Clear historical data
+FpsService.instance.clear();
+
+// Listen to updates
+FpsService.instance.addListener(() {
+  // Update your own UI
+});
+
+// Historical data access
+final history = FpsService.instance.fpsHistory;       // List<double>, 60 entries
+final records = FpsService.instance.frameRecords;      // List<FrameRecord>, unmodifiable
+```
+
 ## Custom Database Provider
 
 To add support for other databases, implement the `DatabaseProvider` interface:
@@ -389,6 +433,27 @@ A shorthand wrapper around `InspectorLogInterceptor.instance` for shorter log ca
 ### InspectorRouteObserver
 
 Navigator observer for tracking route changes.
+
+### FpsService
+
+Singleton service for FPS monitoring, extends `ChangeNotifier`.
+
+| Method | Description |
+|--------|-------------|
+| start() | Start FPS monitoring |
+| stop() | Stop FPS monitoring |
+| clear() | Clear all historical data and counters |
+
+| Property | Type | Description |
+|----------|------|-------------|
+| isRunning | bool | Whether monitoring is currently active |
+| currentFps | double | Current FPS (updated every 500ms) |
+| jankRate | double | Jank rate as percentage |
+| totalFrameCount | int | Total frames captured |
+| totalJankyCount | int | Total janky frames captured (>16ms) |
+| lastFrameJanky | bool | Whether the most recent frame was janky |
+| fpsHistory | `List<double>` | Recent 60 FPS values (unmodifiable) |
+| frameRecords | `List<FrameRecord>` | Recent frame records (unmodifiable, up to 3600) |
 
 ### runInspectorApp
 

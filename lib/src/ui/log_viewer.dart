@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/log_entry.dart';
 import '../services/inspector_service.dart';
+import '../services/export_service.dart';
 import 'theme/inspector_theme.dart';
 
 /// 日志查看器 / Log viewer
@@ -128,6 +129,44 @@ class _LogViewerState extends State<LogViewer> {
                 ),
               ),
               const Spacer(),
+              _buildIconButton(
+                icon: Icons.content_copy_rounded,
+                tooltip: 'Copy as JSON',
+                onTap: () async {
+                  final logs = _filterLogs(
+                    InspectorService.instance.logEntries,
+                  );
+                  if (logs.isEmpty) return;
+                  final messenger = ScaffoldMessenger.of(context);
+                  await ExportService.instance.copyLogs(logs);
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('Copied ${logs.length} logs as JSON'),
+                      ),
+                    );
+                  }
+                },
+              ),
+              _buildIconButton(
+                icon: Icons.share_rounded,
+                tooltip: 'Copy as Text',
+                onTap: () async {
+                  final logs = _filterLogs(
+                    InspectorService.instance.logEntries,
+                  );
+                  if (logs.isEmpty) return;
+                  final messenger = ScaffoldMessenger.of(context);
+                  await ExportService.instance.copyLogs(logs, json: false);
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('Copied ${logs.length} logs as Text'),
+                      ),
+                    );
+                  }
+                },
+              ),
               _buildIconButton(
                 icon: Icons.delete_outline_rounded,
                 tooltip: 'Clear',

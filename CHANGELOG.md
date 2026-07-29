@@ -1,5 +1,76 @@
 # Changelog
 
+## 1.2.0
+
+**⚠️ 推荐所有用户立即升级 / Strongly recommended for all users to upgrade**
+
+本版本修复了悬浮按钮和检查器面板的根本性稳定性问题，并新增 FPS 监控演示。
+This release fixes fundamental stability issues with the floating button and inspector panel, and adds FPS monitoring demos.
+
+**修复 / Bug Fixes:**
+
+- 修复悬浮按钮从未通过 Overlay 正常显示的问题
+  - Fixed issue where the floating button was never properly displayed via Overlay
+  - **根因**：原实现使用 `Overlay.of(context, rootOverlay: true)` 查找 Overlay，但 `Overlay` 是 `Navigator` 的子组件而非祖先，导致查找结果为 `null`，按钮 OverlayEntry 从未被创建
+  - **Root cause**: Original implementation used `Overlay.of(context, rootOverlay: true)` to find Overlay, but Overlay is a child of Navigator, not an ancestor, returning `null` and the button OverlayEntry was never created
+  - **修复**：改用 `navigatorState.overlay` 直接从 Navigator 获取其内部 Overlay，并加入下一帧重试机制应对 Navigator 未挂载的情况
+  - **Fix**: Use `navigatorState.overlay` to get Overlay directly from Navigator, with next-frame retry when Navigator is not mounted
+- 修复开启 FPS 监控后悬浮按钮消失、面板无法展开的问题
+  - Fixed issue where enabling FPS monitoring caused the floating button to disappear and the panel could not expand
+  - **根因**：`FpsService.notifyListeners()` 会触发 Overlay 重建，叠加原 Overlay 查找失败，导致按钮 State 被销毁且无法恢复
+  - **Root cause**: `FpsService.notifyListeners()` triggers Overlay rebuild; combined with the original Overlay lookup failure, the button State was destroyed and could not recover
+- 修复 OverlayEntry 内容报 "No Material widget found" 的问题
+  - Fixed "No Material widget found" error in OverlayEntry content
+  - 面板 OverlayEntry 内部的 `TabBar`、`IconButton`、`InkWell` 等 Material 组件因 OverlayEntry 不在 MaterialApp widget 树中而无法找到 Material 祖先
+  - Material widgets (TabBar, IconButton, InkWell) inside the panel OverlayEntry could not find a Material ancestor because OverlayEntry content is outside MaterialApp's widget tree
+  - **修复**：在面板 OverlayEntry 内部（`Offstage` 内部）包裹 `Material(color: Colors.transparent)` 作为祖先
+  - **Fix**: Wrap `Material(color: Colors.transparent)` inside `Offstage` to provide the Material ancestor
+- 修复 OverlayEntry 的 Material 包裹导致下方页面无法点击/滑动的问题
+  - Fixed issue where Material wrapper in OverlayEntry made the underlying page unclickable/unscrollable
+  - **根因**：`RenderMaterial` 只要设置了 color（即使 `Colors.transparent`）就会在 `hitTestSelf` 返回 `true`，拦截所有触摸事件
+  - **Root cause**: `RenderMaterial` with any color (even `Colors.transparent`) returns `true` in `hitTestSelf`, intercepting all touch events
+  - **修复 1**：按钮 OverlayEntry 不再包裹 Material（`FloatingInspectorButton` 内部无 InkWell/InkResponse，不需要 Material 祖先）
+  - **Fix 1**: Button OverlayEntry no longer wraps Material (FloatingInspectorButton has no InkWell/InkResponse, no Material ancestor needed)
+  - **修复 2**：面板 OverlayEntry 中将 `Material` 放在 `Offstage` **内部**，关闭面板时 `RenderOffstage.hitTest` 直接返回 `false`，Material 不参与命中测试，点击穿透到下方页面
+  - **Fix 2**: In panel OverlayEntry, `Material` is placed **inside** `Offstage`; when the panel is closed, `RenderOffstage.hitTest` returns `false` directly, so Material never participates in hit testing and clicks pass through to the underlying page
+- 修复 FPS Tab 切换后内容消失的问题
+  - Fixed issue where FPS Tab content disappeared after switching tabs
+  - 使用 `IndexedStack` 替代 `TabBarView`，并为每个 viewer 添加 `ValueKey` 确保状态保持
+  - Use `IndexedStack` instead of `TabBarView`, and add `ValueKey` to each viewer to ensure state preservation
+- 修复 `AutomaticKeepAliveClientMixin` 与 `IndexedStack` 冲突导致状态销毁的问题
+  - Fixed state destruction caused by conflict between `AutomaticKeepAliveClientMixin` and `IndexedStack`
+  - 移除所有 viewer（network/log/database/memory/fps/route）中的 `AutomaticKeepAliveClientMixin`
+  - Remove `AutomaticKeepAliveClientMixin` from all viewers (network/log/database/memory/fps/route)
+- 修复 FPS 计算严重偏低的问题（实际 60 FPS 仅显示 9-10）
+  - Fixed severely undercounted FPS (real 60 FPS showed only 9-10)
+  - **根因**：`_onFrameTimings` 中 `_recentFrameTimestamps.add(now)` 在 for 循环外，而 Flutter 引擎的 `addTimingsCallback` 是**批量回调**，一次可能返回多帧，但代码每批只记录 1 个时间戳，导致 FPS 计算偏低 6-10 倍
+  - **Root cause**: `_recentFrameTimestamps.add(now)` was outside the for-loop in `_onFrameTimings`; Flutter engine's `addTimingsCallback` is **batched** (may return multiple frames per call), but only one timestamp was added per batch, undercounting FPS by 6-10x
+  - **修复**：将 `_recentFrameTimestamps.add` 移入 for 循环内，使用 `timing.timestamp.inMicroseconds` 为每帧单独记录时间戳
+  - **Fix**: Move `_recentFrameTimestamps.add` inside the for-loop, using `timing.timestamp.inMicroseconds` to record a timestamp per frame
+
+**新功能 / New Features:**
+
+- 悬浮按钮新增边缘吸附收入功能
+  - Floating button now auto-docks and tucks into screen edge
+  - 拖动松手后自动吸附到最近边缘，平滑动画"收入"边缘仅露出 24px 小弧边
+  - Auto-docks to nearest edge on release with smooth animation; tucks into edge leaving only a 24px peek
+  - 收入状态下点击露出部分会平滑拉出到完整可见位置（不打开面板，避免误触），再次点击才打开面板
+  - Tapping the peek smoothly pulls it out to fully visible (panel not opened, avoids accidental open); tap again to open the panel
+  - 此设计避免了从吸附态拖出时与系统返回手势（Android/iOS 边缘右滑退出）的冲突
+  - This design avoids conflict with system back gestures (Android/iOS edge swipe to go back) when pulling out from docked state
+  - 收入时图标变为方向箭头（左吸附→右箭头，右吸附→左箭头），提示可点击拉出
+  - Icon changes to directional chevron when tucked (left dock → right chevron, right dock → left chevron) hinting at tap-to-pull-out
+  - 非吸附状态保持虫子图标，点击直接打开面板
+  - Bug icon preserved when not docked; tap directly opens the panel
+- Example App 新增 FPS 演示模块
+  - Example App adds FPS demo module
+  - Trigger Jank 按钮（阻塞主线程 100-500ms 模拟掉帧）
+  - Trigger Jank button (blocks main thread 100-500ms to simulate jank)
+  - Heavy Animations 演示（80 个同时旋转+缩放的 widget 故意触发掉帧）
+  - Heavy Animations demo (80 simultaneously rotating+scaling widgets to intentionally trigger jank)
+  - Smooth Animation 演示（单个轻量复合动画，演示稳定 60 FPS）
+  - Smooth Animation demo (single lightweight compound animation, demonstrates stable 60 FPS)
+
 ## 1.1.2
 
 **优化 / Improvements:**

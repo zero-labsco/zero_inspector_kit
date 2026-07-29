@@ -56,4 +56,20 @@ class NetworkRequest {
     if (duration! < 1000) return '${duration}ms';
     return '${(duration! / 1000).toStringAsFixed(2)}s';
   }
+
+  /// 转换为 JSON / Convert to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'method': method,
+      'url': url,
+      'headers': headers,
+      'body': body?.toString(),
+      'responseBody': responseBody?.toString(),
+      'statusCode': statusCode,
+      'requestTime': requestTime,
+      'responseTime': responseTime,
+      'duration': duration,
+    };
+  }
 }

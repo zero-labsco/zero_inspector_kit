@@ -73,19 +73,22 @@
 
 ### 高优先级
 
-- [ ] **FPS / 帧率监控 / FPS monitoring**
-  - **状态**: 待实现 / To be implemented
+- [x] **FPS / 帧率监控 / FPS monitoring** ✅ 已完成 / Done
+  - **状态**: 已实现 / Implemented
   - **实现方案 / Implementation**:
     - 使用 `WidgetsBinding.instance.addTimingsCallback` 采集帧数据（零侵入）
     - Collect frame data via `WidgetsBinding.instance.addTimingsCallback` (zero-invasion)
     - 实时 FPS 显示 + 帧耗时分析（>16ms 掉帧预警）
     - Real-time FPS display + frame duration analysis (>16ms jank warning)
-    - 可切换显示模式：悬浮窗叠加 vs Inspector 面板内查看
-    - Switchable display: floating overlay vs in-panel view
+    - FPS 数据在 Inspector 面板内查看，通过总开关控制启停
+    - FPS data viewed in Inspector panel, controlled by master switch
   - **涉及文件 / Related files**:
     - `lib/src/services/fps_service.dart`（新增 / new）
     - `lib/src/ui/fps_viewer.dart`（新增 / new）
-    - `lib/src/ui/floating_button.dart`（扩展 / extended）
+    - `lib/src/ui/inspector_panel.dart`（扩展 / extended，IndexedStack + ValueKey 保持状态）
+  - **API / API**:
+    - `FpsService.instance.start()` / `stop()` / `clear()`
+    - `currentFps` / `jankRate` / `totalFrameCount` / `totalJankyCount` / `fpsHistory` / `frameRecords`
 
 ---
 
@@ -93,44 +96,46 @@
 
 ### 高优先级
 
-- [ ] **数据导出功能 / Data export feature**
-  - **状态**: 待实现 / To be implemented
+- [x] **数据导出功能 / Data export feature** ✅ 已完成 / Done
+  - **状态**: 已实现 / Implemented
   - **实现方案 / Implementation**:
     - 导出网络请求列表为 JSON（便于 Bug 复现和团队协作）
     - Export network request list as JSON (for bug reproduction and team collaboration)
     - 导出日志为纯文本 / JSON
     - Export logs as plain text / JSON
-    - 导出内存快照数据
-    - Export memory snapshot data
-    - 支持复制单条记录到剪贴板
-    - Support copying single records to clipboard
+    - 通过剪贴板复制（无需额外依赖）
+    - Copy to clipboard (no extra dependencies)
+    - 在日志查看器和网络查看器工具栏添加导出按钮
+    - Export buttons added in log viewer and network viewer toolbars
   - **涉及文件 / Related files**:
     - `lib/src/services/export_service.dart`（新增 / new）
     - `lib/src/ui/network_viewer.dart`（扩展 / extended）
     - `lib/src/ui/log_viewer.dart`（扩展 / extended）
-    - `lib/src/ui/memory_viewer.dart`（扩展 / extended）
+    - `lib/src/models/log_entry.dart`（添加 toJson / added toJson）
+    - `lib/src/models/network_request.dart`（添加 toJson / added toJson）
+  - **API 简化 / API simplified**:
+    - `logsToJson()` / `logsToText()` / `netToJson()` 导出方法
+    - `copyLogs({json: true})` / `copyNet()` / `copy(String)` 复制方法
+    - `_lvl()` 替代 `_getLevelPrefix()`
 
----
+### 低优先级
 
-## Device & Environment Info / 设备与环境信息
-
-### 高优先级
-
-- [ ] **设备/环境信息面板 / Device & environment info panel**
+- [ ] **文件导出 + 系统分享 / File export & system share**
   - **状态**: 待实现 / To be implemented
   - **实现方案 / Implementation**:
-    - 设备型号、OS 版本、屏幕分辨率、DPR
-    - Device model, OS version, screen resolution, DPR
-    - App 版本、Build 号、渠道
-    - App version, build number, channel
-    - Dart/Flutter 版本
-    - Dart/Flutter version
-    - CPU 架构、内存总量
-    - CPU architecture, total memory
-    - 使用 `MediaQuery`、`Platform` 等 API，零侵入实现
-    - Zero-invasion via `MediaQuery`, `Platform`, etc.
+    - 将数据写入临时文件（如 `_inspector_export_*.json`）
+    - Write data to temp file (e.g. `_inspector_export_*.json`)
+    - 通过 `share_plus` 调用系统分享面板（微信/邮件/Drive 等）
+    - Use `share_plus` to invoke system share panel (WeChat/Email/Drive etc.)
+    - 用户可选「复制到剪贴板」或「保存/分享为文件」
+    - User can choose "copy to clipboard" or "save/share as file"
+    - 需要额外依赖 `share_plus`（约 4KB，Android/iOS 原生实现）
+    - Requires extra dependency `share_plus` (~4KB, native Android/iOS implementation)
   - **涉及文件 / Related files**:
-    - `lib/src/ui/device_info_viewer.dart`（新增 / new）
+    - `lib/src/services/export_service.dart`（扩展 / extended）
+    - `lib/src/ui/log_viewer.dart`（扩展 / extended）
+    - `lib/src/ui/network_viewer.dart`（扩展 / extended）
+    - `pubspec.yaml`（新增依赖 / add dependency）
 
 ---
 

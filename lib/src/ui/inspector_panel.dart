@@ -5,9 +5,10 @@ import 'log_viewer.dart';
 import 'database_viewer.dart';
 import 'memory_viewer.dart';
 import 'route_viewer.dart';
+import 'fps_viewer.dart';
 
 /// 检查器面板 / Inspector panel
-/// 包含网络请求、日志、数据库、路由四个查看器 / Contains four viewers: network requests, logs, database, routes
+/// 包含网络、日志、数据库、内存、FPS、路由六个查看器 / Contains six viewers: network, logs, database, memory, FPS, routes
 class InspectorPanel extends StatefulWidget {
   /// 关闭面板回调 / Close panel callback
   final VoidCallback onClose;
@@ -23,13 +24,18 @@ class _InspectorPanelState extends State<InspectorPanel>
   /// 标签页控制器 / Tab controller
   late final TabController _tabController;
 
+  /// 当前选中的 Tab 索引 / Currently selected tab index
+  int _currentIndex = 0;
+
   /// 各个标签页的内容 / Contents of each tab
-  final List<Widget> _pages = const [
-    NetworkViewer(),
-    LogViewer(),
-    DatabaseViewer(),
-    MemoryViewer(),
-    RouteViewer(),
+  /// 使用 IndexedStack + ValueKey 保持各页面状态 / Use IndexedStack + ValueKey to preserve state of each page
+  late final List<Widget> _pages = const [
+    NetworkViewer(key: ValueKey('network')),
+    LogViewer(key: ValueKey('logs')),
+    DatabaseViewer(key: ValueKey('database')),
+    MemoryViewer(key: ValueKey('memory')),
+    FpsViewer(key: ValueKey('fps')),
+    RouteViewer(key: ValueKey('routes')),
   ];
 
   /// 标签页标题 / Tab titles
@@ -38,6 +44,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     'Logs',
     'Database',
     'Memory',
+    'FPS',
     'Routes',
   ];
 
@@ -47,6 +54,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     Icons.article_rounded,
     Icons.storage_rounded,
     Icons.memory_rounded,
+    Icons.speed_rounded,
     Icons.route_rounded,
   ];
 
@@ -54,12 +62,22 @@ class _InspectorPanelState extends State<InspectorPanel>
   void initState() {
     super.initState();
     _tabController = TabController(length: _titles.length, vsync: this);
+    _tabController.addListener(_onTabChanged);
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  /// Tab 变化回调 / Tab change callback
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    setState(() {
+      _currentIndex = _tabController.index;
+    });
   }
 
   @override
@@ -87,7 +105,8 @@ class _InspectorPanelState extends State<InspectorPanel>
             _buildHeader(),
             _buildTabBar(),
             Expanded(
-              child: TabBarView(controller: _tabController, children: _pages),
+              // IndexedStack 保持所有页面状态不丢失 / IndexedStack preserves state of all pages
+              child: IndexedStack(index: _currentIndex, children: _pages),
             ),
           ],
         ),
@@ -184,8 +203,8 @@ class _InspectorPanelState extends State<InspectorPanel>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // 5个Tab(图标+文字)在宽度小于360时需要滚动，否则均匀分布 / 5 tabs need scrolling when width < 360, otherwise evenly distributed
-          final isScrollable = constraints.maxWidth < 360;
+          // 6个Tab(图标+文字)在宽度小于480时需要滚动，否则均匀分布 / 6 tabs need scrolling when width < 480, otherwise evenly distributed
+          final isScrollable = constraints.maxWidth < 480;
           return TabBar(
             controller: _tabController,
             isScrollable: isScrollable,
@@ -196,9 +215,9 @@ class _InspectorPanelState extends State<InspectorPanel>
                 InspectorDimensions.chipRadius,
               ),
             ),
-            indicatorSize: isScrollable
-                ? TabBarIndicatorSize.label
-                : TabBarIndicatorSize.tab,
+            // 始终使用 tab 宽度作为指示器大小，确保选中指示器填满整个 Tab
+            // Always use tab width as indicator size to ensure selection indicator fills the entire tab
+            indicatorSize: TabBarIndicatorSize.tab,
             indicatorPadding: const EdgeInsets.symmetric(vertical: 4),
             labelPadding: isScrollable
                 ? const EdgeInsets.symmetric(horizontal: 16)

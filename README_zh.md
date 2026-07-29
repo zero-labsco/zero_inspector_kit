@@ -2,6 +2,8 @@
 
 一个功能强大的 Flutter 插件，用于应用内开发者控制台，提供实时调试工具，包括网络请求检查、日志记录、数据库查看、内存监控和路由追踪。
 
+> **🔔 推荐升级：** v1.2.0 修复了悬浮按钮和检查器面板的根本性稳定性问题（按钮从未通过 Overlay 正常显示、面板无法点击、FPS Tab 状态丢失），建议所有用户升级到 `^1.2.0`。
+
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
@@ -13,8 +15,9 @@
 - **日志系统**: 自动捕获应用中的日志，包括 print() 调用、Flutter 错误和异常。支持多种日志级别（verbose、debug、info、warning、error），并支持第三方日志库集成。
 - **数据库查看器**: 支持 SQLite 和其他数据库的检查，支持自定义数据库提供者。
 - **内存监控**: 实时内存监控，包含趋势图、Dart Heap 详情、Native 内存分项（Android PSS / iOS physicalFootprint）、内存泄漏检测、图片缓存监控和应用存储统计。提供总开关避免性能开销。
+- **FPS 监控**: 实时帧率测量、帧耗时统计、掉帧检测、FPS 趋势折线图（30 秒窗口）。提供总开关避免性能开销。
 - **路由追踪器**: 监控导航历史和当前路由信息。
-- **悬浮按钮**: 从屏幕边缘滑入/滑出的可访问悬浮检查按钮。
+- **悬浮按钮**: 带呼吸动画的可访问悬浮检查按钮，通过根 `Overlay` 渲染，独立于任意页面的 widget 树。拖动松手后自动吸附并"收入"最近的屏幕边缘（仅露出小部分）；点击露出部分会平滑拉出到完整可见，再次点击才打开面板。此设计避免了与系统边缘返回手势的冲突。
 - **跨平台**: 支持 Android 和 iOS 平台。
 
 ## 安装
@@ -25,7 +28,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.1.2
+  zero_inspector_kit: ^1.2.0
 ```
 
 ### GitHub
@@ -301,6 +304,47 @@ MemoryInspectorService.instance.clearLeakRecords();
 
 **降级方案：** VM Service 不可用时，Native 内存（Android PSS / iOS physicalFootprint）仍然正常显示；进程 RSS 始终可用。仅 Dart Heap 详情和手动 GC 不可用。
 
+### FPS 监控
+
+FPS 监控提供实时帧性能分析，顶部总开关控制数据采集（默认关闭以避免性能开销）。
+
+**总开关：**
+- FPS 面板顶部开关控制是否启用监控
+- 关闭时：不注册帧回调、无定时器、无性能开销
+- 开启时：通过 `WidgetsBinding.instance.addTimingsCallback` 开始采集帧数据
+
+**功能：**
+- 当前 FPS、掉帧率、总帧数
+- FPS 趋势折线图（30 秒窗口，60 个数据点）
+- 掉帧列表（带帧耗时和时间戳，标记 >16ms 的掉帧）
+- 重置按钮，清空所有统计
+
+**编程式控制（可选）：**
+
+```dart
+// 以代码方式启动 / 停止 FPS 监控
+FpsService.instance.start();
+FpsService.instance.stop();
+
+// 读取当前统计
+final fps = FpsService.instance.currentFps;
+final jankRate = FpsService.instance.jankRate;
+final totalFrames = FpsService.instance.totalFrameCount;
+final jankyFrames = FpsService.instance.totalJankyCount;
+
+// 清空历史数据
+FpsService.instance.clear();
+
+// 监听数据变化
+FpsService.instance.addListener(() {
+  // 更新你自己的 UI
+});
+
+// 历史数据访问
+final history = FpsService.instance.fpsHistory;       // List<double>，60 条
+final records = FpsService.instance.frameRecords;      // List<FrameRecord>，不可修改
+```
+
 ## 自定义数据库提供者
 
 要添加对其他数据库的支持，实现 `DatabaseProvider` 接口：
@@ -389,6 +433,27 @@ ConditionalInspector(
 ### InspectorRouteObserver
 
 用于追踪路由变化的 Navigator observer。
+
+### FpsService
+
+FPS 监控单例服务，继承自 `ChangeNotifier`。
+
+| 方法 | 描述 |
+|------|------|
+| start() | 启动 FPS 监控 |
+| stop() | 停止 FPS 监控 |
+| clear() | 清空所有历史数据和计数 |
+
+| 属性 | 类型 | 描述 |
+|------|------|------|
+| isRunning | bool | 当前是否正在监控 |
+| currentFps | double | 当前 FPS（每 500ms 更新） |
+| jankRate | double | 掉帧率（百分比） |
+| totalFrameCount | int | 累计总帧数 |
+| totalJankyCount | int | 累计掉帧数（>16ms） |
+| lastFrameJanky | bool | 最近一帧是否掉帧 |
+| fpsHistory | `List<double>` | 最近 60 个 FPS 历史值（不可修改） |
+| frameRecords | `List<FrameRecord>` | 最近帧记录（不可修改，最多 3600 条） |
 
 ### runInspectorApp
 

@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'zero_inspector_kit'
-  s.version          = '1.1.2'
+  s.version          = '1.2.0'
   s.summary          = 'A Flutter plugin for in-app developer console.'
   s.description      = <<-DESC
 A Flutter plugin for in-app developer console with network request viewing, logging, database inspection, and route tracking.

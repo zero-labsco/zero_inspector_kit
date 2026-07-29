@@ -8,42 +8,9 @@ import 'package:zero_inspector_kit/zero_inspector_kit.dart';
 import 'package:logger/logger.dart';
 
 void main() {
-  /// 零侵入集成：仅需一行代码即可启用所有检查器功能 / Zero-invasion integration: One line of code to enable all inspector features
-  ///
-  /// 对于 http 包用户：真正的零侵入，无需修改任何其他代码！
-  /// For http package users: True zero-invasion, no other code modifications needed!
-  ///
-  /// 对于 Dio 用户：同样零侵入！Dio 默认使用 HttpClient，会被 HttpOverrides 自动捕获
-  /// For Dio users: Also zero-invasion! Dio uses HttpClient by default, auto-captured by HttpOverrides
-  ///
-  /// runAppWithInspector 会自动：/ runAppWithInspector automatically:
-  /// 1. 初始化检查器（日志捕获、网络拦截、数据库扫描）/ 1. Initialize inspector (log capture, network interception, database scan)
-  /// 2. 通过 Zone 捕获所有 print() 输出 / 2. Capture all print() output via Zone
-  /// 3. 自动显示悬浮按钮 / 3. Auto-show floating button
-  /// 4. 自动注入路由观察者到 MaterialApp / 4. Auto-inject route observer into MaterialApp
+  // 零侵入集成：一行代码启用所有检查器功能 / Zero-invasion: one line enables all inspector features
+  // http 包和 Dio 用户均无需额外配置 / No extra config needed for http package and Dio users
   ZeroInspectorKit.runAppWithInspector(MaterialApp(home: const HomePage()));
-}
-
-/// 零侵入使用示例 / Zero-invasion usage example
-///
-/// http 包用户：以下代码完全无需修改，检查器会自动工作！
-/// http package users: No modifications needed below, inspector works automatically!
-///
-/// Dio 用户：同样零侵入！Dio 默认使用 HttpClient，会被 HttpOverrides 自动捕获
-/// Dio users: Also zero-invasion! Dio uses HttpClient by default, auto-captured by HttpOverrides
-///
-/// 检查器自动完成：/ Inspector automatically:
-/// - 捕获所有 print() 输出和 Flutter 错误 / - Capture all print() output and Flutter errors
-/// - 拦截所有 http 包请求（通过 HttpOverrides 全局拦截）/ - Intercept all http package requests (via HttpOverrides global interception)
-/// - 扫描 SQLite 数据库 / - Scan SQLite databases
-/// - 自动跟踪路由导航（无需手动添加 navigatorObservers）/ - Auto-track route navigation (no need to manually add navigatorObservers)
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(home: const HomePage());
-  }
 }
 
 /// 主页 / Home page
@@ -55,7 +22,8 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
   /// Dio 实例用于发送网络请求 / Dio instance for sending network requests
   /// 通过 HttpOverrides 自动捕获，无需额外配置 / Auto-captured via HttpOverrides, no extra configuration needed
   final Dio _dio = Dio();
@@ -63,13 +31,26 @@ class _HomePageState extends State<HomePage> {
   /// Logger 实例用于测试第三方日志库集成 / Logger instance for testing third-party log library integration
   late Logger _logger;
 
+  // ==================== FPS 演示状态 / FPS demo state ====================
+
+  /// 掉帧动画控制器（用于大量动画模拟掉帧）/ Jank animation controller (for many animations to simulate jank)
+  AnimationController? _jankAnimationController;
+
+  /// 是否启用重动画模式（大量旋转+缩放动画，故意触发掉帧）/ Whether heavy animation mode is on (many rotate+scale animations to intentionally trigger jank)
+  bool _heavyAnimationsEnabled = false;
+
+  /// 重动画数量 / Number of heavy animations
+  final int _heavyAnimationCount = 80;
+
+  /// 流畅动画控制器（单个轻量动画，演示高 FPS）/ Smooth animation controller (single lightweight animation for high FPS demo)
+  AnimationController? _smoothAnimationController;
+
+  /// 是否启用流畅动画模式（演示高 FPS 60 流畅运行）/ Whether smooth animation mode is on (demonstrates high 60 FPS)
+  bool _smoothAnimationEnabled = false;
+
   @override
   void initState() {
     super.initState();
-
-    /// 注意：SQLite 数据库提供者已在 ZeroInspectorKit.init() 中自动注册，无需手动注册
-    /// Note: SQLite database provider is automatically registered in ZeroInspectorKit.init(), no manual registration needed
-    /// DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider()); // 这行已不需要 / This line is no longer needed
 
     _setupLoggerIntegration();
     _initTestDatabase();
@@ -420,6 +401,76 @@ class _HomePageState extends State<HomePage> {
     print('Cleared memory references, GC will collect them');
   }
 
+  // ==================== FPS 演示方法 / FPS demo methods ====================
+
+  /// 切换重动画模式（故意触发掉帧演示）
+  /// Toggle heavy animation mode (intentionally triggers jank for demo)
+  void _toggleHeavyAnimations() {
+    setState(() {
+      _heavyAnimationsEnabled = !_heavyAnimationsEnabled;
+    });
+
+    if (_heavyAnimationsEnabled) {
+      _jankAnimationController ??= AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 800),
+      )..repeat(reverse: true);
+      print('Heavy animations enabled ($_heavyAnimationCount widgets)');
+    } else {
+      _jankAnimationController?.stop();
+      _jankAnimationController?.dispose();
+      _jankAnimationController = null;
+      print('Heavy animations disabled');
+    }
+  }
+
+  /// 故意执行密集计算（阻塞主线程 100-500ms）触发掉帧
+  /// Intentionally run heavy computation (block main thread 100-500ms) to trigger jank
+  void _triggerJankComputation() {
+    final stopwatch = Stopwatch()..start();
+    final durationMs = 100 + (DateTime.now().microsecondsSinceEpoch % 400);
+    // 密集循环计算 / Heavy loop computation
+    var sum = 0;
+    while (stopwatch.elapsedMilliseconds < durationMs) {
+      for (var i = 0; i < 10000; i++) {
+        sum += i * i % 7;
+      }
+    }
+    print(
+      'Heavy computation done: blocked ${stopwatch.elapsedMilliseconds}ms, sum=$sum',
+    );
+  }
+
+  /// 切换流畅动画模式（单个轻量动画，演示高 FPS 60 流畅运行）
+  /// Toggle smooth animation mode (single lightweight animation, demonstrates high 60 FPS)
+  void _toggleSmoothAnimation() {
+    setState(() {
+      _smoothAnimationEnabled = !_smoothAnimationEnabled;
+    });
+
+    if (_smoothAnimationEnabled) {
+      _smoothAnimationController ??= AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 2),
+      )..repeat();
+      print('Smooth animation enabled (single lightweight widget)');
+    } else {
+      _smoothAnimationController?.stop();
+      _smoothAnimationController?.dispose();
+      _smoothAnimationController = null;
+      print('Smooth animation disabled');
+    }
+  }
+
+  @override
+  void dispose() {
+    _jankAnimationController?.dispose();
+    _jankAnimationController = null;
+    _smoothAnimationController?.dispose();
+    _smoothAnimationController = null;
+    super.dispose();
+  }
+
   /// 使用 print() 输出不同级别的日志 / Output logs of different levels using print()
   /// 检查器会根据前缀自动识别日志级别（[VERBOSE]、[DEBUG]、[INFO]、[WARNING]、[ERROR]）
   /// Inspector auto-detects log level based on prefix ([VERBOSE], [DEBUG], [INFO], [WARNING], [ERROR])
@@ -603,6 +654,51 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: 24),
               const Text(
+                'FPS / Performance',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _triggerJankComputation,
+                child: const Text('Trigger Jank (Heavy Computation)'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _toggleHeavyAnimations,
+                child: Text(
+                  _heavyAnimationsEnabled
+                      ? 'Disable Heavy Animations'
+                      : 'Enable Heavy Animations (Jank Demo)',
+                ),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _toggleSmoothAnimation,
+                child: Text(
+                  _smoothAnimationEnabled
+                      ? 'Disable Smooth Animation'
+                      : 'Enable Smooth Animation (High FPS Demo)',
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Enable FPS monitoring via the switch in the inspector\'s FPS tab.\n'
+                'Heavy Animations renders 80 rotating widgets to trigger jank.\n'
+                'Smooth Animation runs a single lightweight widget for stable 60 FPS.\n'
+                'Heavy Computation blocks the main thread for 100-500ms.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+              if (_heavyAnimationsEnabled) ...[
+                const SizedBox(height: 12),
+                _buildHeavyAnimationPreview(),
+              ],
+              if (_smoothAnimationEnabled) ...[
+                const SizedBox(height: 12),
+                _buildSmoothAnimationPreview(),
+              ],
+              const SizedBox(height: 24),
+              const Text(
                 'Navigation',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
@@ -622,7 +718,115 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      floatingActionButton: const FloatingInspectorButton(),
+      // 悬浮按钮由 ZeroInspectorKit.runAppWithInspector 自动通过 Overlay 创建，无需手动添加
+      // Floating button is auto-created via Overlay by runAppWithInspector, no manual addition needed
+    );
+  }
+
+  /// 构建重动画预览（80 个同时旋转+缩放的 widget，故意触发掉帧）
+  /// Build heavy animation preview (80 simultaneously rotating+scaling widgets, intentionally triggering jank)
+  Widget _buildHeavyAnimationPreview() {
+    final controller = _jankAnimationController;
+    if (controller == null) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      height: 150,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+      ),
+      child: ClipRect(
+        child: Wrap(
+          spacing: 2,
+          runSpacing: 2,
+          children: List.generate(_heavyAnimationCount, (index) {
+            return AnimatedBuilder(
+              animation: controller,
+              builder: (context, child) {
+                final angle = controller.value * 3.14159 * 2 * (index % 3 + 1);
+                final scale = 0.5 + (controller.value * 0.5);
+                return Transform.rotate(
+                  angle: angle,
+                  child: Transform.scale(
+                    scale: scale,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color:
+                            Colors.primaries[index % Colors.primaries.length],
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  /// 构建流畅动画预览（单个轻量 widget 平滑旋转，演示高 FPS 60）
+  /// Build smooth animation preview (single lightweight widget rotating smoothly, demonstrates high 60 FPS)
+  Widget _buildSmoothAnimationPreview() {
+    final controller = _smoothAnimationController;
+    if (controller == null) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      height: 150,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.green.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+      ),
+      child: Center(
+        child: AnimatedBuilder(
+          animation: controller,
+          builder: (context, child) {
+            // 平滑的复合动画：旋转 + 缩放 + 渐变 / Smooth compound animation: rotate + scale + gradient
+            final angle = controller.value * 3.14159 * 2;
+            final scale =
+                0.8 + 0.2 * (0.5 + 0.5 * (controller.value - 0.5).abs() * 2);
+            return Transform.rotate(
+              angle: angle,
+              child: Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Colors.green, Colors.teal, Colors.cyan],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.green.withValues(alpha: 0.4),
+                        blurRadius: 20,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.bolt_rounded,
+                    color: Colors.white,
+                    size: 40,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -661,7 +865,8 @@ class SecondScreen extends StatelessWidget {
           ],
         ),
       ),
-      floatingActionButton: const FloatingInspectorButton(),
+      // 悬浮按钮由 ZeroInspectorKit.runAppWithInspector 自动通过 Overlay 创建
+      // Floating button auto-created via Overlay by runAppWithInspector
     );
   }
 }
@@ -676,7 +881,8 @@ class ThirdScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Third Screen')),
       body: const Center(child: Text('This is the third screen')),
-      floatingActionButton: const FloatingInspectorButton(),
+      // 悬浮按钮由 ZeroInspectorKit.runAppWithInspector 自动通过 Overlay 创建
+      // Floating button auto-created via Overlay by runAppWithInspector
     );
   }
 }

@@ -46,4 +46,15 @@ class LogEntry {
   String get timestampText {
     return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}:${timestamp.second.toString().padLeft(2, '0')}.${timestamp.millisecond.toString().padLeft(3, '0')}';
   }
+
+  /// 转换为 JSON / Convert to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'level': level.name,
+      'message': message,
+      'timestamp': timestamp.toIso8601String(),
+      'tag': tag,
+    };
+  }
 }
