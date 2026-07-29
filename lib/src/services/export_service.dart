@@ -32,8 +32,9 @@ class ExportService {
       ..writeln('=' * 50);
     for (final log in logs) {
       buf.writeln('${log.timestamp} [${_lvl(log.level)}] ${log.message}');
-      if (log.tag != null && log.tag!.isNotEmpty)
+      if (log.tag != null && log.tag!.isNotEmpty) {
         buf.writeln('  Tag: ${log.tag}');
+      }
       buf.writeln('');
     }
     return buf.toString();
