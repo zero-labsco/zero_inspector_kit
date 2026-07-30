@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'v*.*.*']
+    branches: ['v*.*.*']
     # 仅核心代码变更触发 CI，跳过纯文档/资源文件提交
     # Only trigger CI for core code changes, skip pure doc/asset commits
     paths-ignore:
@@ -55,6 +55,8 @@ on:
       - 'example/ios/Flutter/**'
       - 'example/android/**'
       - 'example/ios/Runner.xcodeproj/**'
+  # main 分支手动触发 / Manual trigger for main branch
+  workflow_dispatch:
   # 支持被其他工作流复用（如 pub-publish.yml）
   # Support being reused by other workflows (e.g. pub-publish.yml)
   workflow_call:
