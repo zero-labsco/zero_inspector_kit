@@ -33,7 +33,7 @@ on:
       - 'example/android/**'    # Example Android build artifacts
       - 'example/ios/Runner.xcodeproj/**' # Xcode project files (auto-generated)
   pull_request:
-    branches: [main]
+    branches: [main, 'v*.*.*']
     # Apply same ignore rules for PRs
     # 对 PR 应用相同的忽略规则
     paths-ignore:
@@ -89,6 +89,14 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'example/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
       - name: Print Flutter version
         run: flutter --version
 
@@ -120,9 +128,30 @@ jobs:
         working-directory: example
         run: flutter analyze lib/
 
-      # ========== pub.dev 评分自检 / pub.dev score self-check ==========
-      # 使用 pana 确保评分 ≥ 120，防止提交导致 pub.dev 评分下降
-      # Uses pana to ensure score ≥ 120, preventing pub.dev score regression
+  # ========== pub.dev 评分自检（独立并行 job）/ pub.dev score self-check (separate parallel job) ==========
+  # 与 analyze-and-test 并行运行，analyze 通过后才执行，避免 analyze 失败时白白跑 pana
+  # Runs in parallel with analyze-and-test; only after analyze passes, to avoid wasting pana time on broken code
+  pana-check:
+    name: Pana Score Check
+    runs-on: ubuntu-latest
+    needs: analyze-and-test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'example/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
 
       - name: Run pana pub.dev score check
         run: |
