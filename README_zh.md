@@ -2,6 +2,15 @@
 
 一个功能强大的 Flutter 插件，用于应用内开发者控制台，提供实时调试工具，包括网络请求检查、日志记录、数据库查看、内存监控、FPS 监控和路由追踪。
 
+[![pub version](https://img.shields.io/pub/v/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit)
+[![pub points](https://img.shields.io/pub/points/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit/score)
+[![CI](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml/badge.svg)](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://github.com/zero-labsco/zero_inspector_kit/blob/main/LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green.svg)]()
+[![Flutter](https://img.shields.io/badge/Flutter-✓-02569B?logo=flutter)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
+[![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
+
 > **🔔 推荐升级：** v1.2.1 修复了 FPS 计算的根本性准确度问题（时间戳使用 `DateTime.now()` 而非帧真实时间戳；帧耗时只算 build 阶段，漏掉 GPU 光栅化卡顿）。建议所有使用 FPS 监控功能的用户升级到 `^1.2.1`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
@@ -33,14 +42,14 @@ dependencies:
 
 ### GitHub
 
-或者，你也可以从 GitHub 安装：
+或者，你也可以从 GitHub 安装（将 `1.2.1` 替换为你需要的版本号）：
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: main
+      ref: v1.2.1
 ```
 
 ## 使用方法
@@ -473,7 +482,12 @@ runInspectorApp(VoidCallback appRunner)
 
 ## 贡献
 
-欢迎贡献代码！请随时提交 issue 和 pull request。
+欢迎贡献代码！提交 issue 或 pull request 前,请先阅读[贡献指南](CONTRIBUTING.md)。
+
+- 🐛 [报告 Bug](https://github.com/zero-labsco/zero_inspector_kit/issues/new?template=bug_report.md)
+- 💡 [功能建议](https://github.com/zero-labsco/zero_inspector_kit/issues/new?template=feature_request.md)
+- 💬 [参与讨论](https://github.com/zero-labsco/zero_inspector_kit/discussions)
+- 📖 [贡献指南](CONTRIBUTING.md)
 
 ## 许可证
 

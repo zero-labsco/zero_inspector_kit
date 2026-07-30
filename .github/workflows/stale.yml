@@ -1,0 +1,75 @@
+# 自动标记并关闭长期不活跃的 Issue 和 PR / Auto-mark and close stale Issues and PRs
+# 60 天无活动 → 标记 stale + 留言；再过 7 天无活动 → 关闭
+# 60 days no activity → mark stale + comment; another 7 days no activity → close
+name: Mark stale issues and pull requests
+
+on:
+  schedule:
+    # 每天 UTC 00:00 运行一次（北京时间 08:00）/ Run once a day at UTC 00:00 (Beijing 08:00)
+    - cron: '0 0 * * *'
+  # 支持手动触发 / Allow manual trigger
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark stale issues and PRs
+        uses: actions/stale@v9
+        with:
+          # ===== 时间窗口 / Time windows =====
+          # 60 天无活动后标记为 stale / Mark stale after 60 days of inactivity
+          days-before-stale: 60
+          # 标记后再过 7 天无活动则关闭 / Close after another 7 days of inactivity
+          days-before-close: 7
+
+          # ===== Issue 配置 / Issue config =====
+          days-before-issue-stale: 60
+          days-before-issue-close: 7
+          stale-issue-label: 'stale'
+          exempt-issue-labels: 'pinned,security,enhancement,bug'
+          stale-issue-message: |
+            This issue has been automatically marked as stale because it has not had
+            recent activity for 60 days. It will be closed if no further activity
+            occurs within 7 days. Thank you for your contributions.
+
+            此 Issue 因 60 天无活动被自动标记为 stale。若 7 天内仍无活动将被自动关闭。
+            感谢你的反馈与贡献！
+
+          close-issue-message: |
+            This issue has been automatically closed because it has not had recent
+            activity. If you believe this was closed in error, please reopen it
+            or leave a comment. Thank you!
+
+            此 Issue 因长期无活动被自动关闭。如认为误关闭,请重新打开或留言。感谢！
+
+          # ===== PR 配置 / PR config =====
+          days-before-pr-stale: 60
+          days-before-pr-close: 14
+          stale-pr-label: 'stale'
+          exempt-pr-labels: 'pinned,dependencies,wip'
+          stale-pr-message: |
+            This pull request has been automatically marked as stale because it has
+            not had recent activity for 60 days. It will be closed if no further
+            activity occurs within 14 days. Thank you for your contributions.
+
+            此 PR 因 60 天无活动被自动标记为 stale。若 14 天内仍无活动将被自动关闭。
+            感谢你的贡献！
+
+          close-pr-message: |
+            This pull request has been automatically closed because it has not had
+            recent activity. Feel free to reopen it if you intend to continue
+            working on it. Thank you!
+
+            此 PR 因长期无活动被自动关闭。如继续开发可重新打开。感谢！
+
+          # ===== 其他 / Misc =====
+          # 每次运行最多处理 30 个，避免一次性大量通知 / Max 30 operations per run
+          operations-per-run: 30
+          # 只处理 Issue/PR，不处理 discussions（discussions 保持开放）
+          # Only process issues and PRs, not discussions
+          enable-statistics: true

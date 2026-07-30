@@ -2,6 +2,15 @@
 
 A powerful Flutter plugin for in-app developer console, providing real-time debugging tools including network request inspection, logging, database viewing, memory monitoring, FPS monitoring, and route tracking.
 
+[![pub version](https://img.shields.io/pub/v/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit)
+[![pub points](https://img.shields.io/pub/points/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit/score)
+[![CI](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml/badge.svg)](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://github.com/zero-labsco/zero_inspector_kit/blob/main/LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green.svg)]()
+[![Flutter](https://img.shields.io/badge/Flutter-✓-02569B?logo=flutter)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
+[![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
+
 > **🔔 Upgrade recommended:** v1.2.1 fixes fundamental FPS accuracy issues (timestamps used `DateTime.now()` instead of real frame timestamps; frame duration only counted build phase, missing GPU rasterization jank). All users using the FPS monitor feature are advised to upgrade to `^1.2.1`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)**
@@ -34,14 +43,14 @@ dependencies:
 
 ### GitHub
 
-Alternatively, you can install from GitHub:
+Alternatively, you can install from GitHub (replace `1.2.1` with the version you need):
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: main
+      ref: v1.2.1
 ```
 
 ## Usage
@@ -473,7 +482,12 @@ runInspectorApp(VoidCallback appRunner)
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues and pull requests.
+Contributions are welcome! Please read the [Contributing Guidelines](CONTRIBUTING.md) before submitting issues or pull requests.
+
+- 🐛 [Report a Bug](https://github.com/zero-labsco/zero_inspector_kit/issues/new?template=bug_report.md)
+- 💡 [Request a Feature](https://github.com/zero-labsco/zero_inspector_kit/issues/new?template=feature_request.md)
+- 💬 [Join Discussions](https://github.com/zero-labsco/zero_inspector_kit/discussions)
+- 📖 [Contributing Guide](CONTRIBUTING.md)
 
 ## License
 

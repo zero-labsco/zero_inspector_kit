@@ -1,0 +1,76 @@
+# Dependabot 配置 / Dependabot configuration
+# 自动检查依赖更新并提交 PR / Automatically check for dependency updates and open PRs
+# 文档 / Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+
+updates:
+  # ========== 根项目 pub 依赖 / Root pub dependencies ==========
+  - package-ecosystem: "pub"
+    directory: "/"
+    schedule:
+      # 每周一检查更新 / Check for updates every Monday
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Shanghai"
+    # 聚合小版本更新到单个 PR，减少噪音 / Group minor/patch updates into a single PR
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    # 大版本单独 PR，便于审查 / Major versions in separate PRs for careful review
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "pub"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    # ⚠️ 注意 / Note: 本项目要求 pubspec.yaml 中版本号不带 `^`
+    # Dependabot 通常会保留原有约束风格（精确版本号保持精确）
+    # 收到首个 PR 后请验证此约束未被破坏
+    # This project requires exact version numbers without `^` in pubspec.yaml.
+    # Dependabot should preserve the existing constraint style (exact stays exact).
+    # Please verify this constraint is not broken after the first PR.
+
+  # ========== Example 应用 pub 依赖 / Example app pub dependencies ==========
+  - package-ecosystem: "pub"
+    directory: "/example"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Shanghai"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "pub"
+      - "example"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+
+  # ========== GitHub Actions 版本更新 / GitHub Actions updates ==========
+  # 检查 .github/workflows/ 中使用的 actions/xxx@vN 版本
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Shanghai"
+    groups:
+      # 所有 actions 更新聚合到一个 PR / Group all actions updates into one PR
+      all-actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
