@@ -1,0 +1,71 @@
+name: Dependabot PR Bilingual Body
+
+# Append a bilingual (English-primary, Chinese-secondary) summary to the body of
+# PRs opened by Dependabot. The PR title and commit subject stay English (required
+# by the project's Conventional Commits convention); only the body is enriched.
+#
+# 在 Dependabot 创建的 PR 正文中追加「英文为主、中文为辅」的双语说明。
+# PR 标题与 commit 标题保持英文（符合项目约定式提交规范），仅丰富正文内容。
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions:
+  pull-requests: write
+
+jobs:
+  bilingual-body:
+    name: Add bilingual (EN/ZH) summary to Dependabot PR
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Append bilingual summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = context.payload.pull_request.number;
+            const marker = '<!-- dependabot-bilingual -->';
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: prNumber,
+            });
+
+            // Idempotent: skip if the bilingual section is already present.
+            // 幂等：若双语段落已存在则跳过，避免重复追加。
+            if (pr.body && pr.body.includes(marker)) {
+              console.log('Bilingual summary already present, skipping.');
+              return;
+            }
+
+            const bilingual = `
+
+${marker}
+---
+
+### Dependency update / 依赖更新
+
+This automated dependency update was opened by Dependabot.
+
+此依赖更新 PR 由 Dependabot 自动创建。
+
+**Review checklist / 审查清单**
+- Verify the change builds and all CI checks pass. / 确认能正常构建且 CI 全部通过。
+- For major version bumps, check the changelog for breaking changes. / 大版本更新请核对变更日志中的破坏性改动。
+- For \`pub\` dependencies, confirm the caret (\`^\`) constraint is preserved. / \`pub\` 依赖请确认仍保留 caret（\`^\`）约束。
+
+<sub>Auto-added by the Dependabot PR Bilingual Body workflow. / 由工作流自动追加。</sub>
+`;
+
+            const newBody = (pr.body || '') + bilingual;
+            await github.rest.pulls.update({
+              owner,
+              repo,
+              pull_number: prNumber,
+              body: newBody,
+            });
