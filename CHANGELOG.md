@@ -2,6 +2,12 @@
 
 ## 1.2.1
 
+> **🔔 推荐升级 / Upgrade recommended：** 本版本修复了 FPS 计算的根本性准确度问题（时间戳错误、漏判 GPU 卡顿），所有使用 FPS 监控功能的用户建议升级到最新版本。
+> This release fixes fundamental FPS accuracy issues (incorrect timestamps, missing GPU jank detection). All users using the FPS monitor feature are advised to upgrade to the latest version.
+
+本版本修复了 FPS 计算的两个根本性准确度问题，并修复了引入真实时间戳后的回归 bug。
+This release fixes two fundamental FPS accuracy issues and a regression introduced by switching to real frame timestamps.
+
 **修复 / Bug Fixes:**
 
 - 修复 FPS 计算的两个根本性准确度问题
