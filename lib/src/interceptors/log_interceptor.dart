@@ -157,12 +157,12 @@ class InspectorLogInterceptor {
 
   /// 根据日志内容自动识别日志级别 / Automatically detect log level based on message content
   /// 支持以下标准格式（方括号级别标记）：/ Supports the following standard formats (bracket level markers):
-  /// - [VERBOSE] message / [V] message / [T] message (trace)
-  /// - [DEBUG] message / [D] message
-  /// - [INFO] message / [I] message
-  /// - [WARNING] message / [WARN] message / [W] message
-  /// - [ERROR] message / [ERR] message / [E] message
-  /// - [FATAL] message / [CRITICAL] message / [F] message
+  /// - `[VERBOSE]` message / `[V]` message / `[T]` message (trace)
+  /// - `[DEBUG]` message / `[D]` message
+  /// - `[INFO]` message / `[I]` message
+  /// - `[WARNING]` message / `[WARN]` message / `[W]` message
+  /// - `[ERROR]` message / `[ERR]` message / `[E]` message
+  /// - `[FATAL]` message / `[CRITICAL]` message / `[F]` message
   ///
   /// 对于第三方日志库（如 logger、logcat 等），由于其格式各不相同且自带标识，/ For third-party logging libraries (e.g., logger, logcat), since their formats vary and they have their own identifiers,
   /// 统一归类到 INFO 级别，用户可通过日志内容中的标识自行识别级别。/ they are uniformly classified as INFO level. Users can identify levels through identifiers in the log content.

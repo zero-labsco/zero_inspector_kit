@@ -127,11 +127,26 @@ jobs:
       - name: Run pana pub.dev score check
         run: |
           dart pub global activate pana
+          # 运行 pana：--no-warning 在有警告时以非零退出；用 set +e 防止 GitHub 默认的
+          # set -e 直接终止，确保后续仍能解析并展示分数
+          # Run pana: --no-warning exits non-zero on warnings; disable set -e so we
+          # can still parse and report the score afterward
+          set +e
           dart pub global run pana --no-warning --json . > pana.json
-          SCORE=$(python3 -c "import json; print(json.load(open('pana.json'))['grantedPoints'])")
-          echo "pana score: $SCORE / 160"
-          if [ "$SCORE" -lt 120 ]; then
-            echo "::error::pana score ($SCORE/160) is below the 120 threshold"
+          PANA_EXIT=$?
+          set -e
+          if [ $PANA_EXIT -ne 0 ]; then
+            echo "::error::pana reported warnings/errors (exit code $PANA_EXIT)"
+            cat pana.json
             exit 1
           fi
-          echo "✅ pana score ($SCORE/160) meets the 120 threshold"
+          # pana 0.22+ 将分数嵌套在 scores 对象下：scores.grantedPoints
+          # pana 0.22+ nests the score under the 'scores' object: scores.grantedPoints
+          SCORE=$(python3 -c "import json; d=json.load(open('pana.json')); s=d.get('scores', d); print(s['grantedPoints'])")
+          MAX=$(python3 -c "import json; d=json.load(open('pana.json')); s=d.get('scores', d); print(s['maxPoints'])")
+          echo "pana score: $SCORE / $MAX"
+          if [ "$SCORE" -lt 120 ]; then
+            echo "::error::pana score ($SCORE/$MAX) is below the 120 threshold"
+            exit 1
+          fi
+          echo "✅ pana score ($SCORE/$MAX) meets the 120 threshold"
