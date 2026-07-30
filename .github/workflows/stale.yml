@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Mark stale issues and PRs
-        uses: actions/stale@v9
+        uses: actions/stale@v11
         with:
           # ===== 时间窗口 / Time windows =====
           # 60 天无活动后标记为 stale / Mark stale after 60 days of inactivity
