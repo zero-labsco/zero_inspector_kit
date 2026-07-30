@@ -6,8 +6,13 @@ on:
     # 仅核心代码变更触发 CI，跳过纯文档/资源文件提交
     # Only trigger CI for core code changes, skip pure doc/asset commits
     paths-ignore:
-      - '**.md'              # All markdown files (README, CHANGELOG, wiki, etc.)
+      # Convention/agent docs (AGENTS.md, .codebuddy/**) are intentionally NOT ignored
+      # so docs-only PRs still run CI and satisfy branch protection's required checks.
+      - 'README*.md'         # README files
+      - 'CHANGELOG.md'       # Changelog
+      - 'TODO.md'            # Todo file
       - 'wiki/**'            # Wiki documentation directory
+      - 'docs/**'            # GitHub Pages content
       # 精细化忽略 GitHub 配置，但保留 workflows/ 目录的 CI 触发（Dependabot 改 action 版本需要跑 CI）
       # Finer-grained GitHub ignores — workflows MUST trigger CI (Dependabot action updates need CI)
       - '.github/ISSUE_TEMPLATE/**'     # Issue/PR templates
@@ -23,9 +28,6 @@ on:
       - '**.txt'             # Text files
       - '**.gitignore'       # Git ignore files
       - 'LICENSE'            # License file
-      - 'README*.md'         # README files (already covered by **.md, but explicit for clarity)
-      - 'CHANGELOG.md'       # Changelog (already covered by **.md)
-      - 'TODO.md'            # Todo file (already covered by **.md)
       - '.metadata'          # Package metadata (non-critical for CI validation)
       - 'example/lib/main.dart'  # Example entry point (CI checks example lib/ separately)
       - 'example/test/**'    # Example tests (not part of core plugin validation)
@@ -37,8 +39,13 @@ on:
     # Apply same ignore rules for PRs
     # 对 PR 应用相同的忽略规则
     paths-ignore:
-      - '**.md'
-      - 'wiki/**'
+      # Convention/agent docs (AGENTS.md, .codebuddy/**) are intentionally NOT ignored
+      # so docs-only PRs still run CI and satisfy branch protection's required checks.
+      - 'README*.md'         # README files
+      - 'CHANGELOG.md'       # Changelog
+      - 'TODO.md'            # Todo file
+      - 'wiki/**'            # Wiki documentation directory
+      - 'docs/**'            # GitHub Pages content
       # 精细化忽略 GitHub 配置，但保留 workflows/ 目录的 CI 触发
       # Finer-grained GitHub ignores — workflows MUST trigger CI
       - '.github/ISSUE_TEMPLATE/**'
@@ -54,9 +61,6 @@ on:
       - '**.txt'
       - '**.gitignore'
       - 'LICENSE'
-      - 'README*.md'
-      - 'CHANGELOG.md'
-      - 'TODO.md'
       - '.metadata'
       - 'example/lib/main.dart'
       - 'example/test/**'
