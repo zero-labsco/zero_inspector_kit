@@ -1,8 +1,29 @@
 # Changelog
 
-## 1.2.0
+## 1.2.1
 
-**⚠️ 推荐所有用户立即升级 / Strongly recommended for all users to upgrade**
+**修复 / Bug Fixes:**
+
+- 修复 FPS 计算的两个根本性准确度问题
+  - Fixed two fundamental accuracy issues in FPS calculation
+  - **问题 1**：帧时间戳使用 `DateTime.now()` 而非帧真实时间戳。由于 `addTimingsCallback` 是批量回调，同一批多帧会共享几乎相同的时间戳，导致滑动窗口 FPS 计算在窗口边缘抖动、批量到达时失真
+  - **Issue 1**: Frame timestamps used `DateTime.now()` instead of real frame timestamps. Since `addTimingsCallback` is batched, multiple frames in the same batch shared nearly identical timestamps, causing sliding-window FPS to jitter at window edges and distort on batch arrivals
+  - **修复 1**：改用 `timing.timestampInMicroseconds(FramePhase.buildStart)` 获取每帧真实开始时间戳
+  - **Fix 1**: Use `timing.timestampInMicroseconds(FramePhase.buildStart)` to get the real per-frame start timestamp
+  - **问题 2**：帧耗时只算 `buildDuration`（widget 树构建），漏掉了 `rasterizationDuration`（GPU 光栅化）。GPU 卡顿是 Flutter 最常见的卡顿类型之一，原实现完全检测不到
+  - **Issue 2**: Frame duration only counted `buildDuration` (widget tree construction), missing `rasterizationDuration` (GPU rasterization). GPU jank — one of the most common Flutter jank types — was completely undetected
+  - **修复 2**：帧耗时改用 `rasterFinish - buildStart`，包含 build 和 raster 全过程
+  - **Fix 2**: Frame duration now uses `rasterFinish - buildStart`, covering both build and raster phases
+- 修复引入真实时间戳后 FPS 显示 `--` 的回归问题
+  - Fixed regression where FPS displayed `--` after switching to real frame timestamps
+  - **根因**：`_refreshFps()` 用 `DateTime.now()`（wall clock，自 1970 UTC）作为 "now" 来清理旧时间戳，而帧时间戳用的是 `FramePhase.buildStart`（monotonic time，自引擎启动）。两者时钟基准不同，差值巨大，导致所有帧时间戳在第一次刷新时被全部误清理，FPS 永远为 0
+  - **Root cause**: `_refreshFps()` used `DateTime.now()` (wall clock, since 1970 UTC) as "now" to purge old timestamps, but frame timestamps used `FramePhase.buildStart` (monotonic time, since engine start). Different clock bases caused all timestamps to be erroneously purged on first refresh, making FPS always 0
+  - **修复**：用帧时间戳中的最大值作为 "now"，确保时钟基准统一
+  - **Fix**: Use the max frame timestamp as "now" to ensure a unified clock base
+- 移除未使用的 `_frameStartTimes` 字段（死代码清理）
+  - Removed unused `_frameStartTimes` field (dead code cleanup)
+
+## 1.2.0
 
 本版本修复了悬浮按钮和检查器面板的根本性稳定性问题，并新增 FPS 监控演示。
 This release fixes fundamental stability issues with the floating button and inspector panel, and adds FPS monitoring demos.

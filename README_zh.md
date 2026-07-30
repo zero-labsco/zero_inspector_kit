@@ -2,7 +2,7 @@
 
 一个功能强大的 Flutter 插件，用于应用内开发者控制台，提供实时调试工具，包括网络请求检查、日志记录、数据库查看、内存监控和路由追踪。
 
-> **🔔 推荐升级：** v1.2.0 修复了悬浮按钮和检查器面板的根本性稳定性问题（按钮从未通过 Overlay 正常显示、面板无法点击、FPS Tab 状态丢失），建议所有用户升级到 `^1.2.0`。
+> **🔔 推荐升级：** v1.2.1 修复了 FPS 计算的根本性准确度问题（时间戳使用 `DateTime.now()` 而非帧真实时间戳；帧耗时只算 build 阶段，漏掉 GPU 光栅化卡顿）。v1.2.0 修复了悬浮按钮和检查器面板的根本性稳定性问题。建议所有用户升级到 `^1.2.1`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
@@ -28,7 +28,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.2.0
+  zero_inspector_kit: ^1.2.1
 ```
 
 ### GitHub
@@ -318,6 +318,10 @@ FPS 监控提供实时帧性能分析，顶部总开关控制数据采集（默�
 - FPS 趋势折线图（30 秒窗口，60 个数据点）
 - 掉帧列表（带帧耗时和时间戳，标记 >16ms 的掉帧）
 - 重置按钮，清空所有统计
+
+**准确度说明（v1.2.1 起）：**
+- 帧时间戳使用 `timing.timestampInMicroseconds(FramePhase.buildStart)` —— 来自 Flutter 引擎的每帧真实开始时间，而非 `DateTime.now()`（后者在批量回调中会让多帧时间戳几乎相同）
+- 帧耗时使用 `rasterFinish - buildStart`，**同时包含 build 和 raster（GPU）阶段** —— 能检测 GPU 光栅化卡顿，这是 Flutter 最常见的卡顿类型之一，纯 `buildDuration` 检测完全漏判
 
 **编程式控制（可选）：**
 

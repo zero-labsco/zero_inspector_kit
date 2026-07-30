@@ -2,7 +2,7 @@
 
 A powerful Flutter plugin for in-app developer console, providing real-time debugging tools including network request inspection, logging, database viewing, memory monitoring, and route tracking.
 
-> **🔔 Upgrade recommended:** v1.2.0 fixes fundamental stability issues with the floating button and inspector panel (button never properly displayed via Overlay, panel unclickable, FPS Tab state loss). All users should upgrade to `^1.2.0`.
+> **🔔 Upgrade recommended:** v1.2.1 fixes fundamental FPS accuracy issues (timestamps used `DateTime.now()` instead of real frame timestamps; frame duration only counted build phase, missing GPU rasterization jank). v1.2.0 fixed fundamental stability issues with the floating button and inspector panel. All users should upgrade to `^1.2.1`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)**
 
@@ -29,7 +29,7 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.2.0
+  zero_inspector_kit: ^1.2.1
 ```
 
 ### GitHub
@@ -318,6 +318,10 @@ The FPS Monitor provides real-time frame performance analysis with a master swit
 - FPS trend line chart (30-second window, 60 data points)
 - Janky frame list with duration and timestamp (frames > 16ms)
 - Reset button to clear all statistics
+
+**Accuracy (since v1.2.1):**
+- Frame timestamps use `timing.timestampInMicroseconds(FramePhase.buildStart)` — the real per-frame start time from the Flutter engine, not `DateTime.now()` (which collides across batched frames)
+- Frame duration uses `rasterFinish - buildStart`, covering **both build and raster (GPU) phases** — this catches GPU rasterization jank, the most common Flutter jank type that pure `buildDuration`-based detection misses
 
 **Programmatic control (optional):**
 

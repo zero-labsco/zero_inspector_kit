@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show FramePhase;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/material.dart';
@@ -7,10 +8,11 @@ import 'package:flutter/material.dart';
 ///
 /// 记录单帧的耗时信息，用于掉帧分析 / Records frame duration info for jank analysis
 class FrameRecord {
-  /// 帧开始时间戳（微秒）/ Frame start timestamp (microseconds)
+  /// 帧开始时间戳（微秒，来自 FramePhase.buildStart）/ Frame start timestamp (microseconds, from FramePhase.buildStart)
   final int timestamp;
 
-  /// 帧耗时（微秒）/ Frame duration (microseconds)
+  /// 帧总耗时（微秒）= rasterFinish - buildStart，包含 build 和 raster 全过程
+  /// Frame total duration (microseconds) = rasterFinish - buildStart, includes both build and raster phases
   final int durationUs;
 
   /// 是否掉帧（>16ms）/ Whether frame is janky (>16ms)
@@ -68,9 +70,6 @@ class FpsService extends ChangeNotifier {
   /// 最近帧耗时列表 / Recent frame duration list
   final List<FrameRecord> _frameRecords = [];
 
-  /// 帧开始时间戳缓存 / Frame start timestamp cache
-  final Map<int, int> _frameStartTimes = {};
-
   /// 最近一秒内的帧时间戳 / Frame timestamps in the most recent second
   final List<int> _recentFrameTimestamps = [];
 
@@ -126,7 +125,6 @@ class FpsService extends ChangeNotifier {
     _frameRecords.clear();
     _fpsHistory.clear();
     _recentFrameTimestamps.clear();
-    _frameStartTimes.clear();
 
     WidgetsBinding.instance.addTimingsCallback(_onFrameTimings);
     _startFpsTimer();
@@ -162,20 +160,30 @@ class FpsService extends ChangeNotifier {
   /// must add a timestamp per frame to [_recentFrameTimestamps], otherwise
   /// FPS will be severely undercounted.
   void _onFrameTimings(List<FrameTiming> timings) {
-    // 用当前时间作为本批次的时间戳 / Use current time as the timestamp for this batch
-    // 关键是每帧都计一次，而不是时间戳的精确值 / Key is to count per frame, not the exact timestamp
-    // 注意：FrameTiming 未公开帧原始时间戳，只能用 DateTime.now()
-    // Note: FrameTiming does not expose raw frame timestamp; use DateTime.now()
-    final now = DateTime.now().microsecondsSinceEpoch;
-
     for (final timing in timings) {
-      // 获取帧时长 / Get frame duration
-      // buildDuration: 构建耗时、rasterizationDuration: 光栅化耗时
-      // buildDuration: build time, rasterizationDuration: raster time
-      final durationUs = timing.buildDuration.inMicroseconds;
+      // 使用帧真实开始时间戳（buildStart 阶段），避免批量回调时间戳相同问题
+      // Use the real frame start timestamp (buildStart phase) to avoid
+      // batch-callback timestamp collision (all frames in a batch sharing
+      // the same DateTime.now() value)
+      final frameStartUs = timing.timestampInMicroseconds(
+        FramePhase.buildStart,
+      );
+
+      // 帧总耗时 = rasterFinish - buildStart，包含 build 和 raster 全过程
+      // Frame total duration = rasterFinish - buildStart, includes both
+      // build phase (widget tree construction) and raster phase (GPU painting)
+      // 注意：不能只用 buildDuration，否则会漏判 GPU 光栅化卡顿
+      // Note: cannot use buildDuration alone, otherwise GPU raster jank is missed
+      final rasterFinishUs = timing.timestampInMicroseconds(
+        FramePhase.rasterFinish,
+      );
+      final durationUs = rasterFinishUs - frameStartUs;
 
       // 添加记录 / Add record
-      final record = FrameRecord(timestamp: now, durationUs: durationUs);
+      final record = FrameRecord(
+        timestamp: frameStartUs,
+        durationUs: durationUs,
+      );
       _frameRecords.add(record);
       _totalFrameCount++;
 
@@ -184,8 +192,8 @@ class FpsService extends ChangeNotifier {
         _totalJankyCount++;
       }
 
-      // 每帧添加一个时间戳用于 FPS 计算 / Add a timestamp per frame for FPS calculation
-      _recentFrameTimestamps.add(now);
+      // 每帧添加真实时间戳用于 FPS 计算 / Add real frame timestamp per frame for FPS calculation
+      _recentFrameTimestamps.add(frameStartUs);
     }
 
     // 限制历史记录数量 / Limit history size
@@ -207,17 +215,32 @@ class FpsService extends ChangeNotifier {
   void _refreshFps() {
     if (!_isRunning) return;
 
-    final now = DateTime.now().microsecondsSinceEpoch;
+    // 重要：必须使用与帧时间戳相同的时钟基准 / Must use same clock base as frame timestamps
+    // FrameTiming.timestampInMicroseconds 返回 monotonic time（引擎启动以来微秒数），
+    // 而 DateTime.now().microsecondsSinceEpoch 返回 wall clock（自 1970 UTC 微秒数）。
+    // 两者差值巨大，混用会导致所有时间戳被误清理，FPS 永远为 0。
+    // FrameTiming.timestampInMicroseconds returns monotonic time (microseconds since
+    // engine start), while DateTime.now().microsecondsSinceEpoch returns wall clock
+    // (microseconds since 1970 UTC). Mixing them causes all timestamps to be
+    // erroneously purged, making FPS always 0.
+    //
+    // 因此用帧时间戳中的最大值作为 "now"：有新帧时它自然推进，无新帧时旧帧仍被清理。
+    // Use the max frame timestamp as "now": it advances naturally when new frames
+    // arrive, and old frames are still purged correctly when idle.
+    if (_recentFrameTimestamps.isEmpty) {
+      _currentFps = 0;
+    } else {
+      final now = _recentFrameTimestamps.reduce((a, b) => a > b ? a : b);
 
-    // 清理超过 1 秒的旧时间戳 / Remove timestamps older than 1 second
-    _recentFrameTimestamps.removeWhere((ts) => now - ts > 1000000);
+      // 清理超过 1 秒的旧时间戳 / Remove timestamps older than 1 second
+      _recentFrameTimestamps.removeWhere((ts) => now - ts > 1000000);
 
-    // FPS = 最近 1 秒内的帧数 / FPS = frames in the most recent second
-    final fps = _recentFrameTimestamps.length.toDouble();
-    _currentFps = fps;
+      // FPS = 最近 1 秒内的帧数 / FPS = frames in the most recent second
+      _currentFps = _recentFrameTimestamps.length.toDouble();
+    }
 
     // 记录 FPS 历史 / Record FPS history
-    _fpsHistory.add(fps);
+    _fpsHistory.add(_currentFps);
     if (_fpsHistory.length > 60) {
       _fpsHistory.removeAt(0);
     }
