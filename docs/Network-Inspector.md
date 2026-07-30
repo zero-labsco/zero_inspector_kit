@@ -1,0 +1,149 @@
+# Network Inspector / 网络检查器
+
+## Overview / 概述
+
+The Network Inspector automatically captures all HTTP requests made via the **http package** and **Dio**, with zero configuration needed.
+
+网络检查器自动捕获所有通过 **http 包** 和 **Dio** 发送的 HTTP 请求，无需任何配置。
+
+## How It Works / 工作原理
+
+The inspector uses Flutter's `HttpOverrides` to intercept all HTTP traffic at the `dart:io` level. This means:
+
+检查器通过 Flutter 的 `HttpOverrides` 在 `dart:io` 层面拦截所有 HTTP 流量。这意味着：
+
+- **http package**: Auto-captured ✅ / 自动捕获 ✅
+- **Dio**: Auto-captured (uses IOHttpClientAdapter → HttpClient) ✅ / 自动捕获 ✅
+- No manual interceptor setup needed / 无需手动添加拦截器
+
+## Captured Information / 捕获的信息
+
+| Field | Description |
+|-------|-------------|
+| Method | GET, POST, PUT, DELETE, PATCH |
+| URL | Full request URL |
+| Status Code | HTTP response status code |
+| Duration | Request duration |
+| Request Headers | All request headers |
+| Request Body | Request payload (JSON formatted) |
+| Response Body | Response payload (JSON formatted) |
+| Host | Parsed from URL |
+
+## UI Features / UI 功能
+
+### Request List / 请求列表
+- Color-coded by HTTP method / 按 HTTP 方法着色
+- Status code badge / 状态码徽章
+- Duration display / 耗时显示
+- Left border color indicates status / 左侧边框颜色表示状态
+
+### Request Detail / 请求详情
+- Click a request to enter detail view / 点击请求进入详情视图
+- Back button to return to list / 返回按钮返回列表
+- Request and response sections / 请求和响应分段显示
+- JSON formatted body / JSON 格式化显示
+
+### Search / 搜索
+- Fuzzy search by URL or method / 按 URL 或方法模糊搜索
+- Search bar hidden in detail view / 详情视图隐藏搜索栏
+
+## Status Code Colors / 状态码颜色
+
+| Range | Color | Description |
+|-------|-------|-------------|
+| 2xx | Green | Success / 成功 |
+| 3xx | Blue | Redirect / 重定向 |
+| 4xx | Orange | Client error / 客户端错误 |
+| 5xx | Red | Server error / 服务器错误 |
+
+## HTTP Method Colors / HTTP 方法颜色
+
+| Method | Color |
+|--------|-------|
+| GET | Blue / 蓝色 |
+| POST | Green / 绿色 |
+| PUT | Orange / 橙色 |
+| DELETE | Red / 红色 |
+| PATCH | Purple / 紫色 |
+
+## Usage Example / 使用示例
+
+```dart
+// http package - auto-captured / http 包 - 自动捕获
+final response = await http.get(
+  Uri.parse('https://api.example.com/data'),
+);
+
+// Dio - auto-captured / Dio - 自动捕获
+final response = await dio.post(
+  'https://api.example.com/data',
+  data: {'key': 'value'},
+);
+```
+
+No additional setup required! All requests will appear in the Network tab.
+
+无需额外配置！所有请求都会出现在 Network 标签页中。
+
+## Request Interceptor / 请求拦截修改
+
+> **Available since v1.0.7** (response fields locked to read-only since v1.0.8)
+>
+> **v1.0.7 起可用**（v1.0.8 起响应字段锁定为只读）
+
+The inspector supports intercepting and modifying network requests via rules. This is useful for testing different request parameters without modifying app code.
+
+检查器支持通过规则拦截并修改网络请求，适合在不修改应用代码的情况下测试不同的请求参数。
+
+### Workflow / 工作流程
+
+1. Send a request normally (it will be captured in the Network panel) / 正常发送请求（会被捕获到 Network 面板）
+2. Open the request detail and tap the Interceptor icon / 打开请求详情，点击拦截器图标
+3. Configure the modification rule (URL pattern, HTTP method, request modifications) / 配置修改规则（URL 模式、HTTP 方法、请求修改）
+4. Save the rule — subsequent matching requests will use the modified parameters / 保存规则——后续匹配的请求将使用修改后的参数
+
+### Supported Modifications / 支持的修改
+
+| Field | Editable | Notes |
+|-------|----------|-------|
+| **Request Body** | ✅ | Only for requests with body (POST, PUT, PATCH, etc.) / 仅适用于有 body 的请求 |
+| **Request Headers** | ✅ | Add / modify / remove headers / 新增 / 修改 / 删除请求头 |
+| URL | ❌ | Grayed out, read-only / 灰色不可编辑 |
+| Response Status Code | ❌ | Read-only since v1.0.8 / v1.0.8 起只读 |
+| Response Body | ❌ | Read-only since v1.0.8 / v1.0.8 起只读 |
+
+> The interception edit panel only allows modifying the **request body** and **request headers**. Response fields (status code, response body) are grayed out and uneditable.
+>
+> 拦截编辑面板仅允许修改**请求体**和**请求头**。响应字段（状态码、响应体）灰色不可编辑。
+
+### Rule Matching / 规则匹配
+
+- **URL pattern matching**: exact match or regex / URL 模式匹配：精确匹配或正则匹配
+- **HTTP method filtering**: GET, POST, PUT, DELETE, PATCH, HEAD, or Any / HTTP 方法过滤
+
+### Why GET Requests Cannot Be Modified / 为什么 GET 请求不能修改
+
+- The interceptor currently supports modifying request body and headers only / 拦截器目前仅支持修改请求体和请求头
+- GET requests don't have a request body / GET 请求没有请求体
+- Modifying GET request parameters would require URL modification / 修改 GET 请求参数需要修改 URL
+- URL modification may cause unexpected issues with request routing and parameter encoding / 修改 URL 可能导致请求路由和参数编码的意外问题
+
+> GET request detail pages do not display interception edit buttons, making them unmodifiable.
+>
+> GET 请求详情页不显示拦截编辑按钮，因此无法修改。
+
+### Master Toggle / 拦截总开关
+
+- The interception master toggle is displayed **only on the Network list page**, not in the detail page / 拦截总开关**只显示在 Network 列表页**，不在详情页
+- Rules are only applied when modification mode is enabled / 规则仅在启用修改模式时生效
+- When no rules are configured or rules are disabled, all requests are sent normally without any modification / 未配置规则或禁用规则时，所有请求正常发送，不做任何修改
+
+### Rule Management / 规则管理
+
+The network panel includes an interceptor rule editor where you can:
+
+网络面板包含拦截规则编辑器，可以：
+
+- Create / edit / delete rules / 创建 / 编辑 / 删除规则
+- Enable / disable individual rules / 启用 / 禁用单条规则
+- View rule status indicators in the request list / 在请求列表中查看规则状态标识
