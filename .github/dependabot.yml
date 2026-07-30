@@ -34,18 +34,14 @@ updates:
     # Please verify this constraint is not broken after the first PR.
 
   # ========== Example 应用 pub 依赖 / Example app pub dependencies ==========
-  # 示例应用依赖更新频率较低，改为每 3 个月检查一次（每季一次，尽可能接近半年）
-  # Example app deps are updated infrequently → quarterly check (closest to "biannual" Dependabot supports)
+  # 示例应用依赖更新频率较低，改为每月 1 号检查一次（实际数月才提一次 PR）
+  # Example app deps are updated infrequently → monthly on 1st (rarely actually opens PRs)
   - package-ecosystem: "pub"
     directory: "/example"
     schedule:
-      # ⚠️ Dependabot 原生只支持 daily / weekly / monthly，没有半年一次(biannual)选项
-      # ⚠️ Native options are only daily/weekly/monthly — no biannual/quarterly.
-      # 这里使用 monthly 配合 open-pull-requests-limit:1 保持极低噪音；若嫌 3 个月仍频繁，可改为：
-      # Keep monthly + open-pull-requests-limit:1 → negligible noise. If still too frequent, use:
-      # interval: "yearly"（一年一次，比 monthly 更"半年"但可能过久）
+      # ⚠️ Dependabot 原生只支持 daily / weekly / monthly；`day` 字段仅 weekly 生效，monthly 下默认月初运行
+      # ⚠️ Native options are daily/weekly/monthly only; `day` field only applies to weekly interval
       interval: "monthly"
-      day: 1
       timezone: "Asia/Shanghai"
     groups:
       minor-and-patch:
