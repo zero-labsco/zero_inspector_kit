@@ -102,3 +102,112 @@ DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
 See [Custom Database Provider](Custom-Database-Provider) for more details.
 
 详见 [自定义数据库提供者](Custom-Database-Provider)。
+
+## InspectorLog / 简化日志 API
+
+> Available since v1.1.2 / v1.1.2 起可用
+
+A static wrapper around `InspectorLogInterceptor.instance` for shorter log calls.
+
+`InspectorLogInterceptor.instance` 的静态包装，用于更简短的日志调用。
+
+```dart
+InspectorLog.v('Verbose log');
+InspectorLog.d('Debug log');
+InspectorLog.i('Info log', tag: 'Auth');
+InspectorLog.w('Warning log');
+InspectorLog.e('Error log');
+```
+
+| Method | Description |
+|--------|-------------|
+| `start()` | Start capturing logs / 开始捕获日志 |
+| `stop()` | Stop capturing logs / 停止捕获日志 |
+| `log(level, message, {tag})` | Add a log entry / 添加日志条目 |
+| `v(message, {tag})` | Add verbose log / 添加详细日志 |
+| `d(message, {tag})` | Add debug log / 添加调试日志 |
+| `i(message, {tag})` | Add info log / 添加信息日志 |
+| `w(message, {tag})` | Add warning log / 添加警告日志 |
+| `e(message, {tag})` | Add error log / 添加错误日志 |
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isRunning` | bool | Whether log capture is currently active / 日志捕获是否正在运行 |
+
+## MemoryInspectorService / 内存监控服务
+
+> Available since v1.1.0 / v1.1.0 起可用
+
+Singleton service for memory monitoring and leak detection, extends `ChangeNotifier`.
+
+内存监控与泄漏检测单例服务，继承 `ChangeNotifier`。
+
+### Full API / 完整接口
+
+```dart
+// Leak tracking (full form) / 泄漏追踪（完整写法）
+MemoryInspectorService.instance.trackObject(
+  myController,
+  tag: 'HomeController_textController',
+  expectedReleaseAfter: const Duration(seconds: 30),
+);
+MemoryInspectorService.instance.untrackObject(myController);
+MemoryInspectorService.instance.clearLeakRecords();
+```
+
+### Simplified API / 简化接口
+
+> Available since v1.1.2 / v1.1.2 起可用
+
+```dart
+// Extension method on Object / Object 上的扩展方法
+myBloc.trackMemoryLeak(tag: 'HomePage_myBloc');
+
+// Top-level function / 顶层函数
+trackMemoryLeak(myBloc, tag: 'HomePage_myBloc');
+
+// Cancel tracking / 取消追踪
+myBloc.untrackMemoryLeak();
+```
+
+See [Memory Viewer](Memory-Viewer) for full feature details.
+
+完整功能详情见 [Memory Viewer](Memory-Viewer)。
+
+## FpsService / FPS 监控服务
+
+> Available since v1.2.0 / v1.2.0 起可用
+
+Singleton service for FPS monitoring, extends `ChangeNotifier`.
+
+FPS 监控单例服务，继承 `ChangeNotifier`。
+
+```dart
+FpsService.instance.start();
+FpsService.instance.stop();
+FpsService.instance.clear();
+
+final fps = FpsService.instance.currentFps;
+final jankRate = FpsService.instance.jankRate;
+```
+
+| Method | Description |
+|--------|-------------|
+| `start()` | Start FPS monitoring / 开始 FPS 监控 |
+| `stop()` | Stop FPS monitoring / 停止 FPS 监控 |
+| `clear()` | Clear all historical data and counters / 清空所有历史数据和计数器 |
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isRunning` | bool | Whether monitoring is currently active / 是否正在监控 |
+| `currentFps` | double | Current FPS (updated every 500ms) / 当前 FPS（每 500ms 更新） |
+| `jankRate` | double | Jank rate as percentage / 卡顿率（百分比） |
+| `totalFrameCount` | int | Total frames captured / 总帧数 |
+| `totalJankyCount` | int | Total janky frames (>16ms) / 总卡顿帧数（>16ms） |
+| `lastFrameJanky` | bool | Whether the most recent frame was janky / 最近一帧是否卡顿 |
+| `fpsHistory` | `List<double>` | Recent 60 FPS values (unmodifiable) / 最近 60 个 FPS 值（不可变） |
+| `frameRecords` | `List<FrameRecord>` | Recent frame records (unmodifiable, up to 3600) / 最近帧记录（不可变，最多 3600 条） |
+
+See [FPS Viewer](FPS-Viewer) for full feature details.
+
+完整功能详情见 [FPS Viewer](FPS-Viewer)。

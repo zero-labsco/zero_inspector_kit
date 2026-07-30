@@ -27,24 +27,46 @@ void main() {
 
 ## Inspector Panel / 检查器面板
 
-The inspector panel contains **4 tabs**:
+The inspector panel contains **6 tabs**:
 
-检查器面板包含 **4 个标签页**：
+检查器面板包含 **6 个标签页**：
 
 | Tab | Icon | Feature |
 |-----|------|---------|
-| **Network** | 🌐 | HTTP request viewing / 网络请求查看 |
+| **Network** | 🌐 | HTTP request viewing + interceptor rules / 网络请求查看 + 拦截修改 |
 | **Logs** | 📝 | Log viewing with level filter / 日志查看 |
 | **Database** | 💾 | Database and table inspection / 数据库查看 |
 | **Routes** | 🧭 | Route navigation tracking / 路由追踪 |
+| **Memory** | 📊 | Memory trend, Dart Heap, Native memory, leak detection / 内存趋势、Dart Heap、Native 内存、泄漏检测 |
+| **FPS** | 🎯 | Real-time FPS, jank rate, trend chart / 实时 FPS、卡顿率、趋势图 |
+
+> The Memory and FPS panels are **off by default** to avoid performance overhead. Toggle the switch at the top of each panel to start collecting data.
+>
+> Memory 和 FPS 面板**默认关闭**以避免性能开销。在各自面板顶部打开开关才会开始采集数据。
 
 ## Floating Button / 悬浮按钮
 
 - The floating button appears after 1 second delay / 悬浮按钮延迟 1 秒出现
 - **Drag** to move it along the screen edge / **拖动** 可沿屏幕边缘移动
-- **Tap** to open/close the inspector panel / **点击** 打开/关闭检查器面板
+- **Tap** (when fully visible) to open/close the inspector panel / **点击**（完全可见时）打开/关闭检查器面板
 - Button auto-snaps to the nearest screen edge / 按钮自动吸附到最近的屏幕边缘
 - Breathing animation when idle / 空闲时有呼吸动画
+
+### Edge Docking (since v1.2.0) / 边缘吸附（v1.2.0 起）
+
+When released near a screen edge, the button auto-docks and tucks into the edge, leaving only a **24px peek** visible:
+
+拖动松手后，按钮会自动吸附到最近边缘并"收入"边缘，仅露出 **24px 小弧边**：
+
+| State | Behavior / 行为 |
+|-------|------------------|
+| **Docked (tucked in)** | Only 24px peek visible; icon becomes a directional chevron (left dock → ➡, right dock → ⬅) hinting at tap-to-pull-out / 仅露出 24px；图标变为方向箭头提示可点击拉出 |
+| **Tap docked peek** | Smoothly pulls out to fully visible (panel NOT opened, avoids accidental open) / 平滑拉出到完全可见（不打开面板，避免误触） |
+| **Tap fully visible** | Opens the inspector panel / 打开检查器面板 |
+
+> This design avoids conflicts with system back gestures (Android/iOS edge swipe to go back) when pulling out from the docked state.
+>
+> 此设计避免了从吸附态拖出时与系统返回手势（Android/iOS 边缘右滑退出）的冲突。
 
 ## Search / 搜索
 
@@ -64,6 +86,18 @@ All three main viewers (Network, Logs, Database) support **fuzzy search**:
 The inspector auto-captures `print()` output. You can also use manual log methods for precise level control:
 
 检查器会自动捕获 `print()` 输出。也可以使用手动日志方法进行精确级别控制：
+
+**Quick shorthand (recommended) / 简化写法（推荐）**:
+
+```dart
+InspectorLog.v('Verbose log / 详细日志');
+InspectorLog.d('Debug log / 调试日志');
+InspectorLog.i('Info log / 信息日志');
+InspectorLog.w('Warning log / 警告日志');
+InspectorLog.e('Error log / 错误日志');
+```
+
+**Full form / 完整写法**:
 
 ```dart
 InspectorLogInterceptor.instance.verbose('Verbose log / 详细日志');
@@ -97,7 +131,9 @@ InspectorLogInterceptor.instance.onLogCaptured = (entry) {
 
 ## Feature Pages / 功能详情
 
-- [Network Inspector](Network-Inspector) — Network request details / 网络检查器详情
+- [Network Inspector](Network-Inspector) — Network request details + interceptor rules / 网络检查器详情 + 拦截修改
 - [Log Viewer](Log-Viewer) — Log viewing details / 日志查看器详情
 - [Database Viewer](Database-Viewer) — Database inspection details / 数据库查看器详情
 - [Route Tracker](Route-Tracker) — Route tracking details / 路由追踪详情
+- [Memory Viewer](Memory-Viewer) — Memory monitoring & leak detection / 内存监控与泄漏检测
+- [FPS Viewer](FPS-Viewer) — FPS monitoring & jank detection / FPS 监控与卡顿检测

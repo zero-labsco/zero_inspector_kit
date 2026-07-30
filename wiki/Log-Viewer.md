@@ -50,6 +50,21 @@ The Log Viewer automatically captures logs from multiple sources with zero confi
 
 ## Manual Logging / 手动记录日志
 
+**Quick shorthand (recommended) / 简化写法（推荐）** — available since v1.1.2 / v1.1.2 起可用:
+
+```dart
+InspectorLog.v('Verbose message / 详细消息');
+InspectorLog.d('Debug message / 调试消息');
+InspectorLog.i('Info message / 信息消息');
+InspectorLog.w('Warning message / 警告消息');
+InspectorLog.e('Error message / 错误消息');
+
+// With tag / 带标签
+InspectorLog.i('User logged in', tag: 'Auth');
+```
+
+**Full form / 完整写法**:
+
 ```dart
 InspectorLogInterceptor.instance.verbose('Verbose message / 详细消息');
 InspectorLogInterceptor.instance.debug('Debug message / 调试消息');
@@ -60,6 +75,10 @@ InspectorLogInterceptor.instance.error('Error message / 错误消息');
 // With tag / 带标签
 InspectorLogInterceptor.instance.info('User logged in', tag: 'Auth');
 ```
+
+`InspectorLog` is a static wrapper around `InspectorLogInterceptor.instance` for shorter log calls.
+
+`InspectorLog` 是 `InspectorLogInterceptor.instance` 的静态包装，用于更简短的日志调用。
 
 ## Third-Party Library Integration / 第三方日志库集成
 

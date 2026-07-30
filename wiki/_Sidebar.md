@@ -12,6 +12,7 @@
 - 💾 [Database Viewer](Database-Viewer)
 - 🧭 [Route Tracker](Route-Tracker)
 - 📊 [Memory Viewer](Memory-Viewer)
+- 🎯 [FPS Viewer](FPS-Viewer)
 
 ## 🛠 Advanced
 

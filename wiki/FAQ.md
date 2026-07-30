@@ -44,6 +44,18 @@ Flutter >= 3.3.0，Dart SDK >= 3.11.0 < 4.0.0。
 
 ---
 
+### Q: Can I modify requests during testing? / 测试时可以修改请求吗？
+
+**A:** Yes (since v1.0.7). The inspector supports intercepting and modifying requests via rules. Open a request detail and tap the Interceptor icon to configure a rule. You can modify the **request body** and **request headers** only — response fields (status code, response body) are read-only (since v1.0.8). GET requests cannot be modified (no request body). The master toggle is on the Network list page; rules only apply when modification mode is enabled.
+
+**可以**（v1.0.7 起）。检查器支持通过规则拦截并修改请求。打开请求详情，点击拦截器图标配置规则。仅可修改**请求体**和**请求头**——响应字段（状态码、响应体）只读（v1.0.8 起）。GET 请求不可修改（无请求体）。总开关在 Network 列表页，规则仅在启用修改模式时生效。
+
+See [Network Inspector > Request Interceptor](Network-Inspector#request-interceptor--请求拦截修改) for details.
+
+详见 [Network Inspector > 请求拦截修改](Network-Inspector#request-interceptor--请求拦截修改)。
+
+---
+
 ## Logging / 日志
 
 ### Q: Can I use my existing logging library? / 可以使用现有的日志库吗？
@@ -137,6 +149,28 @@ See [Memory Viewer > Memory Leak Detection](Memory-Viewer#6-memory-leak-detectio
 
 ---
 
+## FPS / 帧率
+
+### Q: Why does FPS show a very low value (e.g. 9-10 FPS)? / 为什么 FPS 显示很低（如 9-10）？
+
+**A:** This was a bug fixed in v1.2.0. The root cause was that `_recentFrameTimestamps.add(now)` was placed outside the for-loop in `_onFrameTimings`; since Flutter engine's `addTimingsCallback` is **batched** (may return multiple frames per call), only one timestamp was recorded per batch, undercounting FPS by 6-10x. Upgrade to `^1.2.0` to fix this.
+
+这是 v1.2.0 已修复的 bug。根因是 `_onFrameTimings` 中 `_recentFrameTimestamps.add(now)` 在 for 循环外；Flutter 引擎的 `addTimingsCallback` 是**批量回调**（一次可能返回多帧），但每批只记录 1 个时间戳，导致 FPS 计算偏低 6-10 倍。升级到 `^1.2.0` 即可修复。
+
+See [FPS Viewer](FPS-Viewer) for details.
+
+详见 [FPS Viewer](FPS-Viewer)。
+
+---
+
+### Q: Does FPS monitoring affect performance? / FPS 监控会影响性能吗？
+
+**A:** FPS monitoring is **off by default** (since v1.2.0). When disabled, no frame timings callbacks and no timers — zero overhead. When enabled, it only processes lightweight frame timing data with bounded history (60 trend points, up to 3600 frame records). You can toggle the switch at the top of the FPS panel anytime.
+
+FPS 监控**默认关闭**（v1.2.0 起）。关闭时无帧回调、无定时器——零开销。开启时仅处理轻量帧时序数据，历史有界（趋势 60 个点，帧记录最多 3600 条）。可随时在 FPS 面板顶部切换开关。
+
+---
+
 ## UI / 界面
 
 ### Q: The inspector panel gets pushed up when keyboard appears. / 键盘弹出时检查器面板被顶起来了。
@@ -152,6 +186,36 @@ See [Memory Viewer > Memory Leak Detection](Memory-Viewer#6-memory-leak-detectio
 **A:** Each viewer has its own search bar at the top. Database viewer has two-level search: global search (database list) and in-database search (table names + all column data).
 
 每个查看器顶部都有搜索栏。数据库查看器有双层搜索：全局搜索（数据库列表）和数据库内搜索（表名 + 所有列数据）。
+
+---
+
+### Q: The floating button disappeared / can't be opened after enabling FPS. / 开启 FPS 后悬浮按钮消失/无法打开。
+
+**A:** This was a bug fixed in v1.2.0. The root cause was that `FpsService.notifyListeners()` triggered Overlay rebuild; combined with the original Overlay lookup failure (using `Overlay.of(context, rootOverlay: true)` which returned `null`), the button State was destroyed and could not recover. Upgrade to `^1.2.0` which uses `navigatorState.overlay` instead.
+
+这是 v1.2.0 已修复的 bug。根因是 `FpsService.notifyListeners()` 触发 Overlay 重建，叠加原 Overlay 查找失败（使用 `Overlay.of(context, rootOverlay: true)` 返回 `null`），导致按钮 State 被销毁且无法恢复。升级到 `^1.2.0`，改用 `navigatorState.overlay` 即可。
+
+---
+
+### Q: How does the floating button edge docking work? / 悬浮按钮的边缘吸附怎么用？
+
+**A:** Since v1.2.0, when you drag the button near a screen edge and release, it auto-docks and tucks into the edge, leaving only a 24px peek visible. The icon becomes a directional chevron hinting you can tap to pull it out:
+
+- **Tap the peek** → smoothly pulls out to fully visible (panel NOT opened, avoids accidental open) / 平滑拉出到完全可见（不打开面板，避免误触）
+- **Tap when fully visible** → opens the inspector panel / 打开检查器面板
+
+This design avoids conflicts with system back gestures (Android/iOS edge swipe to go back) when pulling out from the docked state.
+
+v1.2.0 起，拖动按钮靠近屏幕边缘松手即自动吸附并"收入"边缘，仅露 24px。图标变为方向箭头，提示可点击拉出：
+
+- **点击露出部分** → 平滑拉出到完全可见（不打开面板，避免误触）
+- **完全可见时点击** → 打开检查器面板
+
+此设计避免了从吸附态拖出时与系统返回手势（Android/iOS 边缘右滑退出）的冲突。
+
+See [Usage > Edge Docking](Usage#edge-docking-since-v120--边缘吸附v120-起) for details.
+
+详见 [Usage > 边缘吸附](Usage#edge-docking-since-v120--边缘吸附v120-起)。
 
 ---
 

@@ -84,3 +84,66 @@ final response = await dio.post(
 No additional setup required! All requests will appear in the Network tab.
 
 无需额外配置！所有请求都会出现在 Network 标签页中。
+
+## Request Interceptor / 请求拦截修改
+
+> **Available since v1.0.7** (response fields locked to read-only since v1.0.8)
+>
+> **v1.0.7 起可用**（v1.0.8 起响应字段锁定为只读）
+
+The inspector supports intercepting and modifying network requests via rules. This is useful for testing different request parameters without modifying app code.
+
+检查器支持通过规则拦截并修改网络请求，适合在不修改应用代码的情况下测试不同的请求参数。
+
+### Workflow / 工作流程
+
+1. Send a request normally (it will be captured in the Network panel) / 正常发送请求（会被捕获到 Network 面板）
+2. Open the request detail and tap the Interceptor icon / 打开请求详情，点击拦截器图标
+3. Configure the modification rule (URL pattern, HTTP method, request modifications) / 配置修改规则（URL 模式、HTTP 方法、请求修改）
+4. Save the rule — subsequent matching requests will use the modified parameters / 保存规则——后续匹配的请求将使用修改后的参数
+
+### Supported Modifications / 支持的修改
+
+| Field | Editable | Notes |
+|-------|----------|-------|
+| **Request Body** | ✅ | Only for requests with body (POST, PUT, PATCH, etc.) / 仅适用于有 body 的请求 |
+| **Request Headers** | ✅ | Add / modify / remove headers / 新增 / 修改 / 删除请求头 |
+| URL | ❌ | Grayed out, read-only / 灰色不可编辑 |
+| Response Status Code | ❌ | Read-only since v1.0.8 / v1.0.8 起只读 |
+| Response Body | ❌ | Read-only since v1.0.8 / v1.0.8 起只读 |
+
+> The interception edit panel only allows modifying the **request body** and **request headers**. Response fields (status code, response body) are grayed out and uneditable.
+>
+> 拦截编辑面板仅允许修改**请求体**和**请求头**。响应字段（状态码、响应体）灰色不可编辑。
+
+### Rule Matching / 规则匹配
+
+- **URL pattern matching**: exact match or regex / URL 模式匹配：精确匹配或正则匹配
+- **HTTP method filtering**: GET, POST, PUT, DELETE, PATCH, HEAD, or Any / HTTP 方法过滤
+
+### Why GET Requests Cannot Be Modified / 为什么 GET 请求不能修改
+
+- The interceptor currently supports modifying request body and headers only / 拦截器目前仅支持修改请求体和请求头
+- GET requests don't have a request body / GET 请求没有请求体
+- Modifying GET request parameters would require URL modification / 修改 GET 请求参数需要修改 URL
+- URL modification may cause unexpected issues with request routing and parameter encoding / 修改 URL 可能导致请求路由和参数编码的意外问题
+
+> GET request detail pages do not display interception edit buttons, making them unmodifiable.
+>
+> GET 请求详情页不显示拦截编辑按钮，因此无法修改。
+
+### Master Toggle / 拦截总开关
+
+- The interception master toggle is displayed **only on the Network list page**, not in the detail page / 拦截总开关**只显示在 Network 列表页**，不在详情页
+- Rules are only applied when modification mode is enabled / 规则仅在启用修改模式时生效
+- When no rules are configured or rules are disabled, all requests are sent normally without any modification / 未配置规则或禁用规则时，所有请求正常发送，不做任何修改
+
+### Rule Management / 规则管理
+
+The network panel includes an interceptor rule editor where you can:
+
+网络面板包含拦截规则编辑器，可以：
+
+- Create / edit / delete rules / 创建 / 编辑 / 删除规则
+- Enable / disable individual rules / 启用 / 禁用单条规则
+- View rule status indicators in the request list / 在请求列表中查看规则状态标识

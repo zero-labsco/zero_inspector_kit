@@ -45,6 +45,10 @@ After integration, the inspector automatically does the following **without modi
 | ✅ **Floating Button** | Auto-displayed via Overlay, not affected by keyboard / 通过 Overlay 自动显示 |
 | ✅ **Route Tracking** | Auto-inject `InspectorRouteObserver` into MaterialApp / 自动注入路由观察者 |
 
+> **Note / 说明**: The **Memory** and **FPS** panels are available as tabs but are **off by default** to avoid performance overhead. Toggle the switch at the top of each panel to start collecting data. See [Memory Viewer](Memory-Viewer) and [FPS Viewer](FPS-Viewer) for details.
+>
+> **Memory** 和 **FPS** 面板作为标签页可用，但**默认关闭**以避免性能开销。在各自面板顶部打开开关才会开始采集数据。详见 [Memory Viewer](Memory-Viewer) 和 [FPS Viewer](FPS-Viewer)。
+
 ## Production Build / 生产构建
 
 The inspector is **automatically disabled** in release mode. You don't need to remove any code — Flutter's tree-shaking will remove all inspector-related code from production builds.

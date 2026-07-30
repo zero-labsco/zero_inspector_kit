@@ -103,6 +103,21 @@ Based on Dart 2.17+ `WeakReference` and `Finalizer`. Does NOT depend on VM Servi
 
 **API / 接口**:
 
+**Quick shorthand (recommended) / 简化写法（推荐）** — available since v1.1.2 / v1.1.2 起可用:
+
+```dart
+// Extension method on Object / Object 上的扩展方法
+myBloc.trackMemoryLeak(tag: 'HomePage_myBloc');
+
+// Or top-level function / 或使用顶层函数
+trackMemoryLeak(myBloc, tag: 'HomePage_myBloc');
+
+// Cancel tracking / 取消追踪
+myBloc.untrackMemoryLeak();
+```
+
+**Full form / 完整写法**:
+
 ```dart
 // Register an object for leak tracking / 注册对象进行泄漏追踪
 MemoryInspectorService.instance.trackObject(

@@ -14,6 +14,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 | **Database Viewer** | SQLite inspection with table data / 数据库查看 |
 | **Route Tracker** | Navigation history tracking / 路由追踪 |
 | **Memory Viewer** | Trend chart, Dart Heap, Native memory, leak detection / 内存趋势图、Dart Heap、Native 内存、泄漏检测 |
+| **FPS Monitor** | Real-time FPS, jank rate, trend chart / 实时 FPS、卡顿率、趋势图 |
 | **Fuzzy Search** | Search in all viewers / 三大查看器模糊搜索 |
 | **Cross-platform** | Android, iOS / 跨平台支持 |
 
@@ -29,6 +30,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 | [Database Viewer](Database-Viewer) | Database inspection / 数据库查看器 |
 | [Route Tracker](Route-Tracker) | Route tracking / 路由追踪 |
 | [Memory Viewer](Memory-Viewer) | Memory monitoring & leak detection / 内存监控与泄漏检测 |
+| [FPS Viewer](FPS-Viewer) | FPS monitoring & jank detection / FPS 监控与卡顿检测 |
 | [Configuration](Configuration) | Configuration options / 配置说明 |
 | [Custom Database Provider](Custom-Database-Provider) | Extend database support / 自定义数据库提供者 |
 | [FAQ](FAQ) | Frequently asked questions / 常见问题 |

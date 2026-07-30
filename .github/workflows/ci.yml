@@ -3,8 +3,58 @@ name: CI
 on:
   push:
     branches: [main, 'v*.*.*']
+    # 仅核心代码变更触发 CI，跳过纯文档/资源文件提交
+    # Only trigger CI for core code changes, skip pure doc/asset commits
+    paths-ignore:
+      - '**.md'              # All markdown files (README, CHANGELOG, wiki, etc.)
+      - 'wiki/**'            # Wiki documentation directory
+      - '.github/**'         # GitHub config (ISSUE_TEMPLATE, etc.)
+      - '**.png'             # PNG images
+      - '**.jpg'             # JPG images
+      - '**.jpeg'            # JPEG images
+      - '**.gif'             # GIF images
+      - '**.webp'            # WebP images
+      - '**.svg'             # SVG vector files
+      - '**.ico'             # Icon files
+      - '**.txt'             # Text files
+      - '**.gitignore'       # Git ignore files
+      - 'LICENSE'            # License file
+      - 'README*.md'         # README files (already covered by **.md, but explicit for clarity)
+      - 'CHANGELOG.md'       # Changelog (already covered by **.md)
+      - 'TODO.md'            # Todo file (already covered by **.md)
+      - '.metadata'          # Package metadata (non-critical for CI validation)
+      - 'example/lib/main.dart'  # Example entry point (CI checks example lib/ separately)
+      - 'example/test/**'    # Example tests (not part of core plugin validation)
+      - 'example/ios/Flutter/**' # Flutter-generated iOS files
+      - 'example/android/**'    # Example Android build artifacts
+      - 'example/ios/Runner.xcodeproj/**' # Xcode project files (auto-generated)
   pull_request:
     branches: [main]
+    # Apply same ignore rules for PRs
+    # 对 PR 应用相同的忽略规则
+    paths-ignore:
+      - '**.md'
+      - 'wiki/**'
+      - '.github/**'
+      - '**.png'
+      - '**.jpg'
+      - '**.jpeg'
+      - '**.gif'
+      - '**.webp'
+      - '**.svg'
+      - '**.ico'
+      - '**.txt'
+      - '**.gitignore'
+      - 'LICENSE'
+      - 'README*.md'
+      - 'CHANGELOG.md'
+      - 'TODO.md'
+      - '.metadata'
+      - 'example/lib/main.dart'
+      - 'example/test/**'
+      - 'example/ios/Flutter/**'
+      - 'example/android/**'
+      - 'example/ios/Runner.xcodeproj/**'
   # 支持被其他工作流复用（如 pub-publish.yml）
   # Support being reused by other workflows (e.g. pub-publish.yml)
   workflow_call:
