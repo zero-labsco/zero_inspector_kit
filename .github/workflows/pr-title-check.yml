@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Validate PR title format
-        uses: amannn/action-semantic-pull-request@v5
+        uses: amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -36,8 +36,6 @@ jobs:
             revert
           # 要求至少包含一个 scope / Require at least one scope
           requireScope: false
-          # 允许破坏性变更标记 / Allow breaking change marker
-          allowBreakingChanges: true
           # 忽略特定标签的 PR（如 dependabot）
           # Ignore PRs with specific labels
           ignoreLabels: |

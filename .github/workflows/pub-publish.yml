@@ -76,12 +76,9 @@ jobs:
           # Read full content of pub-credentials.json (injected from Secret PUB_CREDENTIALS_JSON)
           accessToken: ${{ fromJson(secrets.PUB_CREDENTIALS_JSON).accessToken }}
           refreshToken: ${{ fromJson(secrets.PUB_CREDENTIALS_JSON).refreshToken }}
-          idToken: ${{ fromJson(secrets.PUB_CREDENTIALS_JSON).idToken }}
-          tokenEndpoint: ${{ fromJson(secrets.PUB_CREDENTIALS_JSON).tokenEndpoint }}
-          scopes: ${{ join(fromJson(secrets.PUB_CREDENTIALS_JSON).scopes, ' ') }}
           # 跳过格式和静态分析（已在 CI 中检查过）
           # Skip format and static analysis (already verified in CI)
-          flutter_package: true
+          flutter: true
           skipTests: true
           force: true
 
