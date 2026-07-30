@@ -16,7 +16,6 @@ on:
       # 精细化忽略 GitHub 配置，但保留 workflows/ 目录的 CI 触发（Dependabot 改 action 版本需要跑 CI）
       # Finer-grained GitHub ignores — workflows MUST trigger CI (Dependabot action updates need CI)
       - '.github/ISSUE_TEMPLATE/**'     # Issue/PR templates
-      - '.github/dependabot.yml'        # Dependabot config itself (doesn't affect builds)
       - '.github/workflows/stale.yml'   # Stale bot doesn't affect builds/publish
       - '**.png'             # PNG images
       - '**.jpg'             # JPG images
@@ -49,7 +48,6 @@ on:
       # 精细化忽略 GitHub 配置，但保留 workflows/ 目录的 CI 触发
       # Finer-grained GitHub ignores — workflows MUST trigger CI
       - '.github/ISSUE_TEMPLATE/**'
-      - '.github/dependabot.yml'
       - '.github/workflows/stale.yml'
       - '**.png'
       - '**.jpg'

@@ -20,18 +20,20 @@ updates:
           - "patch"
     # 大版本单独 PR，便于审查 / Major versions in separate PRs for careful review
     open-pull-requests-limit: 5
+    # 版本约束策略：保留既有 caret(^) 风格，仅提升版本号 / Preserve caret style, bump version only
+    versioning-strategy: "increase"
     labels:
       - "dependencies"
       - "pub"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
-    # ⚠️ 注意 / Note: 本项目要求 pubspec.yaml 中版本号不带 `^`
-    # Dependabot 通常会保留原有约束风格（精确版本号保持精确）
-    # 收到首个 PR 后请验证此约束未被破坏
-    # This project requires exact version numbers without `^` in pubspec.yaml.
-    # Dependabot should preserve the existing constraint style (exact stays exact).
-    # Please verify this constraint is not broken after the first PR.
+    # ⚠️ 注意 / Note: pubspec.yaml 使用 caret 约束（例如 http: ^1.2.1）
+    # versioning-strategy: increase 会让 Dependabot 保持 `^` 并仅提升版本号
+    # 收到首个 PR 后请验证约束风格未被改为精确版本号
+    # This project uses caret (^) constraints in pubspec.yaml (e.g. http: ^1.2.1).
+    # `increase` keeps the `^` operator and only bumps the version number.
+    # Please verify the caret style is preserved (not changed to exact) after the first PR.
 
   # ========== Example 应用 pub 依赖 / Example app pub dependencies ==========
   # 示例应用依赖更新频率较低，改为每月 1 号检查一次（实际数月才提一次 PR）
@@ -51,6 +53,8 @@ updates:
     # 每月最多提 1 个 PR，example 通常数月才会真正有版本变动 → 实际合并频率远低于 monthly
     # Max 1 PR per month; example deps rarely bump monthly → effective merge rate is far lower
     open-pull-requests-limit: 1
+    # 与根项目一致：保留 caret 约束 / Same as root: preserve caret constraints
+    versioning-strategy: "increase"
     labels:
       - "dependencies"
       - "pub"
