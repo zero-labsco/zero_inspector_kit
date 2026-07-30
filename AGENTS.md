@@ -39,6 +39,7 @@ This file defines the architecture, coding conventions, and required workflows f
 ### CI
 - `ci.yml`: `actions/checkout@v7`, `subosito/flutter-action@v2`, `actions/cache@v5` (pub cache keyed on `pubspec.lock` plus `example/pubspec.lock`); runs `flutter analyze`, `flutter test`, and `pana` score check.
 - `stale.yml`: `actions/stale@v11` marks stale issues/PRs.
+- `paths-ignore` skips user-facing docs (`README*.md`, `CHANGELOG.md`, `TODO.md`, `wiki/**`, `docs/**`) to save CI minutes, but it MUST NOT blanket-ignore all `**.md`. `AGENTS.md` and `.codebuddy/**` are intentionally kept out of `paths-ignore` so docs-only PRs still run the required checks and can merge (branch protection requires 3 passing checks; a skipped `ci.yml` would block the merge). Never reintroduce `'**.md'` to `paths-ignore`.
 
 ### Release and publish
 1. Bump `version` in `pubspec.yaml` (semver; major bump for breaking public API).
