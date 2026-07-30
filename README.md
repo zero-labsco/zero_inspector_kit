@@ -1,6 +1,6 @@
 # Zero Inspector Kit
 
-A powerful Flutter plugin for in-app developer console, providing real-time debugging tools including network request inspection, logging, database viewing, memory monitoring, and route tracking.
+A powerful Flutter plugin for in-app developer console, providing real-time debugging tools including network request inspection, logging, database viewing, memory monitoring, FPS monitoring, and route tracking.
 
 > **🔔 Upgrade recommended:** v1.2.1 fixes fundamental FPS accuracy issues (timestamps used `DateTime.now()` instead of real frame timestamps; frame duration only counted build phase, missing GPU rasterization jank). All users using the FPS monitor feature are advised to upgrade to `^1.2.1`.
 
