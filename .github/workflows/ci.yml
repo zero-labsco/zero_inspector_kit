@@ -119,3 +119,19 @@ jobs:
       - name: Run static analysis on example
         working-directory: example
         run: flutter analyze lib/
+
+      # ========== pub.dev 评分自检 / pub.dev score self-check ==========
+      # 使用 pana 确保评分 ≥ 120，防止提交导致 pub.dev 评分下降
+      # Uses pana to ensure score ≥ 120, preventing pub.dev score regression
+
+      - name: Run pana pub.dev score check
+        run: |
+          dart pub global activate pana
+          dart pub global run pana --no-warning --json . > pana.json
+          SCORE=$(python3 -c "import json; print(json.load(open('pana.json'))['grantedPoints'])")
+          echo "pana score: $SCORE / 160"
+          if [ "$SCORE" -lt 120 ]; then
+            echo "::error::pana score ($SCORE/160) is below the 120 threshold"
+            exit 1
+          fi
+          echo "✅ pana score ($SCORE/160) meets the 120 threshold"
