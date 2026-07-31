@@ -1,0 +1,50 @@
+name: Link Check
+
+# Scan documentation for dead/broken links using lychee.
+# Only user-facing docs are checked to keep the job fast and avoid false
+# positives from internal/anchor links.
+#
+# 使用 lychee 扫描文档中的死链/坏链。仅检查用户向文档以提升速度、减少误报。
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - 'README.md'
+      - 'README_zh.md'
+      - 'CHANGELOG.md'
+      - 'docs/**'
+  # Allow manual runs from the Actions tab.
+  # 允许在 Actions 页手动触发。
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  link-check:
+    name: Check documentation links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Run lychee link checker
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Only scan the documented files; accept 200/206/301/302/304, timeouts
+          # and 429 (rate limit) are retried. Fail only on real broken links.
+          # 仅扫描文档文件；失败仅针对真正坏掉的链接。
+          args: >
+            --no-progress
+            --accept 200,206,301,302,304
+            --timeout 20
+            --retry-wait-time 2
+            --max-retries 2
+            --exclude-mail
+            README.md README_zh.md CHANGELOG.md "docs/**"
+          fail: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

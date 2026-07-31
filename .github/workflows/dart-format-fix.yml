@@ -1,0 +1,53 @@
+name: Dart Format Auto-Fix
+
+# Automatically run `dart format` on PRs and push fixes back when the code is
+# not properly formatted. This keeps style consistent without reviewer nudging.
+#
+# 对 PR 自动执行 `dart format`；格式不合规时由 bot 自动提交修复，
+# 避免 reviewer 反复挑格式问题。
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+  # Allow manual runs from the Actions tab (formats the default branch).
+  # 允许在 Actions 页手动触发（对默认分支执行格式化）。
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    name: Auto-format Dart code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v7
+        with:
+          # Use the PR's head ref so we can push fixes back to the same branch.
+          # 使用 PR 的 head ref，以便把修复推回同一分支。
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Format code
+        run: dart format .
+
+      - name: Commit and push fixes
+        # Only commit if dart format actually changed something.
+        # 仅当 dart format 确实产生了改动时才提交。
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -am "style: auto-format with dart format"
+            git push
+          else
+            echo "No formatting changes needed."
+          fi
