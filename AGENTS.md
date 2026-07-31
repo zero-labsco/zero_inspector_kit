@@ -28,7 +28,6 @@ This file defines the architecture, coding conventions, and required workflows f
 - Platform pattern: define the abstract API in the platform interface, provide the `MethodChannel` default, register it in the barrel.
 - How features work: network capture via `HttpOverrides` (covers `http` and Dio's `HttpClient`); logging via Zone plus `debugPrint` override; memory/FPS via VM Service plus `addTimingsCallback` (v1.2.1+ uses real frame timestamps and `rasterFinish - buildStart` duration to catch GPU jank).
 - Native: Android `android/src/main/kotlin/.../ZeroInspectorKitPlugin.kt` (package `com.zerolabsco.zero_inspector_kit`); iOS `ios/Classes/ZeroInspectorKitPlugin.swift`. Keep native changes minimal and matching the method channel contract.
-- License: GPL-3.0. Do not relicense.
 
 ## Coding conventions
 - Follow `effective_dart`; style is enforced by `flutter analyze` / `flutter_lints` (v6) in CI.
