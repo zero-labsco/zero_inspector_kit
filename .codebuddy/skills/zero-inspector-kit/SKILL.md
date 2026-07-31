@@ -1,6 +1,6 @@
 ---
 name: zero-inspector-kit
-description: This skill should be used when working inside the zero_inspector_kit Flutter plugin repository - implementing features, fixing bugs, changing public API, opening pull requests, cutting releases, publishing to pub.dev, or updating the GitHub Pages docs. It encodes the project's architecture, coding conventions, and enforced GitHub workflows.
+description: This skill should be used when working inside the zero_inspector_kit Flutter plugin repository - implementing features, fixing bugs, changing public API, opening pull requests (Conventional Commits title validation), cutting releases, publishing to pub.dev, tagging versions, verifying pana score, running flutter analyze / flutter test, or updating the GitHub Pages docs. It encodes the project's architecture, coding conventions, branch/PR/CI/release workflows, and the new-feature checklist.
 ---
 
 # Zero Inspector Kit

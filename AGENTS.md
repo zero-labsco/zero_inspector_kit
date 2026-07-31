@@ -17,11 +17,17 @@ This file defines the architecture, coding conventions, and required workflows f
 - `lib/zero_inspector_kit_platform_interface.dart` - `ZeroInspectorKitPlatform` abstract base.
 - `lib/zero_inspector_kit_method_channel.dart` - default `MethodChannel` implementation.
 - `lib/zero_inspector_kit_dio.dart` - Dio integration helper.
-- `lib/src/` - 33 implementation files (services, UI, models). Do not import directly from consumers.
+- `lib/src/` - 33 implementation files grouped as: `interceptors/` (dio, http, log, route_observer), `platform/` (platform_channel), `models/` (database_info, interceptor_rule, leak_record, log_entry, memory_snapshot, network_request, route_entry), `services/` (database_provider, database_service, export_service, fps_service, inspector_service, memory_inspector_service, sqlite_provider), `utils/` (environment, inspector_log, memory_leak_tracking), `ui/` (conditional_inspector, database_viewer, floating_button, fps_viewer, inspector_panel, log_viewer, memory_trend_chart, memory_viewer, network_viewer, route_viewer, theme/inspector_theme). Do not import `lib/src/` directly from consumers.
+- Public API entry: the `ZeroInspectorKit` class (in the barrel) exposes `init()`, `wrapApp()`, and `runAppWithInspector()`. The barrel also re-exports the interceptors, services, UI widgets, and utils listed above so consumers use them via the package root, never via `lib/src/`.
+
+## Dependencies and SDK constraints
+- Dart SDK: `>=3.11.0 <4.0.0`; Flutter: `>=3.3.0` (from `pubspec.yaml`).
+- Runtime deps: `plugin_platform_interface`, `http`, `sqflite`, `path_provider`, `collection`. Keep the caret (`^`) constraint on pub dependencies; do not pin exact versions without reason.
+- Dev deps: `flutter_test`, `flutter_lints` (v6). Analysis is governed by `analysis_options.yaml`.
+- License: GPL-3.0. Do not relicense.
 - Platform pattern: define the abstract API in the platform interface, provide the `MethodChannel` default, register it in the barrel.
 - How features work: network capture via `HttpOverrides` (covers `http` and Dio's `HttpClient`); logging via Zone plus `debugPrint` override; memory/FPS via VM Service plus `addTimingsCallback` (v1.2.1+ uses real frame timestamps and `rasterFinish - buildStart` duration to catch GPU jank).
 - Native: Android `android/src/main/kotlin/.../ZeroInspectorKitPlugin.kt` (package `com.zerolabsco.zero_inspector_kit`); iOS `ios/Classes/ZeroInspectorKitPlugin.swift`. Keep native changes minimal and matching the method channel contract.
-- License: GPL-3.0. Do not relicense.
 
 ## Coding conventions
 - Follow `effective_dart`; style is enforced by `flutter analyze` / `flutter_lints` (v6) in CI.
@@ -39,14 +45,20 @@ This file defines the architecture, coding conventions, and required workflows f
 ### CI
 - `ci.yml`: `actions/checkout@v7`, `subosito/flutter-action@v2`, `actions/cache@v5` (pub cache keyed on `pubspec.lock` plus `example/pubspec.lock`); runs `flutter analyze`, `flutter test`, and `pana` score check.
 - `stale.yml`: `actions/stale@v11` marks stale issues/PRs.
+- `dependabot-pr-bilingual.yml`: `actions/github-script@v7` appends a bilingual (EN-primary, ZH-secondary) summary to the **body** of Dependabot PRs only (`github.actor == 'dependabot[bot]'`, idempotent via marker). It does NOT touch the PR title or commit subject — those stay English per the Conventional Commits rule. When reviewing Dependabot PRs, verify the build passes, check changelogs for breaking changes on major bumps, and confirm the caret (`^`) constraint is preserved.
+- `pr-title-check.yml` details: allowed types are `feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert`; `requireScope` is `false`; PRs labeled `dependencies` or `github-actions` are ignored. The same type list applies to commit messages (Conventional Commits).
 - `paths-ignore` skips user-facing docs (`README*.md`, `CHANGELOG.md`, `TODO.md`, `wiki/**`, `docs/**`) to save CI minutes, but it MUST NOT blanket-ignore all `**.md`. `AGENTS.md` and `.codebuddy/**` are intentionally kept out of `paths-ignore` so docs-only PRs still run the required checks and can merge (branch protection requires 3 passing checks; a skipped `ci.yml` would block the merge). Never reintroduce `'**.md'` to `paths-ignore`.
 
 ### Release and publish
 1. Bump `version` in `pubspec.yaml` (semver; major bump for breaking public API).
 2. Update `README.md` / `CHANGELOG.md` as needed.
-3. Commit on a branch, open PR, merge to `main` after checks pass.
-4. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-5. `pub-publish.yml` publishes via `k-paxian/dart-package-publisher@v1.6` using the `PUB_CREDENTIALS_JSON` secret (fields `accessToken`, `refreshToken`; set `flutter: true`). Do NOT pass OIDC fields (`idToken` / `tokenEndpoint` / `scopes`); the action does not support them and emits invalid-input warnings.
+3. Locally verify before pushing:
+   - `flutter analyze` — must pass with no errors.
+   - `flutter test` — all unit tests green.
+   - `flutter pub publish --dry-run` — confirm the package scores well on `pana` and no files are unintentionally excluded.
+4. Commit on a branch, open PR, merge to `main` after the 3 required checks pass.
+5. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+6. `pub-publish.yml` publishes via `k-paxian/dart-package-publisher@v1.6` using the `PUB_CREDENTIALS_JSON` secret (fields `accessToken`, `refreshToken`; set `flutter: true`). Do NOT pass OIDC fields (`idToken` / `tokenEndpoint` / `scopes`); the action does not support them and emits invalid-input warnings.
    - Note: `k-paxian` internally uses older actions that emit Node 20 deprecation warnings. This is accepted (B1 decision); functionality is unaffected.
 
 ### Documentation site (GitHub Pages)
