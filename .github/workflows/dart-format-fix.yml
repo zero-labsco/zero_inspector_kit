@@ -11,6 +11,9 @@ on:
       - opened
       - synchronize
       - reopened
+  # Allow manual runs from the Actions tab (formats the default branch).
+  # 允许在 Actions 页手动触发（对默认分支执行格式化）。
+  workflow_dispatch:
 
 permissions:
   contents: write
