@@ -1,0 +1,12 @@
+# Exclude documentation sources that are not part of the published package.
+# `docs/` is the GitHub Pages source (served from the docs/github-pages branch),
+# and `wiki/` was migrated into docs/ — neither belongs in the pub package.
+# Publishing them triggers a pub layout warning ("rename docs to doc").
+/docs/
+/wiki/
+
+# Build artifacts at repo root must never be published.
+/build/
+
+# IDE / project metadata
+zero_inspector_kit.iml
