@@ -864,44 +864,43 @@ void main() {
         });
 
         // 应更新正确的请求 / Should update the correct request
-        final updated = InspectorService.instance.networkRequests
-            .firstWhere((r) => r.id == firstRequestId);
+        final updated = InspectorService.instance.networkRequests.firstWhere(
+          (r) => r.id == firstRequestId,
+        );
         expect(updated.responseBody, equals('second response'));
         expect(updated.statusCode, equals(200));
       },
     );
 
-    test(
-      'onError 通过 request ID 匹配 / onError matches by request ID',
-      () {
-        final interceptor = InspectorDioInterceptor();
+    test('onError 通过 request ID 匹配 / onError matches by request ID', () {
+      final interceptor = InspectorDioInterceptor();
 
-        interceptor.onRequest({
+      interceptor.onRequest({
+        'method': 'POST',
+        'url': 'https://api.example.com/login',
+        'headers': <String, dynamic>{},
+        'data': {'user': 'test'},
+      });
+
+      final requests = InspectorService.instance.networkRequests;
+      expect(requests.length, equals(1));
+      final requestId = requests.first.id;
+
+      interceptor.onError({
+        'message': 'Connection refused',
+        'response': {'statusCode': 503, 'data': 'Service Unavailable'},
+        'requestOptions': {
+          'uri': 'https://api.example.com/login',
           'method': 'POST',
-          'url': 'https://api.example.com/login',
-          'headers': <String, dynamic>{},
-          'data': {'user': 'test'},
-        });
+          'headers': {'x-inspector-request-id': requestId},
+        },
+      });
 
-        final requests = InspectorService.instance.networkRequests;
-        expect(requests.length, equals(1));
-        final requestId = requests.first.id;
-
-        interceptor.onError({
-          'message': 'Connection refused',
-          'response': {'statusCode': 503, 'data': 'Service Unavailable'},
-          'requestOptions': {
-            'uri': 'https://api.example.com/login',
-            'method': 'POST',
-            'headers': {'x-inspector-request-id': requestId},
-          },
-        });
-
-        final updated = InspectorService.instance.networkRequests
-            .firstWhere((r) => r.id == requestId);
-        expect(updated.statusCode, equals(503));
-        expect(updated.responseBody, equals('Service Unavailable'));
-      },
-    );
+      final updated = InspectorService.instance.networkRequests.firstWhere(
+        (r) => r.id == requestId,
+      );
+      expect(updated.statusCode, equals(503));
+      expect(updated.responseBody, equals('Service Unavailable'));
+    });
   });
 }

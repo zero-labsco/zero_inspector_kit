@@ -526,7 +526,8 @@ class _InspectorResponseProxy implements HttpClientResponse {
       if (_requestId != null) {
         final String body;
         if (_captureExceeded) {
-          body = '[Response body too large to capture '
+          body =
+              '[Response body too large to capture '
               '(${_response.contentLength} bytes)]';
         } else {
           body = utf8.decode(_bodyBytes);

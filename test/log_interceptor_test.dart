@@ -337,6 +337,7 @@ void main() {
         void mockHandler(FlutterErrorDetails details) {
           mockHandlerCalled = details;
         }
+
         FlutterError.onError = mockHandler;
 
         // 启动日志拦截器 / Start log interceptor
@@ -344,7 +345,10 @@ void main() {
 
         // 触发 FlutterError / Trigger FlutterError
         FlutterError.onError!(
-          FlutterErrorDetails(exception: Exception('test'), stack: StackTrace.current),
+          FlutterErrorDetails(
+            exception: Exception('test'),
+            stack: StackTrace.current,
+          ),
         );
 
         // 原始回调应被调用（Crashlytics 不丢失）/ Original handler should be called
@@ -371,18 +375,24 @@ void main() {
         void mockHandler(FlutterErrorDetails details) {
           callOrder.add('original');
         }
+
         FlutterError.onError = mockHandler;
 
         InspectorLogInterceptor.instance.start();
 
         FlutterError.onError!(
-          FlutterErrorDetails(exception: Exception('test'), stack: StackTrace.current),
+          FlutterErrorDetails(
+            exception: Exception('test'),
+            stack: StackTrace.current,
+          ),
         );
 
         // 原始回调应先于日志捕获被调用 / Original handler called before log capture
         expect(callOrder, contains('original'));
         expect(
-          InspectorService.instance.logEntries.any((e) => e.level == LogLevel.error),
+          InspectorService.instance.logEntries.any(
+            (e) => e.level == LogLevel.error,
+          ),
           isTrue,
         );
 
