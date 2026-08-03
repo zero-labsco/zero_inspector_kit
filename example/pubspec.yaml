@@ -13,7 +13,7 @@ dependencies:
     path: ../
 
 
-  dio: 5.11.0
+  dio: 5.4.0
   http: 1.6.0
   cupertino_icons: 1.0.9
   logger: 2.7.0
