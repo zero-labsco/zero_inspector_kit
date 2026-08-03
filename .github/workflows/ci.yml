@@ -78,12 +78,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  analyze-and-test:
-    name: Analyze & Test
+  # 前置路径过滤：判断本次改动是否触及会影响 pub 包 / pana 评分的文件
+  # 仅改文档、GitHub 配置（workflows/dependabot.yml 等）、图片等非包文件时，
+  # 后续 Analyze & Test 与 Pana 检查直接绿色跳过，避免无谓的长时间 CI。
+  # Pre-path-filter: does this change touch files that affect the pub package / pana score?
+  # If only docs, GitHub config, or assets changed, the heavy jobs skip and go green.
+  path-filter:
+    name: Path Filter
     runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - 'lib/**'
+              - 'pubspec.yaml'
+              - 'pubspec.lock'
+              - 'analysis_options.yaml'
+              - 'README.md'
+              - 'CHANGELOG.md'
+              - 'LICENSE'
+              - 'test/**'
+              - 'example/lib/**'
+              - 'example/pubspec.yaml'
+              - 'example/pubspec.lock'
+              - 'example/analysis_options.yaml'
+              - '.github/workflows/ci.yml'
+
+  analyze-and-test:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    needs: path-filter
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # 非包代码改动（仅文档/GitHub 配置/资源）直接绿色跳过，满足分支保护 required check
+      # Non-package changes (docs/config/assets only): exit green to satisfy required check
+      - name: Skip on non-code changes
+        if: ${{ needs.path-filter.outputs.code != 'true' }}
+        run: |
+          echo "No package-affecting files changed; skipping Analyze & Test."
+          exit 0
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -136,10 +178,18 @@ jobs:
   pana-check:
     name: Pana Score Check
     runs-on: ubuntu-latest
-    needs: analyze-and-test
+    needs: [analyze-and-test, path-filter]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+
+      # 非包代码改动直接绿色跳过，避免耗时的 pana 运行（满足分支保护 required check）
+      # Non-package changes: exit green to skip slow pana (satisfies required check)
+      - name: Skip on non-code changes
+        if: ${{ needs.path-filter.outputs.code != 'true' }}
+        run: |
+          echo "No package-affecting files changed; skipping Pana Score Check."
+          exit 0
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
