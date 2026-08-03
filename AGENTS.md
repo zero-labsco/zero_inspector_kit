@@ -59,8 +59,9 @@ This file defines the architecture, coding conventions, and required workflows f
    - `flutter test` — all unit tests green.
    - `flutter pub publish --dry-run` — confirm the package scores well on `pana` and no files are unintentionally excluded.
 4. Commit on a branch, open PR, merge to `main` after the 3 required checks pass.
-5. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-6. `pub-publish.yml` publishes via `k-paxian/dart-package-publisher@v1.6` using the `PUB_CREDENTIALS_JSON` secret (fields `accessToken`, `refreshToken`; set `flutter: true`). Do NOT pass OIDC fields (`idToken` / `tokenEndpoint` / `scopes`); the action does not support them and emits invalid-input warnings.
+5. Tag (drives publishing): `git tag vX.Y.Z <commit> && git push origin vX.Y.Z`. The `vX.Y.Z` tag — NOT a branch — triggers `pub-publish.yml`. Never name a branch `vX.Y.Z`; it collides with the tag refspec and breaks `git push`.
+6. Archive branch (optional, for release snapshots): create `release-vX.Y.Z` from the tagged commit via explicit refspec to avoid the tag/branch collision, e.g. `git push origin <commit>:refs/heads/release-vX.Y.Z`. These branches are inert (no CI triggers on them) and serve only as frozen snapshots.
+7. `pub-publish.yml` publishes via `k-paxian/dart-package-publisher@v1.6` using the `PUB_CREDENTIALS_JSON` secret (fields `accessToken`, `refreshToken`; set `flutter: true`). Do NOT pass OIDC fields (`idToken` / `tokenEndpoint` / `scopes`); the action does not support them and emits invalid-input warnings.
    - Note: `k-paxian` internally uses older actions that emit Node 20 deprecation warnings. This is accepted (B1 decision); functionality is unaffected.
 
 ### Documentation site (GitHub Pages)
@@ -79,4 +80,4 @@ This file defines the architecture, coding conventions, and required workflows f
 - [ ] Use a typed branch (`feat/...`) and a Conventional Commits PR title.
 - [ ] Ensure the 3 required status checks pass before requesting review/merge.
 - [ ] For user-facing changes, update `README.md` and the `docs/` site.
-- [ ] For releases, bump `version`, update changelog, tag `vX.Y.Z`, and let `pub-publish.yml` publish.
+- [ ] For releases, bump `version`, update changelog, tag `vX.Y.Z` (triggers publish), and optionally push a `release-vX.Y.Z` archive branch via explicit refspec.
