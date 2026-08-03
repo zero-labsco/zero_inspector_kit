@@ -71,16 +71,11 @@ class InspectorDioInterceptor extends InspectorDioInterceptorBase {
 
   @override
   void onResponse(Map<String, dynamic> response) {
+    // 优先通过 request ID 匹配，避免并发同 URL 请求错乱
+    // Prefer matching by request ID to avoid wrong association for concurrent same-URL requests
+    final requestId = _extractRequestId(response['requestOptions']);
     final requestUrl = response['requestOptions']?['uri']?.toString() ?? '';
-    final request = InspectorService.instance.networkRequests.firstWhere(
-      (r) => r.url == requestUrl && r.responseTime == null,
-      orElse: () => NetworkRequest(
-        id: _generateId(),
-        method: response['requestOptions']?['method'] as String? ?? 'GET',
-        url: requestUrl,
-        requestTime: DateTime.now().millisecondsSinceEpoch,
-      ),
-    );
+    final request = _findRequestByIdOrUrl(requestId, requestUrl);
     InspectorService.instance.updateNetworkRequest(
       request.id,
       responseBody: response['data'],
@@ -90,21 +85,52 @@ class InspectorDioInterceptor extends InspectorDioInterceptorBase {
 
   @override
   void onError(Map<String, dynamic> error) {
+    // 优先通过 request ID 匹配，避免并发同 URL 请求错乱
+    // Prefer matching by request ID to avoid wrong association for concurrent same-URL requests
+    final requestId = _extractRequestId(error['requestOptions']);
     final requestUrl = error['requestOptions']?['uri']?.toString() ?? '';
-    final request = InspectorService.instance.networkRequests.firstWhere(
-      (r) => r.url == requestUrl && r.responseTime == null,
-      orElse: () => NetworkRequest(
-        id: _generateId(),
-        method: error['requestOptions']?['method'] as String? ?? 'GET',
-        url: requestUrl,
-        requestTime: DateTime.now().millisecondsSinceEpoch,
-      ),
-    );
+    final request = _findRequestByIdOrUrl(requestId, requestUrl);
     InspectorService.instance.updateNetworkRequest(
       request.id,
       responseBody: error['response']?['data'] ?? error['message'],
       statusCode: error['response']?['statusCode'] as int?,
     );
+  }
+
+  /// 从 requestOptions 中提取 request ID / Extract request ID from requestOptions
+  String? _extractRequestId(dynamic requestOptions) {
+    if (requestOptions is Map) {
+      final headers = requestOptions['headers'];
+      if (headers is Map) {
+        return headers[_requestIdHeader] as String?;
+      }
+    }
+    return null;
+  }
+
+  /// 通过 request ID 或 URL 查找匹配的请求 / Find matching request by ID or URL
+  ///
+  /// 优先按 ID 匹配（精确），回退按 URL + 未响应匹配（模糊，兼容旧行为）
+  /// Prefer matching by ID (exact), fall back to URL + no responseTime (fuzzy, backward compatible)
+  NetworkRequest _findRequestByIdOrUrl(String? requestId, String url) {
+    // 1. 精确匹配：通过 request ID / Exact match: by request ID
+    if (requestId != null) {
+      final requests = InspectorService.instance.networkRequests;
+      final byId = requests.where((r) => r.id == requestId);
+      if (byId.isNotEmpty) return byId.first;
+    }
+
+    // 2. 模糊匹配：通过 URL + 未响应（兼容旧逻辑）/ Fuzzy: URL + no responseTime
+    final request = InspectorService.instance.networkRequests.firstWhere(
+      (r) => r.url == url && r.responseTime == null,
+      orElse: () => NetworkRequest(
+        id: requestId ?? _generateId(),
+        method: 'GET',
+        url: url,
+        requestTime: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+    return request;
   }
 
   /// 生成唯一请求ID / Generate unique request ID

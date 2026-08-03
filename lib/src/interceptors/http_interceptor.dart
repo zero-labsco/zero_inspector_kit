@@ -502,6 +502,15 @@ class _InspectorResponseProxy implements HttpClientResponse {
   final List<int> _bodyBytes = [];
   bool _isCaptured = false;
 
+  /// 响应体最大捕获字节数 / Max response body capture size in bytes
+  ///
+  /// 超过此大小的响应体不再完整缓冲，避免大文件下载导致 OOM
+  /// Response bodies exceeding this size are not fully buffered to avoid OOM on large downloads
+  static const int _maxCaptureBytes = 512 * 1024; // 512 KB
+
+  /// 是否已超过捕获限制 / Whether capture limit has been exceeded
+  bool _captureExceeded = false;
+
   _InspectorResponseProxy(
     this._response,
     this._requestId, {
@@ -515,7 +524,13 @@ class _InspectorResponseProxy implements HttpClientResponse {
     _isCaptured = true;
     try {
       if (_requestId != null) {
-        final body = utf8.decode(_bodyBytes);
+        final String body;
+        if (_captureExceeded) {
+          body = '[Response body too large to capture '
+              '(${_response.contentLength} bytes)]';
+        } else {
+          body = utf8.decode(_bodyBytes);
+        }
         InspectorService.instance.updateNetworkRequest(
           _requestId,
           statusCode: _response.statusCode,
@@ -665,7 +680,17 @@ class _InspectorResponseProxy implements HttpClientResponse {
     return _response.transform(
       StreamTransformer<List<int>, List<int>>.fromHandlers(
         handleData: (chunk, sink) {
-          _bodyBytes.addAll(chunk);
+          if (!_captureExceeded &&
+              _bodyBytes.length + chunk.length <= _maxCaptureBytes) {
+            _bodyBytes.addAll(chunk);
+          } else if (!_captureExceeded) {
+            // 超过限制，截断到最大值并标记 / Exceeded limit, truncate to max and mark
+            final remaining = _maxCaptureBytes - _bodyBytes.length;
+            if (remaining > 0) {
+              _bodyBytes.addAll(chunk.sublist(0, remaining));
+            }
+            _captureExceeded = true;
+          }
           sink.add(chunk);
         },
         handleDone: (sink) {

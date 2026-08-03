@@ -21,6 +21,9 @@ class InspectorLogInterceptor {
   /// 原始的 debugPrint 函数引用 / Original debugPrint function reference
   DebugPrintCallback? _originalDebugPrint;
 
+  /// 原始的 FlutterError.onError 回调 / Original FlutterError.onError callback
+  FlutterExceptionHandler? _originalFlutterOnError;
+
   /// 是否正在捕获日志（防止递归调用）/ Whether currently capturing logs (prevents recursive calls)
   bool _isCapturing = false;
 
@@ -43,6 +46,7 @@ class InspectorLogInterceptor {
   void stop() {
     _isStarted = false;
     _restoreDebugPrint();
+    _restoreFlutterOnError();
   }
 
   /// 覆盖 debugPrint 函数，实现日志捕获 / Override debugPrint function to capture logs
@@ -69,8 +73,13 @@ class InspectorLogInterceptor {
 
   /// 设置错误处理，捕获 Flutter 错误和异常 / Set up error handling to capture Flutter errors and exceptions
   void _setupErrorHandling() {
-    // 捕获 Flutter 框架级别的错误 / Capture Flutter framework-level errors
+    // 保存原始回调，避免覆盖 Crashlytics / Sentry 等第三方错误上报
+    // Save original callback to avoid overwriting Crashlytics / Sentry etc.
+    _originalFlutterOnError = FlutterError.onError;
     FlutterError.onError = (FlutterErrorDetails details) {
+      // 先调用原始回调（如 Crashlytics），确保错误上报不丢失
+      // Call original callback first (e.g. Crashlytics) to preserve error reporting
+      _originalFlutterOnError?.call(details);
       captureLog(details.exception.toString(), LogLevel.error);
       if (details.stack != null) {
         captureLog(details.stack.toString(), LogLevel.error);
@@ -82,6 +91,14 @@ class InspectorLogInterceptor {
       captureLog(error.toString(), LogLevel.error);
       captureLog(stackTrace.toString(), LogLevel.error);
     });
+  }
+
+  /// 恢复原始的 FlutterError.onError / Restore original FlutterError.onError
+  void _restoreFlutterOnError() {
+    if (_originalFlutterOnError != null) {
+      FlutterError.onError = _originalFlutterOnError!;
+      _originalFlutterOnError = null;
+    }
   }
 
   /// 捕获日志并添加到服务中 / Capture log and add to service
