@@ -43,6 +43,16 @@ jobs:
               return;
             }
 
+            // Derive the ecosystem label from the PR's labels so reviewers can
+            // tell at a glance which stack this bump touches.
+            // 根据 PR 的 label 推断生态，便于一眼识别本次更新属于哪个栈。
+            const labelNames = (pr.labels || []).map((l) => l.name);
+            const eco = labelNames.includes('github-actions')
+              ? 'GitHub Actions'
+              : labelNames.includes('example')
+                ? 'Example app (Dart/Flutter)'
+                : 'Dart/Flutter (pub)';
+
             const bilingual = `
 
 ${marker}
@@ -60,6 +70,12 @@ This automated dependency update was opened by Dependabot.
 - For \`pub\` dependencies, confirm the caret (\`^\`) constraint is preserved. / \`pub\` 依赖请确认仍保留 caret（\`^\`）约束。
 
 <sub>Auto-added by the Dependabot PR Bilingual Body workflow. / 由工作流自动追加。</sub>
+
+### Ecosystem / 生态
+
+This update affects the **${eco}** stack.
+
+本次更新涉及 **${eco}** 生态。
 `;
 
             const newBody = (pr.body || '') + bilingual;

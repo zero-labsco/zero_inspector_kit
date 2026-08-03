@@ -12,13 +12,27 @@ updates:
       interval: "weekly"
       day: "monday"
       timezone: "Asia/Shanghai"
-    # 聚合小版本更新到单个 PR，减少噪音 / Group minor/patch updates into a single PR
+    # 按依赖类型与风险拆分分组，减少审查噪音 / Split groups by dependency type and risk
     groups:
-      minor-and-patch:
+      # 运行时依赖（http、sqflite 等）的 minor/patch 合并到一个 PR
+      # Runtime deps (http, sqflite, ...) minor/patch grouped into one PR
+      pub-runtime:
+        dependency-type: "direct:production"
         update-types:
           - "minor"
           - "patch"
-    # 大版本单独 PR，便于审查 / Major versions in separate PRs for careful review
+      # 开发依赖（flutter_lints 等）单独一组，更新频率与风险不同
+      # Dev deps (flutter_lints, ...) in their own group
+      pub-dev:
+        dependency-type: "direct:development"
+        update-types:
+          - "minor"
+          - "patch"
+      # 大版本始终单独 PR，便于仔细审查破坏性改动
+      # Major versions always standalone for careful breaking-change review
+      pub-major:
+        update-types:
+          - "major"
     open-pull-requests-limit: 5
     # 版本约束策略：保留既有 caret(^) 风格，仅提升版本号 / Preserve caret style, bump version only
     versioning-strategy: "increase"
@@ -46,10 +60,22 @@ updates:
       interval: "monthly"
       timezone: "Asia/Shanghai"
     groups:
-      minor-and-patch:
+      # example 运行时依赖 minor/patch 合并 / Example runtime deps minor/patch grouped
+      example-runtime:
+        dependency-type: "direct:production"
         update-types:
           - "minor"
           - "patch"
+      # example 开发依赖单独一组 / Example dev deps in own group
+      example-dev:
+        dependency-type: "direct:development"
+        update-types:
+          - "minor"
+          - "patch"
+      # example 大版本单独 PR / Example major versions standalone
+      example-major:
+        update-types:
+          - "major"
     # 每月最多提 1 个 PR，example 通常数月才会真正有版本变动 → 实际合并频率远低于 monthly
     # Max 1 PR per month; example deps rarely bump monthly → effective merge rate is far lower
     open-pull-requests-limit: 1
