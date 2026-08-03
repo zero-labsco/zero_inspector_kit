@@ -55,28 +55,28 @@ jobs:
 
             const bilingual = `
 
-${marker}
----
+            ${marker}
+            ---
 
-### Dependency update / 依赖更新
+            ### Dependency update / 依赖更新
 
-This automated dependency update was opened by Dependabot.
+            This automated dependency update was opened by Dependabot.
 
-此依赖更新 PR 由 Dependabot 自动创建。
+            此依赖更新 PR 由 Dependabot 自动创建。
 
-**Review checklist / 审查清单**
-- Verify the change builds and all CI checks pass. / 确认能正常构建且 CI 全部通过。
-- For major version bumps, check the changelog for breaking changes. / 大版本更新请核对变更日志中的破坏性改动。
-- For \`pub\` dependencies, confirm the caret (\`^\`) constraint is preserved. / \`pub\` 依赖请确认仍保留 caret（\`^\`）约束。
+            **Review checklist / 审查清单**
+            - Verify the change builds and all CI checks pass. / 确认能正常构建且 CI 全部通过。
+            - For major version bumps, check the changelog for breaking changes. / 大版本更新请核对变更日志中的破坏性改动。
+            - For \`pub\` dependencies, confirm the caret (\`^\`) constraint is preserved. / \`pub\` 依赖请确认仍保留 caret（\`^\`）约束。
 
-<sub>Auto-added by the Dependabot PR Bilingual Body workflow. / 由工作流自动追加。</sub>
+            <sub>Auto-added by the Dependabot PR Bilingual Body workflow. / 由工作流自动追加。</sub>
 
-### Ecosystem / 生态
+            ### Ecosystem / 生态
 
-This update affects the **${eco}** stack.
+            This update affects the **${eco}** stack.
 
-本次更新涉及 **${eco}** 生态。
-`;
+            本次更新涉及 **${eco}** 生态。
+            `;
 
             const newBody = (pr.body || '') + bilingual;
             await github.rest.pulls.update({
