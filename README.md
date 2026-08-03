@@ -6,12 +6,12 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 [![pub points](https://img.shields.io/pub/points/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit/score)
 [![CI](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml/badge.svg)](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://github.com/zero-labsco/zero_inspector_kit/blob/main/LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green.svg)]()
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green.svg)](https://pub.dev/packages/zero_inspector_kit)
 [![Flutter](https://img.shields.io/badge/Flutter-✓-02569B?logo=flutter)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** v1.2.1 fixes fundamental FPS accuracy issues (timestamps used `DateTime.now()` instead of real frame timestamps; frame duration only counted build phase, missing GPU rasterization jank). All users using the FPS monitor feature are advised to upgrade to `^1.2.1`.
+> **🔔 Upgrade recommended:** v1.2.2 fixes interceptor robustness issues (large-response OOM, overwritten third-party error reporting, concurrent same-URL request mis-association) and an unresolvable example dependency. All users are advised to upgrade to `^1.2.2`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)**
 
@@ -38,19 +38,19 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.2.1
+  zero_inspector_kit: ^1.2.2
 ```
 
 ### GitHub
 
-Alternatively, you can install from GitHub (replace `1.2.1` with the version you need):
+Alternatively, you can install from GitHub (replace `1.2.2` with the version you need):
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: v1.2.1
+      ref: v1.2.2
 ```
 
 ## Usage

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zero_inspector_kit/src/interceptors/dio_interceptor.dart';
 import 'package:zero_inspector_kit/src/models/database_info.dart';
 import 'package:zero_inspector_kit/src/models/interceptor_rule.dart';
 import 'package:zero_inspector_kit/src/models/leak_record.dart';
@@ -6,6 +7,7 @@ import 'package:zero_inspector_kit/src/models/log_entry.dart';
 import 'package:zero_inspector_kit/src/models/memory_snapshot.dart';
 import 'package:zero_inspector_kit/src/models/network_request.dart';
 import 'package:zero_inspector_kit/src/models/route_entry.dart';
+import 'package:zero_inspector_kit/src/services/inspector_service.dart';
 
 /// 模型单元测试 / Model unit tests
 ///
@@ -806,6 +808,99 @@ void main() {
       expect(r.gcTriggeredAt, equals(now));
       expect(r.leakedAt, equals(now));
       expect(r.status, equals(LeakStatus.verifying));
+    });
+  });
+
+  /// =======================================================================
+  /// InspectorDioInterceptor — 请求 ID 匹配测试 / Request ID matching tests
+  /// =======================================================================
+  group('InspectorDioInterceptor request ID matching', () {
+    setUp(() {
+      InspectorService.instance.clearNetworkRequests();
+    });
+
+    tearDown(() {
+      InspectorService.instance.clearNetworkRequests();
+    });
+
+    test(
+      'onResponse 通过 request ID 精确匹配而非 URL / onResponse matches by request ID, not URL',
+      () {
+        final interceptor = InspectorDioInterceptor();
+
+        // 模拟两个并发请求到同一 URL / Simulate two concurrent requests to same URL
+        interceptor.onRequest({
+          'method': 'GET',
+          'url': 'https://api.example.com/user',
+          'headers': <String, dynamic>{},
+          'data': null,
+        });
+        interceptor.onRequest({
+          'method': 'GET',
+          'url': 'https://api.example.com/user',
+          'headers': <String, dynamic>{},
+          'data': null,
+        });
+
+        final requests = InspectorService.instance.networkRequests;
+        expect(requests.length, equals(2));
+
+        // 获取第一个请求的 ID / Get first request's ID
+        final firstRequestId = requests
+            .where((r) => r.responseTime == null)
+            .last
+            .id;
+
+        // 模拟第二个请求先返回（携带同一 URL 但带上 request ID header）
+        // Simulate second request responding first (same URL but with request ID header)
+        interceptor.onResponse({
+          'statusCode': 200,
+          'data': 'second response',
+          'requestOptions': {
+            'uri': 'https://api.example.com/user',
+            'method': 'GET',
+            'headers': {'x-inspector-request-id': firstRequestId},
+          },
+        });
+
+        // 应更新正确的请求 / Should update the correct request
+        final updated = InspectorService.instance.networkRequests.firstWhere(
+          (r) => r.id == firstRequestId,
+        );
+        expect(updated.responseBody, equals('second response'));
+        expect(updated.statusCode, equals(200));
+      },
+    );
+
+    test('onError 通过 request ID 匹配 / onError matches by request ID', () {
+      final interceptor = InspectorDioInterceptor();
+
+      interceptor.onRequest({
+        'method': 'POST',
+        'url': 'https://api.example.com/login',
+        'headers': <String, dynamic>{},
+        'data': {'user': 'test'},
+      });
+
+      final requests = InspectorService.instance.networkRequests;
+      expect(requests.length, equals(1));
+      final requestId = requests.first.id;
+
+      interceptor.onError({
+        'message': 'Connection refused',
+        'response': {'statusCode': 503, 'data': 'Service Unavailable'},
+        'requestOptions': {
+          'uri': 'https://api.example.com/login',
+          'method': 'POST',
+          'headers': {'x-inspector-request-id': requestId},
+        },
+      });
+
+      final updated = InspectorService.instance.networkRequests.firstWhere(
+        (r) => r.id == requestId,
+      );
+      expect(updated.statusCode, equals(503));
+      expect(updated.responseBody, equals('Service Unavailable'));
     });
   });
 }

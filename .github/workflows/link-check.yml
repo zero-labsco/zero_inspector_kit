@@ -43,7 +43,6 @@ jobs:
             --timeout 20
             --retry-wait-time 2
             --max-retries 2
-            --exclude-mail
             README.md README_zh.md CHANGELOG.md "docs/**"
           fail: true
         env:

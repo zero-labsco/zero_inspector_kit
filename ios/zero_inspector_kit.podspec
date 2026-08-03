@@ -4,10 +4,10 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'zero_inspector_kit'
-  s.version          = '1.2.1'
+  s.version          = '1.2.2'
   s.summary          = 'A Flutter plugin for in-app developer console.'
   s.description      = <<-DESC
-A Flutter plugin for in-app developer console with network request viewing, logging, database inspection, and route tracking.
+A Flutter plugin for in-app developer console with network request viewing, logging, database inspection, memory monitoring, FPS monitoring, and route tracking.
                        DESC
   s.homepage         = 'https://github.com/zero-labsco/zero_inspector_kit'
   s.license          = { :file => '../LICENSE' }

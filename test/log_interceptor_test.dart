@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_inspector_kit/src/interceptors/log_interceptor.dart';
 import 'package:zero_inspector_kit/src/models/log_entry.dart';
@@ -318,5 +319,86 @@ void main() {
       expect(logs[0].message, equals('warn via log()'));
       expect(logs[0].tag, equals('X'));
     });
+  });
+
+  /// =======================================================================
+  /// FlutterError.onError 保留与恢复测试 / FlutterError.onError preservation tests
+  /// =======================================================================
+  group('InspectorLogInterceptor FlutterError.onError preservation', () {
+    test(
+      'stop() 恢复原始 FlutterError.onError / stop() restores original FlutterError.onError',
+      () {
+        // 保存原始值 / Save original value
+        final originalOnError = FlutterError.onError;
+
+        // 设置一个模拟的第三方错误处理回调（如 Crashlytics）
+        // Set a mock third-party error handler (e.g. Crashlytics)
+        FlutterErrorDetails? mockHandlerCalled;
+        void mockHandler(FlutterErrorDetails details) {
+          mockHandlerCalled = details;
+        }
+
+        FlutterError.onError = mockHandler;
+
+        // 启动日志拦截器 / Start log interceptor
+        InspectorLogInterceptor.instance.start();
+
+        // 触发 FlutterError / Trigger FlutterError
+        FlutterError.onError!(
+          FlutterErrorDetails(
+            exception: Exception('test'),
+            stack: StackTrace.current,
+          ),
+        );
+
+        // 原始回调应被调用（Crashlytics 不丢失）/ Original handler should be called
+        expect(mockHandlerCalled, isNotNull);
+
+        // 停止拦截器 / Stop interceptor
+        InspectorLogInterceptor.instance.stop();
+
+        // FlutterError.onError 应恢复为 mockHandler / Should restore to mockHandler
+        expect(FlutterError.onError, same(mockHandler));
+
+        // 重置 / Reset
+        FlutterError.onError = originalOnError;
+      },
+    );
+
+    test(
+      'start() 时原始 FlutterError.onError 被优先调用 / Original FlutterError.onError called first on start',
+      () {
+        final originalOnError = FlutterError.onError;
+
+        // 追踪调用顺序 / Track call order
+        final callOrder = <String>[];
+        void mockHandler(FlutterErrorDetails details) {
+          callOrder.add('original');
+        }
+
+        FlutterError.onError = mockHandler;
+
+        InspectorLogInterceptor.instance.start();
+
+        FlutterError.onError!(
+          FlutterErrorDetails(
+            exception: Exception('test'),
+            stack: StackTrace.current,
+          ),
+        );
+
+        // 原始回调应先于日志捕获被调用 / Original handler called before log capture
+        expect(callOrder, contains('original'));
+        expect(
+          InspectorService.instance.logEntries.any(
+            (e) => e.level == LogLevel.error,
+          ),
+          isTrue,
+        );
+
+        InspectorLogInterceptor.instance.stop();
+        FlutterError.onError = originalOnError;
+      },
+    );
   });
 }

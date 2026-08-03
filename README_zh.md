@@ -6,12 +6,12 @@
 [![pub points](https://img.shields.io/pub/points/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit/score)
 [![CI](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml/badge.svg)](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://github.com/zero-labsco/zero_inspector_kit/blob/main/LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green.svg)]()
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green.svg)](https://pub.dev/packages/zero_inspector_kit)
 [![Flutter](https://img.shields.io/badge/Flutter-✓-02569B?logo=flutter)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.2.1 修复了 FPS 计算的根本性准确度问题（时间戳使用 `DateTime.now()` 而非帧真实时间戳；帧耗时只算 build 阶段，漏掉 GPU 光栅化卡顿）。建议所有使用 FPS 监控功能的用户升级到 `^1.2.1`。
+> **🔔 推荐升级：** v1.2.2 修复了拦截器的若干健壮性问题（大响应体 OOM、第三方错误上报被覆盖、并发同 URL 请求错乱）并修复了 example 依赖无法解析的问题。建议所有用户升级到 `^1.2.2`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
@@ -37,7 +37,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.2.1
+  zero_inspector_kit: ^1.2.2
 ```
 
 ### GitHub

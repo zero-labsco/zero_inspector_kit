@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.2.2
+
+> **🔔 推荐升级 / Upgrade recommended：** 本版本修复了拦截器的若干健壮性问题（大响应体 OOM、第三方错误上报被覆盖、并发同 URL 请求错乱），并修复了 example 依赖无法解析的问题。
+> This release fixes several interceptor robustness issues (large-response OOM, overwritten third-party error reporting, concurrent same-URL request mis-association) and an unresolvable example dependency.
+
+本版本提升了拦截器在与网络请求、错误捕获交互时的健壮性，并修正了 example 工程的可解析性。
+This release improves interceptor robustness for network requests and error capture, and fixes the example project's resolvability.
+
+**修复 / Bug Fixes:**
+
+- 拦截器健壮性修复 / Interceptor robustness fixes
+  - HTTP 拦截器：捕获的响应体上限设为 512KB，避免下载大文件时内存溢出（OOM）
+  - HTTP interceptor: cap captured response body at 512KB to avoid OOM on large downloads
+  - 日志拦截器：保留并恢复原始的 `FlutterError.onError`，不再覆盖 Crashlytics / Sentry 等第三方错误上报
+  - Log interceptor: preserve and restore the original `FlutterError.onError` so third-party reporters (Crashlytics/Sentry) are no longer overwritten
+  - Dio 拦截器：响应/错误匹配优先使用 `x-inspector-request-id`，回退到 URL，避免并发同 URL 请求错乱配对
+  - Dio interceptor: match responses/errors by `x-inspector-request-id` first, falling back to URL, to avoid mis-associating concurrent same-URL requests
+- 构建修复 / Build fix
+  - example 的 `dio` 依赖由不存在的 `5.11.0` 固定为 `5.4.0`，修复 `flutter pub get` 解析失败
+  - Pinned example `dio` from the non-existent `5.11.0` to `5.4.0`, fixing `flutter pub get` resolution failure
+
 ## 1.2.1
 
 > **🔔 推荐升级 / Upgrade recommended：** 本版本修复了 FPS 计算的根本性准确度问题（时间戳错误、漏判 GPU 卡顿），所有使用 FPS 监控功能的用户建议升级到最新版本。
