@@ -214,13 +214,13 @@ Releases are managed by maintainers via git tags:
    ```
 
 5. The `pub-publish.yml` workflow will automatically publish to pub.dev and create a GitHub Release.
-6. (Optional) Archive the release as a branch named `release-v<version>` (e.g., `release-v1.2.2`). This branch does **not** trigger CI and exists only for archival. Create it via an explicit refspec:
+6. (Optional) Archive the release as a branch named `release/<version>` (e.g., `release/1.2.2`). This branch does **not** trigger CI and exists only for archival. Create it via an explicit refspec:
 
    ```bash
-   git push origin main:refs/heads/release-v1.2.2
+   git push origin main:refs/heads/release/1.2.2
    ```
 
-> 发布由维护者通过 git tag 管理:1) 更新 `pubspec.yaml` 的 `version`;2) 更新 `CHANGELOG.md` 对应版本节;3) 提交并 push 到 `main`;4) 创建并 push `v<version>` tag(如 `v1.2.2`)——**不要把分支命名为 `v<version>`**,同名分支/tag 会让 push 产生歧义,请用 `refs/tags/` 显式推送;5) `pub-publish.yml` 工作流会自动发布到 pub.dev 并创建 GitHub Release;6)(可选)以 `release-v<version>` 命名归档分支(如 `release-v1.2.2`),该分支不触发 CI、仅作归档,需经显式 refspec 创建。
+> 发布由维护者通过 git tag 管理:1) 更新 `pubspec.yaml` 的 `version`;2) 更新 `CHANGELOG.md` 对应版本节;3) 提交并 push 到 `main`;4) 创建并 push `v<version>` tag(如 `v1.2.2`)——**不要把分支命名为 `v<version>`**,同名分支/tag 会让 push 产生歧义,请用 `refs/tags/` 显式推送;5) `pub-publish.yml` 工作流会自动发布到 pub.dev 并创建 GitHub Release;6)(可选)以 `release/<version>` 命名归档分支(如 `release/1.2.2`),该分支不触发 CI、仅作归档,需经显式 refspec 创建。
 
 ---
 
