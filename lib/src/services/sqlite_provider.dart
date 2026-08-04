@@ -82,7 +82,7 @@ class SqliteDatabaseProvider implements DatabaseProvider {
   Future<List<ColumnInfo>> _getColumns(Database db, String tableName) async {
     final columns = <ColumnInfo>[];
     try {
-      final result = await db.rawQuery('PRAGMA table_info($tableName)');
+      final result = await db.rawQuery('PRAGMA table_info("$tableName")');
 
       for (final row in result) {
         columns.add(
@@ -97,7 +97,7 @@ class SqliteDatabaseProvider implements DatabaseProvider {
   /// 获取表的行数 / Get row count of table
   Future<int> _getRowCount(Database db, String tableName) async {
     try {
-      final result = await db.rawQuery('SELECT COUNT(*) FROM $tableName');
+      final result = await db.rawQuery('SELECT COUNT(*) FROM "$tableName"');
       return result.first.values.first as int;
     } catch (_) {
       return 0;
@@ -114,7 +114,7 @@ class SqliteDatabaseProvider implements DatabaseProvider {
       final db = await openDatabase(dbPath, readOnly: true, version: 1);
 
       final columns = await _getColumns(db, tableName);
-      final rows = await db.rawQuery('SELECT * FROM $tableName LIMIT $limit');
+      final rows = await db.rawQuery('SELECT * FROM "$tableName" LIMIT $limit');
 
       await db.close();
 
