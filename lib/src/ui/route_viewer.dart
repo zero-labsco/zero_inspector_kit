@@ -1,8 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/route_entry.dart';
 import '../services/inspector_service.dart';
+import '../utils/formatters.dart';
 import 'theme/inspector_theme.dart';
+import 'widgets/widgets.dart';
 
 /// 路由查看器 / Route viewer
 /// 显示应用中的路由导航记录 / Display route navigation records in the app
@@ -38,11 +39,16 @@ class _RouteViewerState extends State<RouteViewer> {
                           right: BorderSide(color: InspectorColors.border),
                         ),
                       ),
-                      child: ListView.builder(
-                        itemCount: routes.length,
-                        itemBuilder: (context, index) =>
-                            _buildRouteItem(routes[index]),
-                      ),
+                      child: routes.isEmpty
+                          ? InspectorEmptyState(
+                              message: 'No routes yet',
+                              icon: Icons.route_rounded,
+                            )
+                          : ListView.builder(
+                              itemCount: routes.length,
+                              itemBuilder: (context, index) =>
+                                  _buildRouteItem(routes[index]),
+                            ),
                     ),
                   ),
                   if (_selectedRoute != null)
@@ -72,7 +78,7 @@ class _RouteViewerState extends State<RouteViewer> {
           ),
           child: Row(
             children: [
-              _buildCountBadge(
+              InspectorCountBadge(
                 '${InspectorService.instance.routeEntries.length}',
               ),
               const SizedBox(width: 8),
@@ -85,7 +91,7 @@ class _RouteViewerState extends State<RouteViewer> {
                 ),
               ),
               const Spacer(),
-              _buildIconButton(
+              InspectorIconButton(
                 icon: Icons.delete_outline_rounded,
                 tooltip: 'Clear',
                 onTap: () => InspectorService.instance.clearRoutes(),
@@ -94,47 +100,6 @@ class _RouteViewerState extends State<RouteViewer> {
           ),
         );
       },
-    );
-  }
-
-  /// 构建计数胶囊徽章 / Build count pill badge
-  Widget _buildCountBadge(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: InspectorColors.primary.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: InspectorColors.accent,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  /// 构建图标按钮 / Build icon button
-  Widget _buildIconButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            child: Icon(icon, color: InspectorColors.textSecondary, size: 18),
-          ),
-        ),
-      ),
     );
   }
 
@@ -299,9 +264,8 @@ class _RouteViewerState extends State<RouteViewer> {
   }
 
   /// 格式化时间戳 / Format timestamp
-  String _formatTimestamp(DateTime timestamp) {
-    return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}:${timestamp.second.toString().padLeft(2, '0')}.${timestamp.millisecond.toString().padLeft(3, '0')}';
-  }
+  String _formatTimestamp(DateTime timestamp) =>
+      InspectorFormatters.formatTimestamp(timestamp);
 
   /// 根据路由操作类型获取颜色 / Get color by route action type
   Color _getActionColor(RouteAction action) {
@@ -320,12 +284,5 @@ class _RouteViewerState extends State<RouteViewer> {
   }
 
   /// 格式化JSON数据 / Format JSON data
-  String _formatJson(dynamic data) {
-    if (data == null) return 'null';
-    try {
-      return const JsonEncoder.withIndent('  ').convert(data);
-    } catch (_) {
-      return data.toString();
-    }
-  }
+  String _formatJson(dynamic data) => InspectorFormatters.formatJson(data);
 }

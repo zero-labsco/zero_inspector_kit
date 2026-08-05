@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/database_info.dart';
 import '../services/database_service.dart';
 import 'theme/inspector_theme.dart';
+import 'widgets/widgets.dart';
 
 /// 数据库查看器 / Database viewer
 /// 显示应用中的所有数据库和表结构，支持搜索和查看表数据 / Display all databases and table structures in the app, support search and viewing table data
@@ -220,11 +221,11 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
       ),
       child: Row(
         children: [
-          _buildCountBadge(
+          InspectorCountBadge(
             '${_filterDatabasesGlobal(_databases).length} Databases',
           ),
           const Spacer(),
-          _buildIconButton(
+          InspectorIconButton(
             icon: Icons.refresh_rounded,
             tooltip: 'Refresh',
             onTap: _loadDatabases,
@@ -244,18 +245,18 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
       ),
       child: Row(
         children: [
-          _buildIconButton(
+          InspectorIconButton(
             icon: Icons.arrow_back_rounded,
             tooltip: 'Back',
             onTap: _goBackToList,
           ),
-          _buildCountBadge(
+          InspectorCountBadge(
             _selectedTable != null
                 ? '${_currentDatabase?.name} / ${_selectedTable?.name}'
                 : '${_currentDatabase?.name}',
           ),
           const Spacer(),
-          _buildIconButton(
+          InspectorIconButton(
             icon: Icons.refresh_rounded,
             tooltip: 'Refresh',
             onTap: () {
@@ -271,201 +272,40 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
 
   /// 构建全局搜索栏 / Build global search bar
   Widget _buildGlobalSearchBar() {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: InspectorColors.surface,
-        border: Border(bottom: BorderSide(color: InspectorColors.border)),
-      ),
-      child: TextField(
+      child: InspectorSearchField(
         controller: _globalSearchController,
-        onChanged: (value) => setState(() => _globalSearchKeyword = value),
-        style: TextStyle(color: InspectorColors.textPrimary, fontSize: 12),
-        decoration: InputDecoration(
-          hintText: 'Search database, table...',
-          hintStyle: TextStyle(color: InspectorColors.textHint, fontSize: 12),
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            size: 16,
-            color: InspectorColors.textSecondary,
-          ),
-          suffixIcon: _globalSearchKeyword.isNotEmpty
-              ? GestureDetector(
-                  onTap: () {
-                    _globalSearchController.clear();
-                    setState(() => _globalSearchKeyword = '');
-                  },
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 16,
-                    color: InspectorColors.textSecondary,
-                  ),
-                )
-              : null,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 8,
-          ),
-          filled: true,
-          fillColor: InspectorColors.card,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.border, width: 1),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.border, width: 1),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.accent, width: 1),
-          ),
-        ),
+        hint: 'Search database, table...',
+        onClear: () {
+          _globalSearchController.clear();
+          setState(() => _globalSearchKeyword = '');
+        },
       ),
     );
   }
 
   /// 构建数据库内搜索栏 / Build in-database search bar
   Widget _buildDbSearchBar() {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: InspectorColors.surface,
-        border: Border(bottom: BorderSide(color: InspectorColors.border)),
-      ),
-      child: TextField(
+      child: InspectorSearchField(
         controller: _dbSearchController,
-        onChanged: (value) {
+        hint: 'Search table, data...',
+        onClear: () {
+          _dbSearchController.clear();
           setState(() {
-            _dbSearchKeyword = value;
+            _dbSearchKeyword = '';
             _currentPage = 0;
           });
-          // 关键字过滤改为服务端执行（whereKeyword），保证分页准确。
-          // Keyword filtering is now server-side (whereKeyword) for accurate paging.
           if (_selectedTable != null && _currentDatabase != null) {
             _loadTableData(
               _currentDatabase!.path,
               _selectedTable!.name,
-              keyword: value.isEmpty ? null : value,
+              keyword: null,
             );
           }
         },
-        style: TextStyle(color: InspectorColors.textPrimary, fontSize: 12),
-        decoration: InputDecoration(
-          hintText: 'Search table, data...',
-          hintStyle: TextStyle(color: InspectorColors.textHint, fontSize: 12),
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            size: 16,
-            color: InspectorColors.textSecondary,
-          ),
-          suffixIcon: _dbSearchKeyword.isNotEmpty
-              ? GestureDetector(
-                  onTap: () {
-                    _dbSearchController.clear();
-                    setState(() {
-                      _dbSearchKeyword = '';
-                      _currentPage = 0;
-                    });
-                    if (_selectedTable != null && _currentDatabase != null) {
-                      _loadTableData(
-                        _currentDatabase!.path,
-                        _selectedTable!.name,
-                        keyword: null,
-                      );
-                    }
-                  },
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 16,
-                    color: InspectorColors.textSecondary,
-                  ),
-                )
-              : null,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 8,
-          ),
-          filled: true,
-          fillColor: InspectorColors.card,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.border, width: 1),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.border, width: 1),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.accent, width: 1),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建计数胶囊徽章 / Build count pill badge
-  Widget _buildCountBadge(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: InspectorColors.primary.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: InspectorColors.accent,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  /// 构建图标按钮 / Build icon button
-  Widget _buildIconButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback? onTap,
-  }) {
-    final enabled = onTap != null;
-    return Padding(
-      padding: const EdgeInsets.only(right: 4),
-      child: Tooltip(
-        message: tooltip,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: onTap,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              child: Icon(
-                icon,
-                color: enabled
-                    ? InspectorColors.textSecondary
-                    : InspectorColors.textHint,
-                size: 18,
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -484,31 +324,11 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
     final filteredDbs = _filterDatabasesGlobal(_databases);
 
     if (filteredDbs.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.storage_rounded,
-                size: 36,
-                color: InspectorColors.textHint,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _globalSearchKeyword.isEmpty
-                    ? 'No databases found'
-                    : 'No matching databases',
-                style: TextStyle(
-                  color: InspectorColors.textSecondary,
-                  fontSize: 13,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+      return InspectorEmptyState(
+        message: _globalSearchKeyword.isEmpty
+            ? 'No databases found'
+            : 'No matching databases',
+        icon: Icons.storage_rounded,
       );
     }
 
@@ -590,17 +410,9 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
     final tables = _filterTablesInDb(_currentDatabase!.tables);
 
     if (tables.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text(
-            _dbSearchKeyword.isEmpty ? 'No tables' : 'No matching tables',
-            style: TextStyle(
-              color: InspectorColors.textSecondary,
-              fontSize: 12,
-            ),
-          ),
-        ),
+      return InspectorEmptyState(
+        message: _dbSearchKeyword.isEmpty ? 'No tables' : 'No matching tables',
+        icon: Icons.table_chart_rounded,
       );
     }
 
@@ -707,47 +519,14 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
     // 查询失败：渲染错误态 + 重试按钮，而不是伪装成空列表。
     // Query failed: render an error state with retry, not a fake empty list.
     if (_tableData!.hasError) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline, size: 36, color: Colors.red),
-              const SizedBox(height: 12),
-              Text(
-                '查询失败',
-                style: TextStyle(
-                  color: InspectorColors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _tableData!.error!,
-                style: TextStyle(
-                  color: InspectorColors.textSecondary,
-                  fontSize: 11,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () {
-                  if (_currentDatabase != null) {
-                    _loadTableData(
-                      _currentDatabase!.path,
-                      _selectedTable!.name,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('重试'),
-              ),
-            ],
-          ),
-        ),
+      return InspectorErrorState(
+        title: '查询失败',
+        detail: _tableData!.error,
+        onRetry: () {
+          if (_currentDatabase != null && _selectedTable != null) {
+            _loadTableData(_currentDatabase!.path, _selectedTable!.name);
+          }
+        },
       );
     }
 
@@ -822,15 +601,17 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildIconButton(
+        InspectorIconButton(
           icon: Icons.first_page_rounded,
           tooltip: 'First page',
-          onTap: _currentPage > 0 ? () => _goToPage(0) : null,
+          enabled: _currentPage > 0,
+          onTap: () => _goToPage(0),
         ),
-        _buildIconButton(
+        InspectorIconButton(
           icon: Icons.chevron_left_rounded,
           tooltip: 'Previous',
-          onTap: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
+          enabled: _currentPage > 0,
+          onTap: () => _goToPage(_currentPage - 1),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -843,17 +624,17 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
             ),
           ),
         ),
-        _buildIconButton(
+        InspectorIconButton(
           icon: Icons.chevron_right_rounded,
           tooltip: 'Next',
-          onTap: _currentPage < lastPage
-              ? () => _goToPage(_currentPage + 1)
-              : null,
+          enabled: _currentPage < lastPage,
+          onTap: () => _goToPage(_currentPage + 1),
         ),
-        _buildIconButton(
+        InspectorIconButton(
           icon: Icons.last_page_rounded,
           tooltip: 'Last page',
-          onTap: _currentPage < lastPage ? () => _goToPage(lastPage) : null,
+          enabled: _currentPage < lastPage,
+          onTap: () => _goToPage(lastPage),
         ),
       ],
     );
@@ -862,11 +643,8 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
   /// 构建数据表 / Build data table
   Widget _buildDataTable(List<Map<String, dynamic>> rows) {
     if (rows.isEmpty) {
-      return Center(
-        child: Text(
-          _dbSearchKeyword.isEmpty ? 'No data' : 'No matching rows',
-          style: TextStyle(color: InspectorColors.textSecondary, fontSize: 12),
-        ),
+      return InspectorEmptyState(
+        message: _dbSearchKeyword.isEmpty ? 'No data' : 'No matching rows',
       );
     }
 
