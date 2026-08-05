@@ -28,6 +28,10 @@ class DatabaseService {
     String dbPath,
     String tableName, {
     int limit = 50,
+    int offset = 0,
+    String? orderBy,
+    bool desc = false,
+    String? whereKeyword,
   }) async {
     for (final provider in DatabaseRegistry.instance.providers) {
       try {
@@ -35,6 +39,10 @@ class DatabaseService {
           dbPath,
           tableName,
           limit: limit,
+          offset: offset,
+          orderBy: orderBy,
+          desc: desc,
+          whereKeyword: whereKeyword,
         );
         if (result.rows.isNotEmpty) return result;
       } catch (_) {}

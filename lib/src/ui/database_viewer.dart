@@ -37,6 +37,18 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
   /// 表查询结果 / Table query result
   QueryResult? _tableData;
 
+  /// 每页行数 / Page size
+  static const int _pageSize = 50;
+
+  /// 当前页（从 0 开始）/ Current page (0-based)
+  int _currentPage = 0;
+
+  /// 排序列名（null 表示不排序）/ Order-by column (null = no order)
+  String? _orderBy;
+
+  /// 是否降序 / Descending order
+  bool _desc = false;
+
   /// 是否正在加载 / Whether loading
   bool _isLoading = true;
 
@@ -61,9 +73,26 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
   }
 
   /// 加载表数据 / Load table data
-  Future<void> _loadTableData(String dbPath, String tableName) async {
+  /// [orderBy]/[desc]/[keyword] 可选，支持排序与单元格级关键字过滤（服务端执行，分页准确）。
+  /// [orderBy]/[desc]/[keyword] are optional for sorting and cell-level keyword filtering (server-side, pagination-safe).
+  Future<void> _loadTableData(
+    String dbPath,
+    String tableName, {
+    String? orderBy,
+    bool? desc,
+    String? keyword,
+  }) async {
     setState(() => _isLoading = true);
-    _tableData = await DatabaseService.instance.queryTable(dbPath, tableName);
+    _tableData = await DatabaseService.instance.queryTable(
+      dbPath,
+      tableName,
+      limit: _pageSize,
+      offset: _currentPage * _pageSize,
+      orderBy: orderBy ?? _orderBy,
+      desc: desc ?? _desc,
+      whereKeyword:
+          keyword ?? (_dbSearchKeyword.isEmpty ? null : _dbSearchKeyword),
+    );
     setState(() => _isLoading = false);
   }
 
@@ -88,19 +117,6 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
         .toList();
   }
 
-  /// 过滤表数据行（搜索所有列内容）/ Filter table data rows
-  List<Map<String, dynamic>> _filterTableRows(QueryResult data) {
-    if (_dbSearchKeyword.isEmpty) return data.rows;
-    final keyword = _dbSearchKeyword.toLowerCase();
-    return data.rows.where((row) {
-      for (final col in data.columns) {
-        final value = row[col]?.toString().toLowerCase() ?? '';
-        if (value.contains(keyword)) return true;
-      }
-      return false;
-    }).toList();
-  }
-
   /// 进入数据库视图 / Enter database view
   void _enterDatabase(DatabaseInfo db) {
     setState(() {
@@ -109,6 +125,9 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
       _tableData = null;
       _dbSearchKeyword = '';
       _dbSearchController.clear();
+      _currentPage = 0;
+      _orderBy = null;
+      _desc = false;
     });
   }
 
@@ -119,6 +138,38 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
       _selectedTable = null;
       _tableData = null;
     });
+  }
+
+  /// 切换某列的排序（再次点击同一列则反转方向）/ Toggle sort on a column (re-click flips direction)
+  void _toggleSort(String column) {
+    setState(() {
+      if (_orderBy == column) {
+        _desc = !_desc;
+      } else {
+        _orderBy = column;
+        _desc = false;
+      }
+      _currentPage = 0;
+    });
+    if (_selectedTable != null && _currentDatabase != null) {
+      _loadTableData(
+        _currentDatabase!.path,
+        _selectedTable!.name,
+        orderBy: _orderBy,
+        desc: _desc,
+      );
+    }
+  }
+
+  /// 跳转到指定页（越界则忽略）/ Go to a specific page (ignored if out of range)
+  void _goToPage(int page) {
+    final total = _tableData?.total ?? 0;
+    final lastPage = total <= 0 ? 0 : ((total - 1) / _pageSize).floor();
+    if (page < 0 || page > lastPage) return;
+    setState(() => _currentPage = page);
+    if (_selectedTable != null && _currentDatabase != null) {
+      _loadTableData(_currentDatabase!.path, _selectedTable!.name);
+    }
   }
 
   @override
@@ -291,7 +342,21 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
       ),
       child: TextField(
         controller: _dbSearchController,
-        onChanged: (value) => setState(() => _dbSearchKeyword = value),
+        onChanged: (value) {
+          setState(() {
+            _dbSearchKeyword = value;
+            _currentPage = 0;
+          });
+          // 关键字过滤改为服务端执行（whereKeyword），保证分页准确。
+          // Keyword filtering is now server-side (whereKeyword) for accurate paging.
+          if (_selectedTable != null && _currentDatabase != null) {
+            _loadTableData(
+              _currentDatabase!.path,
+              _selectedTable!.name,
+              keyword: value.isEmpty ? null : value,
+            );
+          }
+        },
         style: TextStyle(color: InspectorColors.textPrimary, fontSize: 12),
         decoration: InputDecoration(
           hintText: 'Search table, data...',
@@ -305,7 +370,17 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
               ? GestureDetector(
                   onTap: () {
                     _dbSearchController.clear();
-                    setState(() => _dbSearchKeyword = '');
+                    setState(() {
+                      _dbSearchKeyword = '';
+                      _currentPage = 0;
+                    });
+                    if (_selectedTable != null && _currentDatabase != null) {
+                      _loadTableData(
+                        _currentDatabase!.path,
+                        _selectedTable!.name,
+                        keyword: null,
+                      );
+                    }
                   },
                   child: Icon(
                     Icons.close_rounded,
@@ -367,8 +442,9 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
   Widget _buildIconButton({
     required IconData icon,
     required String tooltip,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
+    final enabled = onTap != null;
     return Padding(
       padding: const EdgeInsets.only(right: 4),
       child: Tooltip(
@@ -380,7 +456,13 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
             onTap: onTap,
             child: Container(
               padding: const EdgeInsets.all(6),
-              child: Icon(icon, color: InspectorColors.textSecondary, size: 18),
+              child: Icon(
+                icon,
+                color: enabled
+                    ? InspectorColors.textSecondary
+                    : InspectorColors.textHint,
+                size: 18,
+              ),
             ),
           ),
         ),
@@ -614,7 +696,8 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
       );
     }
 
-    final filteredRows = _filterTableRows(_tableData!);
+    final total = _tableData!.total;
+    final lastPage = total <= 0 ? 0 : ((total - 1) / _pageSize).floor();
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -648,7 +731,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                   ),
                 ),
                 child: Text(
-                  '${filteredRows.length} rows',
+                  '${_tableData!.rows.length} / $total rows',
                   style: TextStyle(
                     color: InspectorColors.textSecondary,
                     fontSize: 11,
@@ -656,17 +739,6 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                   ),
                 ),
               ),
-              if (_dbSearchKeyword.isNotEmpty &&
-                  filteredRows.length != _tableData!.rows.length) ...[
-                const SizedBox(width: 6),
-                Text(
-                  'of ${_tableData!.rows.length}',
-                  style: TextStyle(
-                    color: InspectorColors.textHint,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
             ],
           ),
           const SizedBox(height: 12),
@@ -679,11 +751,56 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                 ),
                 border: Border.all(color: InspectorColors.border, width: 0.5),
               ),
-              child: _buildDataTable(filteredRows),
+              child: _buildDataTable(_tableData!.rows),
             ),
           ),
+          const SizedBox(height: 8),
+          _buildPaginationBar(lastPage),
         ],
       ),
+    );
+  }
+
+  /// 构建分页栏 / Build pagination bar
+  Widget _buildPaginationBar(int lastPage) {
+    final total = _tableData?.total ?? 0;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildIconButton(
+          icon: Icons.first_page_rounded,
+          tooltip: 'First page',
+          onTap: _currentPage > 0 ? () => _goToPage(0) : null,
+        ),
+        _buildIconButton(
+          icon: Icons.chevron_left_rounded,
+          tooltip: 'Previous',
+          onTap: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'Page ${_currentPage + 1} / ${lastPage + 1}'
+            '${total > 0 ? '  ($total total)' : ''}',
+            style: TextStyle(
+              color: InspectorColors.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+        ),
+        _buildIconButton(
+          icon: Icons.chevron_right_rounded,
+          tooltip: 'Next',
+          onTap: _currentPage < lastPage
+              ? () => _goToPage(_currentPage + 1)
+              : null,
+        ),
+        _buildIconButton(
+          icon: Icons.last_page_rounded,
+          tooltip: 'Last page',
+          onTap: _currentPage < lastPage ? () => _goToPage(lastPage) : null,
+        ),
+      ],
     );
   }
 
@@ -714,14 +831,27 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
           dataRowMinHeight: 32,
           dataRowMaxHeight: 32,
           columns: _tableData!.columns.map((column) {
+            final isSorted = _orderBy == column;
             return DataColumn(
-              label: Text(
-                column,
-                style: TextStyle(
-                  color: InspectorColors.accent,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                ),
+              onSort: (_, _) => _toggleSort(column),
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    column,
+                    style: TextStyle(
+                      color: InspectorColors.accent,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (isSorted)
+                    Icon(
+                      _desc ? Icons.arrow_drop_down : Icons.arrow_drop_up,
+                      size: 14,
+                      color: InspectorColors.accent,
+                    ),
+                ],
               ),
             );
           }).toList(),

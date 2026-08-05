@@ -12,6 +12,9 @@
 .swiftpm/
 migrate_working_dir/
 
+# IDE project data (includes Improvement-Plan.md, must not be committed)
+.codebuddy/
+
 # IntelliJ related
 *.iml
 *.ipr

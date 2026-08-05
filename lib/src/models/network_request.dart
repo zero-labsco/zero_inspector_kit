@@ -72,4 +72,50 @@ class NetworkRequest {
       'duration': duration,
     };
   }
+
+  /// 复制并可选更新字段。当 [maxBodyBytes] 大于 0 时，对 body/responseBody 做头部预览截断。
+  /// Copy with optional field updates. When [maxBodyBytes] > 0, body/responseBody are
+  /// truncated to a head preview to cap memory usage.
+  NetworkRequest copyWith({
+    String? id,
+    String? method,
+    String? url,
+    Map<String, String>? headers,
+    dynamic body,
+    dynamic responseBody,
+    int? statusCode,
+    int? requestTime,
+    int? responseTime,
+    int? duration,
+    int maxBodyBytes = 0,
+  }) {
+    final truncatedBody = maxBodyBytes > 0
+        ? _truncate(body, maxBodyBytes)
+        : body;
+    final truncatedResponse = maxBodyBytes > 0
+        ? _truncate(responseBody, maxBodyBytes)
+        : responseBody;
+    return NetworkRequest(
+      id: id ?? this.id,
+      method: method ?? this.method,
+      url: url ?? this.url,
+      headers: headers ?? this.headers,
+      body: truncatedBody,
+      responseBody: truncatedResponse,
+      statusCode: statusCode ?? this.statusCode,
+      requestTime: requestTime ?? this.requestTime,
+      responseTime: responseTime ?? this.responseTime,
+      duration: duration ?? this.duration,
+    );
+  }
+
+  /// 将 [value] 截断为不超过 [maxBytes] 字符的头部预览；超长时附截断提示。
+  /// Truncate [value] to a head preview no longer than [maxBytes] chars; append a note when clipped.
+  static dynamic _truncate(dynamic value, int maxBytes) {
+    if (value == null) return value;
+    final str = value.toString();
+    if (str.length <= maxBytes) return str;
+    return '${str.substring(0, maxBytes)}\n'
+        '[… truncated ${str.length - maxBytes} chars …]';
+  }
 }

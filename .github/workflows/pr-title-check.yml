@@ -5,8 +5,14 @@ on:
     types:
       - opened
       - edited
-      - synchronize
       - reopened
+      # NOTE: `synchronize` is intentionally omitted. The `dart-format-fix`
+      # workflow pushes a bot commit on every sync, which would re-trigger this
+      # title check and make the PR appear stuck on the title status. The PR
+      # title cannot change on `synchronize` anyway, so re-checking is pointless.
+      # 注意:故意不含 `synchronize`。dart-format-fix 会在每次同步时推送 bot 提交,
+      # 重新触发本标题检查,导致 PR 标题状态卡住。而同步时 PR 标题不可能变化,
+      # 重复校验毫无意义。
 
 permissions:
   pull-requests: read

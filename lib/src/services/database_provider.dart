@@ -35,10 +35,21 @@ abstract class DatabaseProvider {
   /// [dbPath] 数据库文件路径 / Database file path
   /// [tableName] 表名称 / Table name
   /// [limit] 返回行数限制，默认50 / Return row limit, default 50
+  /// [offset] 跳过的行数，用于分页 / Rows to skip, for pagination
+  /// [orderBy] 排序列名（列名白名单校验）/ Order-by column (validated against actual columns)
+  /// [desc] 是否降序 / Descending order when true
+  /// [whereKeyword] 单元格级关键字过滤（任一列包含即匹配）/ Cell-level keyword filter
+  ///
+  /// [offset]/[orderBy]/[desc]/[whereKeyword] 均为命名可选参数，保持向后兼容。
+  /// These new parameters are named & optional, preserving backward compatibility.
   Future<QueryResult> queryTable(
     String dbPath,
     String tableName, {
     int limit = 50,
+    int offset = 0,
+    String? orderBy,
+    bool desc = false,
+    String? whereKeyword,
   });
 }
 
