@@ -59,7 +59,7 @@ class InspectorService extends ChangeNotifier {
   late final UnmodifiableListView<RouteEntry> _routeEntriesView =
       UnmodifiableListView(_routeEntries);
   late final UnmodifiableListView<RequestInterceptorRule>
-      _interceptorRulesView = UnmodifiableListView(_interceptorRules);
+  _interceptorRulesView = UnmodifiableListView(_interceptorRules);
 
   /// 配置容量上限与 body 预览截断长度 / Configure capacities and body preview cap
   /// 应在 [ZeroInspectorKit.init] 中调用，向后兼容（全部命名可选）。

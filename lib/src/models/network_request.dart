@@ -89,10 +89,12 @@ class NetworkRequest {
     int? duration,
     int maxBodyBytes = 0,
   }) {
-    final truncatedBody =
-        maxBodyBytes > 0 ? _truncate(body, maxBodyBytes) : body;
-    final truncatedResponse =
-        maxBodyBytes > 0 ? _truncate(responseBody, maxBodyBytes) : responseBody;
+    final truncatedBody = maxBodyBytes > 0
+        ? _truncate(body, maxBodyBytes)
+        : body;
+    final truncatedResponse = maxBodyBytes > 0
+        ? _truncate(responseBody, maxBodyBytes)
+        : responseBody;
     return NetworkRequest(
       id: id ?? this.id,
       method: method ?? this.method,

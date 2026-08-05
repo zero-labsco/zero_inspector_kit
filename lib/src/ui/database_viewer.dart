@@ -90,7 +90,8 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
       offset: _currentPage * _pageSize,
       orderBy: orderBy ?? _orderBy,
       desc: desc ?? _desc,
-      whereKeyword: keyword ?? (_dbSearchKeyword.isEmpty ? null : _dbSearchKeyword),
+      whereKeyword:
+          keyword ?? (_dbSearchKeyword.isEmpty ? null : _dbSearchKeyword),
     );
     setState(() => _isLoading = false);
   }
@@ -790,7 +791,9 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
         _buildIconButton(
           icon: Icons.chevron_right_rounded,
           tooltip: 'Next',
-          onTap: _currentPage < lastPage ? () => _goToPage(_currentPage + 1) : null,
+          onTap: _currentPage < lastPage
+              ? () => _goToPage(_currentPage + 1)
+              : null,
         ),
         _buildIconButton(
           icon: Icons.last_page_rounded,

@@ -149,10 +149,10 @@ class SqliteDatabaseProvider implements DatabaseProvider {
           : _keywordArgs(columnNames, whereKeyword);
       final countSql = 'SELECT COUNT(*) FROM $quotedTable$whereClause';
       final totalRows = whereKeyword == null || whereKeyword.isEmpty
-          ? Sqflite.firstIntValue(await db.rawQuery(
-              'SELECT COUNT(*) FROM $quotedTable',
-            )) ??
-              0
+          ? Sqflite.firstIntValue(
+                  await db.rawQuery('SELECT COUNT(*) FROM $quotedTable'),
+                ) ??
+                0
           : Sqflite.firstIntValue(await db.rawQuery(countSql, kwArgs)) ?? 0;
 
       final sql =
@@ -246,13 +246,9 @@ class SqliteDatabaseProvider implements DatabaseProvider {
 
   /// 构建单元格级关键字过滤的 WHERE 子句（参数化，防注入）。
   /// Build the cell-level keyword filter WHERE clause (parameterized, injection-safe).
-  static String _buildKeywordWhere(
-    List<String> columnNames,
-    String? keyword,
-  ) {
+  static String _buildKeywordWhere(List<String> columnNames, String? keyword) {
     if (keyword == null || keyword.isEmpty) return '';
-    final safeCols =
-        columnNames.where(_isValidIdent).map(_quoteIdent).toList();
+    final safeCols = columnNames.where(_isValidIdent).map(_quoteIdent).toList();
     if (safeCols.isEmpty) return '';
     final conditions = safeCols.map((c) => '$c LIKE ?').join(' OR ');
     return ' WHERE $conditions';

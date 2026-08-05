@@ -53,17 +53,21 @@ class ExportService {
   /// 列：method,url,statusCode,durationMs,requestTime,hasBody,hasResponse
   String netToCsv(List<NetworkRequest> requests) {
     final buf = StringBuffer()
-      ..writeln('method,url,statusCode,durationMs,requestTime,hasBody,hasResponse');
+      ..writeln(
+        'method,url,statusCode,durationMs,requestTime,hasBody,hasResponse',
+      );
     for (final r in requests) {
-      buf.writeln([
-        _csvCell(r.method),
-        _csvCell(r.url),
-        r.statusCode?.toString() ?? '',
-        r.duration?.toString() ?? '',
-        r.requestTime.toString(),
-        r.body != null ? '1' : '0',
-        r.responseBody != null ? '1' : '0',
-      ].join(','));
+      buf.writeln(
+        [
+          _csvCell(r.method),
+          _csvCell(r.url),
+          r.statusCode?.toString() ?? '',
+          r.duration?.toString() ?? '',
+          r.requestTime.toString(),
+          r.body != null ? '1' : '0',
+          r.responseBody != null ? '1' : '0',
+        ].join(','),
+      );
     }
     return buf.toString();
   }
@@ -74,16 +78,15 @@ class ExportService {
   /// The generated HAR can be imported into Chrome DevTools / Charles, improving interoperability.
   String netToHar(List<NetworkRequest> requests) {
     final entries = requests.map((r) {
-      final reqHeaders = (r.headers ?? {})
-          .entries
+      final reqHeaders = (r.headers ?? {}).entries
           .map((e) => {'name': e.key, 'value': e.value})
           .toList();
       final startedMs = r.requestTime;
       final time = r.duration ?? 0;
       return {
-        'startedDateTime': DateTime.fromMillisecondsSinceEpoch(startedMs)
-            .toUtc()
-            .toIso8601String(),
+        'startedDateTime': DateTime.fromMillisecondsSinceEpoch(
+          startedMs,
+        ).toUtc().toIso8601String(),
         'time': time,
         'request': {
           'method': r.method,
@@ -134,8 +137,10 @@ class ExportService {
 
   /// 导出日志到文件 / Export logs to a file
   Future<String> exportLogsToFile(List<LogEntry> logs, {bool json = true}) =>
-      writeToFile(json ? logsToJson(logs) : logsToText(logs),
-          'zero_inspector_logs.${json ? 'json' : 'txt'}');
+      writeToFile(
+        json ? logsToJson(logs) : logsToText(logs),
+        'zero_inspector_logs.${json ? 'json' : 'txt'}',
+      );
 
   /// 导出网络请求到文件（支持 json/csv/har）/ Export network requests to a file
   Future<String> exportNetToFile(
