@@ -193,19 +193,17 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
   }
 
   /// 构建数据库详情视图 / Build database detail view
+  /// 进入表后整屏展示表数据（全宽），而非侧边并排面板。
+  /// After entering a table, the table data is shown full-width instead of a side-by-side panel.
   Widget _buildDatabaseDetailView() {
     return Column(
       children: [
         _buildDetailToolbar(),
         _buildDbSearchBar(),
         Expanded(
-          child: Row(
-            children: [
-              Expanded(flex: 1, child: _buildTableList()),
-              if (_selectedTable != null && _tableData != null)
-                Expanded(flex: 2, child: _buildTableData()),
-            ],
-          ),
+          child: _selectedTable != null && _tableData != null
+              ? _buildTableData()
+              : _buildTableList(),
         ),
       ],
     );
@@ -247,8 +245,17 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
         children: [
           InspectorIconButton(
             icon: Icons.arrow_back_rounded,
-            tooltip: 'Back',
-            onTap: _goBackToList,
+            tooltip: _selectedTable != null ? 'Back to tables' : 'Back',
+            onTap: () {
+              if (_selectedTable != null) {
+                setState(() {
+                  _selectedTable = null;
+                  _tableData = null;
+                });
+              } else {
+                _goBackToList();
+              }
+            },
           ),
           InspectorCountBadge(
             _selectedTable != null
@@ -416,14 +423,9 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: InspectorColors.border)),
-      ),
-      child: ListView.builder(
-        itemCount: tables.length,
-        itemBuilder: (context, index) => _buildTableItem(tables[index]),
-      ),
+    return ListView.builder(
+      itemCount: tables.length,
+      itemBuilder: (context, index) => _buildTableItem(tables[index]),
     );
   }
 
