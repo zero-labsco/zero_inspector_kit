@@ -64,6 +64,16 @@ This file defines the architecture, coding conventions, and required workflows f
 7. `pub-publish.yml` publishes via `k-paxian/dart-package-publisher@v1.6` using the `PUB_CREDENTIALS_JSON` secret (fields `accessToken`, `refreshToken`; set `flutter: true`). Do NOT pass OIDC fields (`idToken` / `tokenEndpoint` / `scopes`); the action does not support them and emits invalid-input warnings.
    - Note: `k-paxian` internally uses older actions that emit Node 20 deprecation warnings. This is accepted (B1 decision); functionality is unaffected.
 
+### Pub publish validation pitfalls (observed during v1.3.0)
+`dart pub publish` (run by `pub-publish.yml`) performs validation that FAILS the build (exit 65) on certain warnings. The following were hit and the fixes applied. Re-verify with `flutter pub publish --dry-run` before tagging.
+
+- **Checked-in file ignored by `.gitignore`** — Pub flags any file that is BOTH in the git index AND matched by `.gitignore` (error message points at e.g. `.codebuddy/skills/zero-inspector-kit/SKILL.md`). Fix: do NOT try to solve this with `.pubignore` (pub's "checked-in but ignored" check ignores `.pubignore`); instead **untrack** the path so it is no longer "checked in":
+  `git rm -r --cached .codebuddy` (file stays on disk, remains gitignored, no longer in the index). Keep `.codebuddy/` ignored in `.gitignore` — it is personal IDE data.
+- **Top-level `docs/` directory (plural name)** — Pub warns that plural top-level dirs aren't recognized by its layout convention and suggests renaming to `doc/`. Do NOT rename: `docs/` is the GitHub Pages site (served from `docs/github-pages`), renaming breaks the Pages workflow. Fix: exclude it from the package via `.pubignore` (`docs/`).
+- **`.pubignore` usage** — Add a `.pubignore` at repo root to keep repo-internal content out of the published tarball. Recommended entries: `docs/`, `.codebuddy/`, `wiki/`, `AGENTS.md`, `CONTRIBUTING.md`, `TODO.md`. `.pubignore` is respected by `dart pub publish` but does NOT silence the "checked-in but gitignored" conflict above.
+
+When re-tagging after a fix, force-update both the `vX.Y.Z` tag and the `release/vX.Y.Z` archive branch to the new commit so the publish job runs against the corrected tree.
+
 ### Documentation site (GitHub Pages)
 - Source content lives in `docs/` (migrated from `wiki/` via `git mv wiki docs`).
 - Publishing branch: `docs/github-pages`; GitHub Pages serves the `/docs` folder of that branch.
