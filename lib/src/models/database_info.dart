@@ -49,5 +49,13 @@ class QueryResult {
   /// 列名列表 / Column name list
   final List<String> columns;
 
-  QueryResult({required this.rows, required this.columns});
+  /// 过滤后的总行数（用于分页）。未提供时回退为 [rows] 长度。
+  /// Total filtered row count (for pagination). Falls back to [rows].length when absent.
+  final int? totalRows;
+
+  QueryResult({required this.rows, required this.columns, this.totalRows});
+
+  /// 用于分页的总行数；未显式提供时按当前页行数近似。
+  /// Total rows for pagination; approximates with current page length if not provided.
+  int get total => totalRows ?? rows.length;
 }
