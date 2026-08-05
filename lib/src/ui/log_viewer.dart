@@ -3,6 +3,7 @@ import '../models/log_entry.dart';
 import '../services/inspector_service.dart';
 import '../services/export_service.dart';
 import 'theme/inspector_theme.dart';
+import 'widgets/widgets.dart';
 
 /// 日志查看器 / Log viewer
 /// 显示所有捕获的日志，支持按级别过滤和搜索 / Display all captured logs, support filtering by level and search
@@ -46,30 +47,12 @@ class _LogViewerState extends State<LogViewer> {
               final logs = _filterLogs(InspectorService.instance.logEntries);
 
               if (logs.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.subject_rounded,
-                          size: 36,
-                          color: InspectorColors.textHint,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _searchKeyword.isEmpty && _filterLevel == null
-                              ? 'No logs yet'
-                              : 'No matching logs',
-                          style: TextStyle(
-                            color: InspectorColors.textSecondary,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                return InspectorEmptyState(
+                  message:
+                      _searchKeyword.isEmpty && _filterLevel == null
+                          ? 'No logs yet'
+                          : 'No matching logs',
+                  icon: Icons.subject_rounded,
                 );
               }
 
@@ -116,7 +99,7 @@ class _LogViewerState extends State<LogViewer> {
           ),
           child: Row(
             children: [
-              _buildCountBadge(
+              InspectorCountBadge(
                 '${InspectorService.instance.logEntries.length}',
               ),
               const SizedBox(width: 8),
@@ -129,7 +112,7 @@ class _LogViewerState extends State<LogViewer> {
                 ),
               ),
               const Spacer(),
-              _buildIconButton(
+              InspectorIconButton(
                 icon: Icons.content_copy_rounded,
                 tooltip: 'Copy as JSON',
                 onTap: () async {
@@ -148,7 +131,7 @@ class _LogViewerState extends State<LogViewer> {
                   }
                 },
               ),
-              _buildIconButton(
+              InspectorIconButton(
                 icon: Icons.share_rounded,
                 tooltip: 'Copy as Text',
                 onTap: () async {
@@ -167,7 +150,7 @@ class _LogViewerState extends State<LogViewer> {
                   }
                 },
               ),
-              _buildIconButton(
+              InspectorIconButton(
                 icon: Icons.delete_outline_rounded,
                 tooltip: 'Clear',
                 onTap: () => InspectorService.instance.clearLogs(),
@@ -181,104 +164,15 @@ class _LogViewerState extends State<LogViewer> {
 
   /// 构建搜索栏 / Build search bar
   Widget _buildSearchBar() {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: InspectorColors.surface,
-        border: Border(bottom: BorderSide(color: InspectorColors.border)),
-      ),
-      child: TextField(
+      child: InspectorSearchField(
         controller: _searchController,
-        onChanged: (value) => setState(() => _searchKeyword = value),
-        style: TextStyle(color: InspectorColors.textPrimary, fontSize: 12),
-        decoration: InputDecoration(
-          hintText: 'Search message, tag...',
-          hintStyle: TextStyle(color: InspectorColors.textHint, fontSize: 12),
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            size: 16,
-            color: InspectorColors.textSecondary,
-          ),
-          suffixIcon: _searchKeyword.isNotEmpty
-              ? GestureDetector(
-                  onTap: () {
-                    _searchController.clear();
-                    setState(() => _searchKeyword = '');
-                  },
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 16,
-                    color: InspectorColors.textSecondary,
-                  ),
-                )
-              : null,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 8,
-          ),
-          filled: true,
-          fillColor: InspectorColors.card,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.border, width: 1),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.border, width: 1),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.accent, width: 1),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建计数胶囊徽章 / Build count pill badge
-  Widget _buildCountBadge(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: InspectorColors.primary.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: InspectorColors.accent,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  /// 构建图标按钮 / Build icon button
-  Widget _buildIconButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            child: Icon(icon, color: InspectorColors.textSecondary, size: 18),
-          ),
-        ),
+        hint: 'Search message, tag...',
+        onClear: () {
+          _searchController.clear();
+          setState(() => _searchKeyword = '');
+        },
       ),
     );
   }

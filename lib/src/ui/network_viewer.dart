@@ -4,7 +4,9 @@ import '../models/network_request.dart';
 import '../models/interceptor_rule.dart';
 import '../services/inspector_service.dart';
 import '../services/export_service.dart';
+import '../utils/formatters.dart';
 import 'theme/inspector_theme.dart';
+import 'widgets/widgets.dart';
 
 /// 网络请求查看器 / Network request viewer
 /// 显示所有捕获的网络请求，支持搜索和查看详细信息 / Display all captured network requests, support search and viewing details
@@ -140,7 +142,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
           child: Row(
             children: [
               if (_selectedRequest != null)
-                _buildIconButton(
+                InspectorIconButton(
                   icon: Icons.arrow_back_rounded,
                   tooltip: 'Back',
                   onTap: () {
@@ -150,7 +152,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
                     });
                   },
                 ),
-              _buildCountBadge(
+              InspectorCountBadge(
                 '${InspectorService.instance.networkRequests.length}',
               ),
               const SizedBox(width: 6),
@@ -169,13 +171,13 @@ class _NetworkViewerState extends State<NetworkViewer> {
               if (_selectedRequest != null &&
                   interceptorOn &&
                   _selectedRequest!.method.toUpperCase() != 'GET')
-                _buildIconButton(
+                InspectorIconButton(
                   icon: Icons.edit_note_rounded,
                   tooltip: 'Interceptor',
                   onTap: () => _showInterceptorEditor(),
                   color: InspectorColors.accent,
                 ),
-              _buildIconButton(
+              InspectorIconButton(
                 icon: Icons.content_copy_rounded,
                 tooltip: 'Copy as JSON',
                 onTap: () async {
@@ -194,7 +196,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
                   }
                 },
               ),
-              _buildIconButton(
+              InspectorIconButton(
                 icon: Icons.delete_outline_rounded,
                 tooltip: 'Clear',
                 onTap: () => InspectorService.instance.clearNetworkRequests(),
@@ -258,110 +260,15 @@ class _NetworkViewerState extends State<NetworkViewer> {
   Widget _buildSearchBar() {
     if (_selectedRequest != null) return const SizedBox.shrink();
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: InspectorColors.surface,
-        border: Border(bottom: BorderSide(color: InspectorColors.border)),
-      ),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (value) => setState(() => _searchKeyword = value),
-        style: TextStyle(color: InspectorColors.textPrimary, fontSize: 12),
-        decoration: InputDecoration(
-          hintText: 'Search URL, method...',
-          hintStyle: TextStyle(color: InspectorColors.textHint, fontSize: 12),
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            size: 16,
-            color: InspectorColors.textSecondary,
-          ),
-          suffixIcon: _searchKeyword.isNotEmpty
-              ? GestureDetector(
-                  onTap: () {
-                    _searchController.clear();
-                    setState(() => _searchKeyword = '');
-                  },
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 16,
-                    color: InspectorColors.textSecondary,
-                  ),
-                )
-              : null,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 8,
-          ),
-          filled: true,
-          fillColor: InspectorColors.card,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.border, width: 1),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.border, width: 1),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.smallRadius,
-            ),
-            borderSide: BorderSide(color: InspectorColors.accent, width: 1),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCountBadge(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: InspectorColors.primary.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: InspectorColors.accent,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIconButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-    Color? color,
-  }) {
     return Padding(
-      padding: const EdgeInsets.only(right: 4),
-      child: Tooltip(
-        message: tooltip,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: onTap,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              child: Icon(
-                icon,
-                color: color ?? InspectorColors.textSecondary,
-                size: 18,
-              ),
-            ),
-          ),
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: InspectorSearchField(
+        controller: _searchController,
+        hint: 'Search URL, method...',
+        onClear: () {
+          _searchController.clear();
+          setState(() => _searchKeyword = '');
+        },
       ),
     );
   }
@@ -379,30 +286,9 @@ class _NetworkViewerState extends State<NetworkViewer> {
     final requests = _filterRequests(InspectorService.instance.networkRequests);
 
     if (requests.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.http_rounded,
-                size: 36,
-                color: InspectorColors.textHint,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _searchKeyword.isEmpty
-                    ? 'No requests yet'
-                    : 'No matching requests',
-                style: TextStyle(
-                  color: InspectorColors.textSecondary,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
+      return InspectorEmptyState(
+        message:
+            _searchKeyword.isEmpty ? 'No requests yet' : 'No matching requests',
       );
     }
 
@@ -747,15 +633,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     }
   }
 
-  String _formatJson(dynamic data) {
-    if (data == null) return 'null';
-    if (data is String) return data;
-    try {
-      return const JsonEncoder.withIndent('  ').convert(data);
-    } catch (_) {
-      return data.toString();
-    }
-  }
+  String _formatJson(dynamic data) => InspectorFormatters.formatJson(data);
 }
 
 /// 拦截规则编辑面板 / Interceptor rule editor panel
@@ -812,12 +690,7 @@ class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
 
   String _formatBody(dynamic body) {
     if (body == null) return '';
-    if (body is String) return body;
-    try {
-      return const JsonEncoder.withIndent('  ').convert(body);
-    } catch (_) {
-      return body.toString();
-    }
+    return InspectorFormatters.formatJson(body);
   }
 
   @override
