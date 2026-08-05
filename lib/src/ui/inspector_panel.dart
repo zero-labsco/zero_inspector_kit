@@ -234,7 +234,9 @@ class _InspectorPanelState extends State<InspectorPanel>
         ),
         const SizedBox(width: 6),
         Text(
-          active.isEmpty ? 'No live monitor' : 'Monitoring: ${active.join(' · ')}',
+          active.isEmpty
+              ? 'No live monitor'
+              : 'Monitoring: ${active.join(' · ')}',
           style: TextStyle(
             color: InspectorColors.textSecondary,
             fontSize: 10,
