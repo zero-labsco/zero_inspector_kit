@@ -13,6 +13,7 @@
 - 🧭 [Route Tracker](Route-Tracker)
 - 📊 [Memory Viewer](Memory-Viewer)
 - 🎯 [FPS Viewer](FPS-Viewer)
+- 🔔 [Alerts](Alerts)
 
 ## 🛠 Advanced
 

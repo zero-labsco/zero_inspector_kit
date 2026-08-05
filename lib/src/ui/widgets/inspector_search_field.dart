@@ -35,12 +35,20 @@ class InspectorSearchField extends StatelessWidget {
         controller: controller,
         style: TextStyle(color: InspectorColors.textPrimary, fontSize: 12),
         decoration: InputDecoration(
+          // 使用 collapsed 避免 Material 默认上下内边距，配合精确 contentPadding 垂直居中
+          // Use collapsed to drop Material's default vertical padding; exact
+          // contentPadding keeps the hint/text centered within the 32px box.
+          isCollapsed: true,
           hintText: hint,
           hintStyle: TextStyle(color: InspectorColors.textHint, fontSize: 12),
           prefixIcon: Icon(
             Icons.search_rounded,
             size: 16,
             color: InspectorColors.textHint,
+          ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 28,
+            minHeight: 32,
           ),
           suffixIcon: controller.text.isNotEmpty
               ? IconButton(
@@ -57,7 +65,7 @@ class InspectorSearchField extends StatelessWidget {
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 8,
-            vertical: 6,
+            vertical: 8,
           ),
         ),
       ),

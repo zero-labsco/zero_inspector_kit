@@ -427,12 +427,15 @@ class _MemoryViewerState extends State<MemoryViewer> {
                 : InspectorColors.textHint,
           ),
           const SizedBox(width: 6),
-          Text(
-            'Device: ${formatBytes(service.deviceAvailMem)} / ${formatBytes(service.deviceTotalMem)}',
-            style: TextStyle(
-              color: InspectorColors.textSecondary,
-              fontSize: 11,
-              fontFamily: 'monospace',
+          Expanded(
+            child: Text(
+              'Device: ${formatBytes(service.deviceAvailMem)} / ${formatBytes(service.deviceTotalMem)}',
+              style: TextStyle(
+                color: InspectorColors.textSecondary,
+                fontSize: 11,
+                fontFamily: 'monospace',
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const Spacer(),

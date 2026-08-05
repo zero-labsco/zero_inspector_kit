@@ -17,7 +17,7 @@ dependencies:
   http: 1.6.0
   cupertino_icons: 1.0.9
   logger: 2.7.0
-  sqflite: 2.4.3
+  sqflite: ^2.4.0
   path: '1.9.1'
 
 dev_dependencies:

@@ -15,6 +15,8 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 | **Route Tracker** | Navigation history tracking / 路由追踪 |
 | **Memory Viewer** | Trend chart, Dart Heap, Native memory, leak detection / 内存趋势图、Dart Heap、Native 内存、泄漏检测 |
 | **FPS Monitor** | Real-time FPS, jank rate, trend chart / 实时 FPS、卡顿率、趋势图 |
+| **Alerts** | Rule-based alerts (network/log/memory/FPS) with unread badge / 基于规则的告警（网络/日志/内存/FPS）与未读角标 |
+| **Sensitive Masking & cURL** | Mask secrets on export; one-click cURL copy; batch ops / 导出遮蔽敏感字段、一键复制 cURL、批量操作 |
 | **Fuzzy Search** | Search in all viewers / 三大查看器模糊搜索 |
 | **Cross-platform** | Android, iOS / 跨平台支持 |
 
@@ -31,6 +33,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 | [Route Tracker](Route-Tracker) | Route tracking / 路由追踪 |
 | [Memory Viewer](Memory-Viewer) | Memory monitoring & leak detection / 内存监控与泄漏检测 |
 | [FPS Viewer](FPS-Viewer) | FPS monitoring & jank detection / FPS 监控与卡顿检测 |
+| [Alerts](Alerts) | Rule-based alerting / 基于规则的告警 |
 | [Configuration](Configuration) | Configuration options / 配置说明 |
 | [Custom Database Provider](Custom-Database-Provider) | Extend database support / 自定义数据库提供者 |
 | [FAQ](FAQ) | Frequently asked questions / 常见问题 |

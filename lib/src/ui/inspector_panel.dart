@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'theme/inspector_theme.dart';
+import '../services/fps_service.dart';
+import '../services/memory_inspector_service.dart';
 import 'network_viewer.dart';
 import 'log_viewer.dart';
 import 'database_viewer.dart';
@@ -67,13 +69,28 @@ class _InspectorPanelState extends State<InspectorPanel>
     super.initState();
     _tabController = TabController(length: _titles.length, vsync: this);
     _tabController.addListener(_onTabChanged);
+    FpsService.instance.addListener(_onMonitorChanged);
+    MemoryInspectorService.instance.addListener(_onMonitorChanged);
   }
 
   @override
   void dispose() {
     _tabController.removeListener(_onTabChanged);
+    FpsService.instance.removeListener(_onMonitorChanged);
+    MemoryInspectorService.instance.removeListener(_onMonitorChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  /// 监控开关变化 → 刷新头部状态行 / Monitor toggle → refresh header status row
+  void _onMonitorChanged() => setState(() {});
+
+  /// 当前已开启的实时监控标签 / Currently active real-time monitor labels
+  List<String> get _activeMonitors {
+    final list = <String>[];
+    if (FpsService.instance.isRunning) list.add('FPS');
+    if (MemoryInspectorService.instance.isEnabled) list.add('Memory');
+    return list;
   }
 
   /// Tab 变化回调 / Tab change callback
@@ -172,6 +189,8 @@ class _InspectorPanelState extends State<InspectorPanel>
                   fontWeight: FontWeight.w400,
                 ),
               ),
+              const SizedBox(height: 3),
+              _buildStatusRow(),
             ],
           ),
           const Spacer(),
@@ -192,6 +211,39 @@ class _InspectorPanelState extends State<InspectorPanel>
           ),
         ],
       ),
+    );
+  }
+
+  /// 构建头部实时监控状态行 / Build header real-time monitor status row
+  ///
+  /// 显示当前已开启的监控（FPS / Memory），让用户直观知道开启了什么。
+  /// Shows currently active monitors (FPS / Memory) so the user knows what's on.
+  Widget _buildStatusRow() {
+    final active = _activeMonitors;
+    return Row(
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: active.isEmpty
+                ? InspectorColors.textSecondary
+                : InspectorColors.success,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          active.isEmpty
+              ? 'No live monitor'
+              : 'Monitoring: ${active.join(' · ')}',
+          style: TextStyle(
+            color: InspectorColors.textSecondary,
+            fontSize: 10,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ],
     );
   }
 

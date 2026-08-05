@@ -136,6 +136,8 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
 
   /// 球体中心内容：有未读告警时显示红色数字，否则显示默认图标。
   /// Ball center: red count when unread, otherwise the default icon.
+  /// 悬浮球保持纯粹，不叠加任何监控角标；开启状态统一在 InspectorPanel 头部展示。
+  /// Ball stays clean with no monitor badges; toggle state is shown in the panel header.
   Widget _buildCenter() {
     final unread = AlertService.instance.unreadCount.value;
     if (unread <= 0) {
