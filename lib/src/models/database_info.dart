@@ -90,14 +90,14 @@ class QueryResult {
 
   /// 成功（可能为空）的结果 / A successful (possibly empty) result.
   const QueryResult.empty()
-      : rows = const [],
-        columns = const [],
-        totalRows = 0,
-        error = null;
+    : rows = const [],
+      columns = const [],
+      totalRows = 0,
+      error = null;
 
   /// 携带错误信息的失败结果 / A failed result carrying the error message.
   const QueryResult.failure(this.error)
-      : rows = const [],
-        columns = const [],
-        totalRows = 0;
+    : rows = const [],
+      columns = const [],
+      totalRows = 0;
 }

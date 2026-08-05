@@ -57,10 +57,20 @@ class SqliteDatabaseProvider implements DatabaseProvider {
               // 单个文件打开失败不应阻断整个扫描，但要把错误暴露出来。
               // A single bad file must not abort the scan, but surface the error.
               scanError = '无法打开数据库 ${file.path}: $e';
-              InspectorInternalLog.error('sqlite', scanError, error: e, stackTrace: st);
+              InspectorInternalLog.error(
+                'sqlite',
+                scanError,
+                error: e,
+                stackTrace: st,
+              );
             } catch (e, st) {
               scanError = '扫描数据库 ${file.path} 失败: $e';
-              InspectorInternalLog.error('sqlite', scanError, error: e, stackTrace: st);
+              InspectorInternalLog.error(
+                'sqlite',
+                scanError,
+                error: e,
+                stackTrace: st,
+              );
             } finally {
               // 扫描阶段不持有连接，归还缓存 / Don't keep connections during scan.
               _releaseConnection(file.path);
@@ -68,7 +78,8 @@ class SqliteDatabaseProvider implements DatabaseProvider {
 
             // 打开/扫描失败也记录一条带错误信息的 DatabaseInfo，供 UI 提示。
             // Record a DatabaseInfo carrying the error so the UI can warn.
-            if (scanError != null && !databases.any((d) => d.path == file.path)) {
+            if (scanError != null &&
+                !databases.any((d) => d.path == file.path)) {
               databases.add(
                 DatabaseInfo(
                   name: file.path.split(Platform.pathSeparator).last,
@@ -82,7 +93,12 @@ class SqliteDatabaseProvider implements DatabaseProvider {
         }
       }
     } catch (e, st) {
-      InspectorInternalLog.error('sqlite', '扫描数据库目录失败: $e', error: e, stackTrace: st);
+      InspectorInternalLog.error(
+        'sqlite',
+        '扫描数据库目录失败: $e',
+        error: e,
+        stackTrace: st,
+      );
     }
 
     return databases;
@@ -108,7 +124,12 @@ class SqliteDatabaseProvider implements DatabaseProvider {
           rowCount = await _getRowCount(db, tableName);
         } catch (e, st) {
           tableError = '读取表 $tableName 的 schema 失败: $e';
-          InspectorInternalLog.warning('sqlite', tableError, error: e, stackTrace: st);
+          InspectorInternalLog.warning(
+            'sqlite',
+            tableError,
+            error: e,
+            stackTrace: st,
+          );
         }
 
         tables.add(
@@ -123,7 +144,12 @@ class SqliteDatabaseProvider implements DatabaseProvider {
     } catch (e, st) {
       // 读取 sqlite_master 失败：整库 schema 不可用，报错交由调用方记录。
       // Reading sqlite_master failed: schema unavailable; caller logs it.
-      InspectorInternalLog.error('sqlite', '读取表列表失败: $e', error: e, stackTrace: st);
+      InspectorInternalLog.error(
+        'sqlite',
+        '读取表列表失败: $e',
+        error: e,
+        stackTrace: st,
+      );
       rethrow;
     }
 
@@ -272,7 +298,12 @@ class SqliteDatabaseProvider implements DatabaseProvider {
       try {
         await db.close();
       } catch (e, st) {
-        InspectorInternalLog.warning('sqlite', '关闭数据库连接失败: $e', error: e, stackTrace: st);
+        InspectorInternalLog.warning(
+          'sqlite',
+          '关闭数据库连接失败: $e',
+          error: e,
+          stackTrace: st,
+        );
       }
     }
     _connections.clear();

@@ -61,8 +61,7 @@ class InspectorInternalLog {
   static final List<InternalLogEntry> _entries = [];
 
   /// Read-only view of the most recent diagnostic entries (oldest first).
-  static List<InternalLogEntry> get entries =>
-      List.unmodifiable(_entries);
+  static List<InternalLogEntry> get entries => List.unmodifiable(_entries);
 
   /// Whether any [InternalLogLevel.error] entry has been recorded.
   static bool get hasErrors =>
@@ -108,14 +107,30 @@ class InspectorInternalLog {
   /// Convenience helpers.
   static void debug(String tag, String message) =>
       log(tag, message, level: InternalLogLevel.debug);
-  static void warning(String tag, String message,
-          {Object? error, StackTrace? stackTrace}) =>
-      log(tag, message,
-          level: InternalLogLevel.warning, error: error, stackTrace: stackTrace);
-  static void error(String tag, String message,
-          {Object? error, StackTrace? stackTrace}) =>
-      log(tag, message,
-          level: InternalLogLevel.error, error: error, stackTrace: stackTrace);
+  static void warning(
+    String tag,
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+  }) => log(
+    tag,
+    message,
+    level: InternalLogLevel.warning,
+    error: error,
+    stackTrace: stackTrace,
+  );
+  static void error(
+    String tag,
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+  }) => log(
+    tag,
+    message,
+    level: InternalLogLevel.error,
+    error: error,
+    stackTrace: stackTrace,
+  );
 
   /// Clear the buffer (primarily for tests).
   static void clear() => _entries.clear();

@@ -669,7 +669,10 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                 Icon(Icons.error_outline, size: 14, color: Colors.red)
               else
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: InspectorColors.border,
                     borderRadius: BorderRadius.circular(4),
@@ -733,7 +736,10 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
               ElevatedButton.icon(
                 onPressed: () {
                   if (_currentDatabase != null) {
-                    _loadTableData(_currentDatabase!.path, _selectedTable!.name);
+                    _loadTableData(
+                      _currentDatabase!.path,
+                      _selectedTable!.name,
+                    );
                   }
                 },
                 icon: const Icon(Icons.refresh_rounded, size: 16),
