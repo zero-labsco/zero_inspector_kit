@@ -15,6 +15,8 @@
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
+📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)**
+
 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
 ## 功能特性
