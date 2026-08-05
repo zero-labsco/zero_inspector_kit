@@ -16,6 +16,17 @@ class ExportService {
   /// 单例实例 / Singleton instance
   static final ExportService instance = ExportService._();
 
+  /// 导出时需遮蔽的敏感请求头（不区分大小写）/ Sensitive headers to mask on export
+  static const Set<String> sensitiveHeaders = {
+    'authorization',
+    'cookie',
+    'set-cookie',
+    'proxy-authorization',
+    'x-auth-token',
+    'x-csrf-token',
+    'x-xsrf-token',
+  };
+
   // ==================== 导出方法 / Export methods ====================
 
   /// 日志 → JSON / Logs to JSON
@@ -43,24 +54,46 @@ class ExportService {
   }
 
   /// 网络请求 → JSON / Network to JSON
-  String netToJson(List<NetworkRequest> requests) => jsonEncode({
+  /// [maskSensitive] 为 true 时遮蔽敏感头。
+  String netToJson(
+    List<NetworkRequest> requests, {
+    bool maskSensitive = false,
+  }) => jsonEncode({
     'exportedAt': DateTime.now().toIso8601String(),
     'count': requests.length,
-    'requests': requests.map((e) => e.toJson()).toList(),
+    'requests': requests.map((e) => _maskedJson(e, maskSensitive)).toList(),
   });
+
+  /// 按 [maskSensitive] 决定是否遮蔽敏感头后再序列化 / Serialize with masking
+  Map<String, dynamic> _maskedJson(NetworkRequest e, bool maskSensitive) {
+    final json = e.toJson();
+    if (!maskSensitive || e.headers == null) return json;
+    final masked = <String, String>{};
+    for (final entry in e.headers!.entries) {
+      masked[entry.key] = sensitiveHeaders.contains(entry.key.toLowerCase())
+          ? '***'
+          : entry.value;
+    }
+    json['headers'] = masked;
+    return json;
+  }
 
   /// 网络请求 → 复制为 cURL 命令 / Network request → cURL command
   ///
   /// 生成可直接粘贴到终端执行的 curl 命令（含 method、headers、body）。
-  /// Produces a ready-to-run curl command (method, headers, body included).
-  String toCurl(NetworkRequest r) {
+  /// [maskSensitive] 为 true 时遮蔽 Authorization/Cookie 等敏感头。
+  /// Produces a ready-to-run curl command. When [maskSensitive] is true,
+  /// sensitive headers (Authorization/Cookie/...) are masked.
+  String toCurl(NetworkRequest r, {bool maskSensitive = false}) {
     final buf = StringBuffer()..write('curl -X ${r.method} ');
     // URL（含单引号时转义）/ URL (escape single quotes)
     final url = r.url.replaceAll("'", "%27");
     buf.writeln("'$url' \\");
     for (final e in (r.headers ?? {}).entries) {
+      final masked =
+          maskSensitive && sensitiveHeaders.contains(e.key.toLowerCase());
       final name = e.key.replaceAll('"', '\\"');
-      final value = e.value.replaceAll('"', '\\"');
+      final value = (masked ? '***' : e.value).replaceAll('"', '\\"');
       buf.writeln('  -H "$name: $value" \\');
     }
     if (r.body != null) {
@@ -99,11 +132,22 @@ class ExportService {
   /// 网络请求 → HAR 1.2 / Network to HAR 1.2
   ///
   /// 生成的 HAR 可直接导入 Chrome DevTools / Charles 等工具，极大提升与现有链路的互操作性。
-  /// The generated HAR can be imported into Chrome DevTools / Charles, improving interoperability.
-  String netToHar(List<NetworkRequest> requests) {
+  /// [maskSensitive] 为 true 时遮蔽敏感头。
+  /// The generated HAR can be imported into Chrome DevTools / Charles. When
+  /// [maskSensitive] is true, sensitive headers are masked.
+  String netToHar(List<NetworkRequest> requests, {bool maskSensitive = false}) {
     final entries = requests.map((r) {
       final reqHeaders = (r.headers ?? {}).entries
-          .map((e) => {'name': e.key, 'value': e.value})
+          .map(
+            (e) => {
+              'name': e.key,
+              'value':
+                  maskSensitive &&
+                      sensitiveHeaders.contains(e.key.toLowerCase())
+                  ? '***'
+                  : e.value,
+            },
+          )
           .toList();
       final startedMs = r.requestTime;
       final time = r.duration ?? 0;
@@ -170,11 +214,12 @@ class ExportService {
   Future<String> exportNetToFile(
     List<NetworkRequest> requests, {
     String format = 'json',
+    bool maskSensitive = false,
   }) {
     final content = switch (format) {
       'csv' => netToCsv(requests),
-      'har' => netToHar(requests),
-      _ => netToJson(requests),
+      'har' => netToHar(requests, maskSensitive: maskSensitive),
+      _ => netToJson(requests, maskSensitive: maskSensitive),
     };
     return writeToFile(content, 'zero_inspector_net.$format');
   }
@@ -186,8 +231,11 @@ class ExportService {
       copy(json ? logsToJson(logs) : logsToText(logs));
 
   /// 复制网络请求 / Copy network requests
-  Future<void> copyNet(List<NetworkRequest> requests) async =>
-      copy(netToJson(requests));
+  /// [maskSensitive] 为 true 时遮蔽敏感头。
+  Future<void> copyNet(
+    List<NetworkRequest> requests, {
+    bool maskSensitive = false,
+  }) async => copy(netToJson(requests, maskSensitive: maskSensitive));
 
   /// 复制任意内容到剪贴板 / Copy any content to clipboard
   Future<void> copy(String content) async {
