@@ -47,6 +47,51 @@ The inspector uses Flutter's `HttpOverrides` to intercept all HTTP traffic at th
 - Fuzzy search by URL or method / 按 URL 或方法模糊搜索
 - Search bar hidden in detail view / 详情视图隐藏搜索栏
 
+### Batch Operations / 批量操作
+
+> **Available since v1.3.0**
+>
+> **v1.3.0 起可用**
+
+The request list supports a selection mode for operating on multiple requests at once.
+
+请求列表支持选择模式，可一次性操作多条请求。
+
+- Tap the **selection icon** in the toolbar to enter selection mode / 点击工具栏的**选择图标**进入选择模式
+- Check/uncheck items; a top batch bar shows **Select all** / **Cancel** / 勾选/取消勾选；顶部批量条提供**全选** / **取消**
+- **Batch "Copy as cURL"**: copies all selected requests as cURL commands / **批量「Copy as cURL」**：将所有选中请求复制为 cURL 命令
+- **Batch delete**: removes selected requests from the list / **批量删除**：从列表中移除选中请求
+
+### Export & Sensitive-field Masking / 导出与敏感字段遮蔽
+
+> **Available since v1.3.0**
+>
+> **v1.3.0 起可用**
+
+The toolbar includes an **eye toggle** that controls whether sensitive headers are masked on export.
+
+工具栏包含**眼睛开关**，控制导出时是否遮蔽敏感请求头。
+
+- **Default: off (fully visible)** — cURL / JSON / HAR reflect the real request verbatim / **默认关闭（完整可见）**：cURL / JSON / HAR 原样反映真实请求
+- **On**: `toCurl` / `netToJson` / `netToHar` / `copyNet` / `exportNetToFile` mask these headers / **开启后**：以下请求头被遮蔽：
+  - `Authorization`, `Cookie`, `Set-Cookie`, `Proxy-Authorization`, `X-Auth-Token`, `X-CSRF-Token`, `X-XSRF-Token`
+- The detail page "Copy as cURL" / "Copy as JSON" follow the same toggle / 详情页「Copy as cURL」「Copy as JSON」跟随同一开关
+- When masking is active, the snackbar notes **(sensitive hidden)** / 遮蔽开启时，snackbar 提示 **(sensitive hidden)**
+
+> Tip: keep masking **on** before pasting cURL/JSON into terminals, chat, or issue trackers to avoid leaking credentials.
+>
+> 提示：将 cURL/JSON 粘贴到终端、聊天或 issue 前，建议开启遮蔽，避免凭据泄露。
+
+### Copy as cURL / 复制为 cURL
+
+> **Available since v1.3.0**
+>
+> **v1.3.0 起可用**
+
+From the request detail view, tap **Copy as cURL** to copy the request as a ready-to-run cURL command (method, URL, headers, body). Respects the sensitive-field masking toggle above.
+
+在请求详情页点击 **Copy as cURL**，即可将请求复制为可直接运行的 cURL 命令（方法、URL、请求头、请求体），并遵循上方的敏感字段遮蔽开关。
+
 ## Status Code Colors / 状态码颜色
 
 | Range | Color | Description |
