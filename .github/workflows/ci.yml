@@ -105,14 +105,16 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
+            # 纯文档改动（README*.md / CHANGELOG.md / docs/** / LICENSE 等）不在此列表 → code=false → 绿色跳过。
+            # 文档 + 代码同时改动时，下面的代码文件路径任一匹配即 code=true → 跑真实 analyze/test/pana。
+            # Docs-only changes (README*.md / CHANGELOG.md / docs/** / LICENSE) are NOT listed here,
+            # so code=false → green skip. When docs + code change together, any code path below
+            # matches → code=true → run the real Analyze/Test/Pana jobs.
             code:
               - 'lib/**'
               - 'pubspec.yaml'
               - 'pubspec.lock'
               - 'analysis_options.yaml'
-              - 'README.md'
-              - 'CHANGELOG.md'
-              - 'LICENSE'
               - 'test/**'
               - 'example/lib/**'
               - 'example/pubspec.yaml'
