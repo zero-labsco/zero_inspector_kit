@@ -14,6 +14,9 @@ migrate_working_dir/
 
 # IDE project data (includes Improvement-Plan.md, must not be committed)
 .codebuddy/
+# Exception: agent skill definition must be tracked (it is excluded from the
+# published package via .pubignore, but must not be both tracked and gitignored).
+!.codebuddy/skills/zero-inspector-kit/SKILL.md
 
 # IntelliJ related
 *.iml
