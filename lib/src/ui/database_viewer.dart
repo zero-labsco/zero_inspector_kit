@@ -257,10 +257,12 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
               }
             },
           ),
-          InspectorCountBadge(
-            _selectedTable != null
-                ? '${_currentDatabase?.name} / ${_selectedTable?.name}'
-                : '${_currentDatabase?.name}',
+          Expanded(
+            child: InspectorCountBadge(
+              _selectedTable != null
+                  ? '${_currentDatabase?.name} / ${_selectedTable?.name}'
+                  : '${_currentDatabase?.name}',
+            ),
           ),
           const Spacer(),
           InspectorIconButton(
@@ -549,12 +551,15 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                 color: InspectorColors.accent,
               ),
               const SizedBox(width: 8),
-              Text(
-                _selectedTable!.name,
-                style: TextStyle(
-                  color: InspectorColors.accent,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  _selectedTable!.name,
+                  style: TextStyle(
+                    color: InspectorColors.accent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 12),
