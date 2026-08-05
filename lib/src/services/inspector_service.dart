@@ -234,6 +234,12 @@ class InspectorService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 按 id 删除单条网络请求（批量删除用）/ Remove a single request by id
+  void removeNetworkRequest(String id) {
+    _networkRequests.removeWhere((r) => r.id == id);
+    notifyListeners();
+  }
+
   /// 清空日志记录 / Clear log records
   void clearLogs() {
     _logEntries.clear();

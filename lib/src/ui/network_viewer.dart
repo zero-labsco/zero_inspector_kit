@@ -30,6 +30,17 @@ class _NetworkViewerState extends State<NetworkViewer> {
   RequestInterceptorRule? _editingRule;
   bool _showInterceptorPanel = false;
 
+  /// 导出时是否遮蔽敏感请求头（Authorization/Cookie 等）。默认开启。
+  /// Whether to mask sensitive headers (Authorization/Cookie/...) on export.
+  /// Enabled by default for safety.
+  bool _maskSensitive = true;
+
+  /// 批量选择模式 / Batch selection mode
+  bool _selectionMode = false;
+
+  /// 已选中的请求 id 集合 / Selected request ids
+  final Set<String> _selectedIds = {};
+
   /// 从实时列表中解析当前选中的请求；找不到（已被淘汰）时返回 null。
   /// Resolves the selected request from the live list; null if evicted.
   NetworkRequest? get _selectedRequest {
@@ -165,6 +176,29 @@ class _NetworkViewerState extends State<NetworkViewer> {
                 ),
               ),
               const Spacer(),
+              // 列表页：敏感字段遮蔽开关 + 批量选择入口
+              // List page: sensitive-field mask toggle + batch-select entry
+              if (_selectedRequest == null) ...[
+                InspectorIconButton(
+                  icon: _maskSensitive
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                  tooltip: _maskSensitive
+                      ? 'Sensitive hidden'
+                      : 'Sensitive visible',
+                  color: _maskSensitive ? InspectorColors.error : null,
+                  onTap: () => setState(() => _maskSensitive = !_maskSensitive),
+                ),
+                InspectorIconButton(
+                  icon: Icons.checklist_rounded,
+                  tooltip: _selectionMode ? 'Exit selection' : 'Select',
+                  color: _selectionMode ? InspectorColors.accent : null,
+                  onTap: () => setState(() {
+                    _selectionMode = !_selectionMode;
+                    if (!_selectionMode) _selectedIds.clear();
+                  }),
+                ),
+              ],
               // 拦截总开关 / Interceptor master switch（仅列表页显示）
               if (_selectedRequest == null)
                 _buildInterceptorSwitch(interceptorOn),
@@ -184,11 +218,20 @@ class _NetworkViewerState extends State<NetworkViewer> {
                   onTap: () async {
                     final messenger = ScaffoldMessenger.of(context);
                     await ExportService.instance.copy(
-                      ExportService.instance.toCurl(_selectedRequest!),
+                      ExportService.instance.toCurl(
+                        _selectedRequest!,
+                        maskSensitive: _maskSensitive,
+                      ),
                     );
                     if (mounted) {
                       messenger.showSnackBar(
-                        const SnackBar(content: Text('Copied as cURL')),
+                        SnackBar(
+                          content: Text(
+                            _maskSensitive
+                                ? 'Copied as cURL (sensitive hidden)'
+                                : 'Copied as cURL',
+                          ),
+                        ),
                       );
                     }
                   },
@@ -200,22 +243,38 @@ class _NetworkViewerState extends State<NetworkViewer> {
                   final requests = InspectorService.instance.networkRequests;
                   if (requests.isEmpty) return;
                   final messenger = ScaffoldMessenger.of(context);
-                  await ExportService.instance.copyNet(requests);
+                  await ExportService.instance.copyNet(
+                    requests,
+                    maskSensitive: _maskSensitive,
+                  );
                   if (mounted) {
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Copied ${requests.length} requests as JSON',
+                          'Copied ${requests.length} requests as JSON'
+                          '${_maskSensitive ? ' (sensitive hidden)' : ''}',
                         ),
                       ),
                     );
                   }
                 },
               ),
+              if (_selectionMode)
+                InspectorIconButton(
+                  icon: Icons.copy_all_rounded,
+                  tooltip: 'Copy selected as cURL',
+                  onTap: () => _copySelectedCurl(context),
+                ),
               InspectorIconButton(
                 icon: Icons.delete_outline_rounded,
-                tooltip: 'Clear',
-                onTap: () => InspectorService.instance.clearNetworkRequests(),
+                tooltip: _selectionMode ? 'Delete selected' : 'Clear all',
+                onTap: () {
+                  if (_selectionMode) {
+                    _deleteSelected();
+                  } else {
+                    InspectorService.instance.clearNetworkRequests();
+                  }
+                },
               ),
             ],
           ),
@@ -309,10 +368,87 @@ class _NetworkViewerState extends State<NetworkViewer> {
       );
     }
 
-    return ListView.builder(
-      itemCount: requests.length,
-      itemBuilder: (context, index) => _buildRequestItem(requests[index]),
+    return Column(
+      children: [
+        if (_selectionMode) _buildBatchBar(requests),
+        Expanded(
+          child: ListView.builder(
+            itemCount: requests.length,
+            itemBuilder: (context, index) => _buildRequestItem(requests[index]),
+          ),
+        ),
+      ],
     );
+  }
+
+  /// 批量操作条 / Batch action bar
+  Widget _buildBatchBar(List<NetworkRequest> requests) {
+    final allSelected =
+        requests.isNotEmpty &&
+        requests.every((r) => _selectedIds.contains(r.id));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: InspectorColors.primary.withValues(alpha: 0.12),
+        border: Border(bottom: BorderSide(color: InspectorColors.border)),
+      ),
+      child: Row(
+        children: [
+          TextButton(
+            onPressed: () => setState(() {
+              if (allSelected) {
+                _selectedIds.clear();
+              } else {
+                _selectedIds.addAll(requests.map((r) => r.id));
+              }
+            }),
+            child: Text(
+              allSelected ? 'Deselect all' : 'Select all',
+              style: TextStyle(color: InspectorColors.accent, fontSize: 12),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${_selectedIds.length} selected',
+            style: TextStyle(
+              color: InspectorColors.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _copySelectedCurl(BuildContext context) {
+    final messenger = ScaffoldMessenger.of(context);
+    final list = InspectorService.instance.networkRequests;
+    final selected = list.where((r) => _selectedIds.contains(r.id)).toList();
+    if (selected.isEmpty) return;
+    final curl = selected
+        .map(
+          (r) =>
+              ExportService.instance.toCurl(r, maskSensitive: _maskSensitive),
+        )
+        .join('\n\n');
+    ExportService.instance.copy(curl);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Copied ${selected.length} cURL'
+          '${_maskSensitive ? ' (sensitive hidden)' : ''}',
+        ),
+      ),
+    );
+  }
+
+  void _deleteSelected() {
+    final list = InspectorService.instance.networkRequests;
+    final toRemove = list.where((r) => _selectedIds.contains(r.id)).toList();
+    for (final r in toRemove) {
+      InspectorService.instance.removeNetworkRequest(r.id);
+    }
+    setState(() => _selectedIds.clear());
   }
 
   Widget _buildRequestItem(NetworkRequest request) {
@@ -322,11 +458,22 @@ class _NetworkViewerState extends State<NetworkViewer> {
           request.method,
         ) !=
         null;
+    final selected = _selectedIds.contains(request.id);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => setState(() => _selectedRequestId = request.id),
+        onTap: () => setState(() {
+          if (_selectionMode) {
+            if (selected) {
+              _selectedIds.remove(request.id);
+            } else {
+              _selectedIds.add(request.id);
+            }
+          } else {
+            _selectedRequestId = request.id;
+          }
+        }),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
@@ -343,6 +490,19 @@ class _NetworkViewerState extends State<NetworkViewer> {
             children: [
               Row(
                 children: [
+                  if (_selectionMode)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Icon(
+                        selected
+                            ? Icons.check_circle_rounded
+                            : Icons.radio_button_unchecked_rounded,
+                        size: 16,
+                        color: selected
+                            ? InspectorColors.accent
+                            : InspectorColors.textHint,
+                      ),
+                    ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 7,
