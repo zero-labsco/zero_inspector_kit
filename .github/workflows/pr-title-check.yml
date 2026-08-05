@@ -6,13 +6,7 @@ on:
       - opened
       - edited
       - reopened
-      # NOTE: `synchronize` is intentionally omitted. The `dart-format-fix`
-      # workflow pushes a bot commit on every sync, which would re-trigger this
-      # title check and make the PR appear stuck on the title status. The PR
-      # title cannot change on `synchronize` anyway, so re-checking is pointless.
-      # 注意:故意不含 `synchronize`。dart-format-fix 会在每次同步时推送 bot 提交,
-      # 重新触发本标题检查,导致 PR 标题状态卡住。而同步时 PR 标题不可能变化,
-      # 重复校验毫无意义。
+      - synchronize
 
 permissions:
   pull-requests: read
@@ -21,6 +15,14 @@ jobs:
   check-title:
     name: Check PR Title (Conventional Commits)
     runs-on: ubuntu-latest
+    # Re-run on `synchronize` so the title check is reported again on the new
+    # head commit (otherwise it shows as pending/yellow after a human re-push).
+    # Skip the bot's own sync commit from `dart-format-fix` to avoid a loop and
+    # to keep the status green: the title never changes on a format-only push.
+    # 恢复 `synchronize`:人类再次 push 时,标题检查会在新 head commit 上重跑,
+    # 否则该 check 在新 commit 上缺条目、显示为黄色 pending。同时用 actor 条件
+    # 跳过 dart-format-fix 的 bot 同步提交,避免循环触发且标题本来不会变。
+    if: github.actor != 'github-actions[bot]'
     steps:
       - name: Validate PR title format
         uses: amannn/action-semantic-pull-request@v6
