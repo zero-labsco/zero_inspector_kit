@@ -1,12 +1,12 @@
-# Exclude documentation sources that are not part of the published package.
-# `docs/` is the GitHub Pages source (served from the docs/github-pages branch),
-# and `wiki/` was migrated into docs/ — neither belongs in the pub package.
-# Publishing them triggers a pub layout warning ("rename docs to doc").
-/docs/
-/wiki/
+# Project-internal agent/IDE data — must not be published to pub.dev.
+# (These files are git-tracked but excluded from the published package.)
+.codebuddy/
 
-# Build artifacts at repo root must never be published.
-/build/
+# Release archive snapshot branches carry inert docs/snapshots; keep package clean.
+wiki/
+TODO.md
+AGENTS.md
+CONTRIBUTING.md
 
-# IDE / project metadata
-zero_inspector_kit.iml
+# Docs site source is published via GitHub Pages, not the package.
+docs/
