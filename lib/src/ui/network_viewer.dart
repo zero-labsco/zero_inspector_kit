@@ -287,8 +287,9 @@ class _NetworkViewerState extends State<NetworkViewer> {
 
     if (requests.isEmpty) {
       return InspectorEmptyState(
-        message:
-            _searchKeyword.isEmpty ? 'No requests yet' : 'No matching requests',
+        message: _searchKeyword.isEmpty
+            ? 'No requests yet'
+            : 'No matching requests',
       );
     }
 

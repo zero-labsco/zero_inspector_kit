@@ -48,10 +48,9 @@ class _LogViewerState extends State<LogViewer> {
 
               if (logs.isEmpty) {
                 return InspectorEmptyState(
-                  message:
-                      _searchKeyword.isEmpty && _filterLevel == null
-                          ? 'No logs yet'
-                          : 'No matching logs',
+                  message: _searchKeyword.isEmpty && _filterLevel == null
+                      ? 'No logs yet'
+                      : 'No matching logs',
                   icon: Icons.subject_rounded,
                 );
               }

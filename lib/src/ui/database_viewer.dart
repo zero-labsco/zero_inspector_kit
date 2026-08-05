@@ -325,10 +325,9 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
 
     if (filteredDbs.isEmpty) {
       return InspectorEmptyState(
-        message:
-            _globalSearchKeyword.isEmpty
-                ? 'No databases found'
-                : 'No matching databases',
+        message: _globalSearchKeyword.isEmpty
+            ? 'No databases found'
+            : 'No matching databases',
         icon: Icons.storage_rounded,
       );
     }
