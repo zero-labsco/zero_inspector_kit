@@ -11,7 +11,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** v1.3.0 adds network batch operations, sensitive-field masking on export, one-click cURL copy, an alert system with an unread badge, and refactors the HTTP interceptor internally (no behavior change). All users are advised to upgrade to `^1.3.0`.
+> **🔔 Upgrade recommended:** v1.3.1 adds per-source alert throttling (prevents alert storms from sustained threshold breaches or request bursts) on top of v1.3.0's network batch operations, sensitive-field masking on export, one-click cURL copy, and the alert system with an unread badge. All users are advised to upgrade to `^1.3.1`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)**
 
@@ -26,7 +26,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 - **Memory Monitor**: Real-time memory monitoring with trend chart, Dart Heap details, Native memory breakdown (Android PSS / iOS physicalFootprint), memory leak detection, image cache monitoring, and app storage statistics. Master switch to avoid performance overhead.
 - **FPS Monitor**: Real-time FPS measurement, frame duration stats, jank detection, and FPS trend chart (30-second window). Master switch to avoid performance overhead.
 - **Route Tracker**: Monitor navigation history and current route information.
-- **Alert System**: Define alert rules on network requests, logs, memory, and FPS to surface problems proactively. The floating button shows an unread-count badge (cleared when the panel is opened), and an Alerts tab lists triggered alerts.
+- **Alert System**: Define alert rules on network requests, logs, memory, and FPS to surface problems proactively. The floating button shows an unread-count badge (cleared when the panel is opened), and an Alerts tab lists triggered alerts. Per-source throttling (1-second sliding window keyed on source + message) suppresses duplicate alerts during sustained breaches or request bursts, while periodic re-alerts keep persistent issues visible.
 - **Floating Button**: Accessible floating inspector button with breathing animation, rendered via root `Overlay` so it stays independent of any page's widget tree. Drag and release to auto-dock and tuck into the nearest screen edge (only a small peek visible); tap the peek to smoothly pull it out, then tap again to open the panel. This avoids conflicts with system back-gesture edges.
 - **Modern UI**: Beautiful dark theme with gradient design, customizable colors via centralized theme configuration.
 - **Cross-platform**: Works on Android and iOS.
