@@ -38,10 +38,11 @@ class AlertService {
 
   /// 各来源上次触发时间（毫秒时间戳），用于节流同源重复告警
   /// Last fire time per (source, message) key (ms timestamp), used to
-  /// throttle duplicate alerts. Keyed on source+message so a single
-  /// request that hits multiple rules (e.g. 5xx + slow) still surfaces
-  /// each distinct alert.
-  final Map<String, int> _lastFiredAt = <String, int>{};
+  /// throttle duplicate alerts. Keyed on a (source, message) record so a
+  /// single request that hits multiple rules (e.g. 5xx + slow) still
+  /// surfaces each distinct alert, and there is no string-collision risk
+  /// when a URL contains the `|` separator.
+  final Map<(String, String), int> _lastFiredAt = <(String, String), int>{};
 
   /// 未读告警数（供红点）/ Unread alert count (for red dot)
   final ValueNotifier<int> unreadCount = ValueNotifier<int>(0);
@@ -132,7 +133,7 @@ class AlertService {
   /// [_perSourceCooldownMs] are throttled to avoid alert storms.
   void _fire(String source, String message) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    final key = '$source|$message';
+    final key = (source, message);
     final last = _lastFiredAt[key];
     if (last != null && now - last < _perSourceCooldownMs) {
       return;

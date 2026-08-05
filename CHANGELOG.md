@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.3.1
+
+> **🛡️ 告警防风暴 / Alert storm protection：** 本版本为告警系统新增同源节流，避免持续超阈值（内存/FPS 轮询）或突发 5xx/慢请求淹没告警缓冲与未读红点。
+> This release adds per-source throttling to the alert system so sustained threshold breaches (memory/FPS polling) or bursts of 5xx/slow requests no longer flood the alert buffer and unread badge.
+
+本版本在告警触发路径上新增节流逻辑，并补充了对应的单元测试。公共 API 不变。
+This release adds throttling to the alert firing path and ships unit tests for it. Public API unchanged.
+
+**新增 / Added:**
+
+- 告警同源节流 / Per-source alert throttling
+  - `AlertService._fire` 新增按 `(source, message)` 的 1 秒滑动窗口节流：同一来源在冷却期内重复触发被去重，避免告警风暴
+  - `AlertService._fire` now applies a 1-second sliding-window throttle keyed on `(source, message)`: repeated firings from the same source within the cooldown are deduplicated to prevent alert storms
+  - 节流键使用记录类型 `(String, String)`，避免 URL 含 `|` 分隔符时的键冲突
+  - The throttle key uses a `(String, String)` record, avoiding key collisions when a URL contains the `|` separator
+  - 持续状态仍会周期提醒：冷却结束后（≥1 秒）同源再次出现仍会正常触发，保证持续问题不会被永久压制
+  - Sustained conditions still re-alert periodically: after the cooldown elapses (≥1s) a same-source occurrence fires again, so persistent issues are never permanently suppressed
+  - `clearAll()` 同时清理节流表，与告警缓冲保持一致的生命周期
+  - `clearAll()` also clears the throttle table, keeping its lifecycle consistent with the alert buffer
+- 单元测试 / Unit tests
+  - 新增 `test/alert_service_test.dart`，覆盖节流去重、防风暴、规则评估（网络/日志/内存/FPS）、`clearAll` 生命周期与默认规则
+  - Added `test/alert_service_test.dart` covering throttle deduplication, storm prevention, rule evaluation (network/log/memory/FPS), `clearAll` lifecycle, and default rules
+
 ## 1.3.0
 
 > **🚀 新功能 / New features：** 本版本为网络面板新增批量操作与敏感字段遮蔽导出，并引入告警系统与悬浮球未读红点；同时对 HTTP 拦截器做了纯内部重构（行为不变）。
