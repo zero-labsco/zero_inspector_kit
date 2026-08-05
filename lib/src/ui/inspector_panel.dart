@@ -6,6 +6,7 @@ import 'database_viewer.dart';
 import 'memory_viewer.dart';
 import 'route_viewer.dart';
 import 'fps_viewer.dart';
+import 'alerts_viewer.dart';
 
 /// 检查器面板 / Inspector panel
 /// 包含网络、日志、数据库、内存、FPS、路由六个查看器 / Contains six viewers: network, logs, database, memory, FPS, routes
@@ -36,6 +37,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     MemoryViewer(key: ValueKey('memory')),
     FpsViewer(key: ValueKey('fps')),
     RouteViewer(key: ValueKey('routes')),
+    AlertsViewer(key: ValueKey('alerts')),
   ];
 
   /// 标签页标题 / Tab titles
@@ -46,6 +48,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     'Memory',
     'FPS',
     'Routes',
+    'Alerts',
   ];
 
   /// 标签页图标 / Tab icons
@@ -56,6 +59,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     Icons.memory_rounded,
     Icons.speed_rounded,
     Icons.route_rounded,
+    Icons.notifications_active_rounded,
   ];
 
   @override

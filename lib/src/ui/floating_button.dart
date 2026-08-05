@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import '../services/alert_service.dart';
 import 'theme/inspector_theme.dart';
 import 'inspector_panel.dart';
 
@@ -99,6 +100,7 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
   @override
   void initState() {
     super.initState();
+    AlertService.instance.unreadCount.addListener(_onUnreadChanged);
     _breathController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -123,10 +125,14 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
 
   @override
   void dispose() {
+    AlertService.instance.unreadCount.removeListener(_onUnreadChanged);
     _breathController.dispose();
     _dockController.dispose();
     super.dispose();
   }
+
+  /// 未读告警数变化 → 触发重绘红点 / Unread alert change → repaint red dot
+  void _onUnreadChanged() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
@@ -182,14 +188,46 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
                   ],
                 ),
                 child: Center(
-                  child: Icon(
-                    _dockSide == _DockSide.left
-                        ? Icons.chevron_right_rounded
-                        : _dockSide == _DockSide.right
-                        ? Icons.chevron_left_rounded
-                        : Icons.bug_report_rounded,
-                    color: InspectorColors.textPrimary,
-                    size: InspectorDimensions.floatingButtonIconSize,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        _dockSide == _DockSide.left
+                            ? Icons.chevron_right_rounded
+                            : _dockSide == _DockSide.right
+                            ? Icons.chevron_left_rounded
+                            : Icons.bug_report_rounded,
+                        color: InspectorColors.textPrimary,
+                        size: InspectorDimensions.floatingButtonIconSize,
+                      ),
+                      if (AlertService.instance.unreadCount.value > 0)
+                        Positioned(
+                          top: -4,
+                          right: -4,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 12,
+                              minHeight: 12,
+                            ),
+                            child: Text(
+                              AlertService.instance.unreadCount.value
+                                  .clamp(0, 99)
+                                  .toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -290,6 +328,8 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
     } else {
       _togglePanelInternal();
     }
+    // 打开面板即视为已读 / Opening the panel marks alerts as read
+    AlertService.instance.clearUnread();
   }
 
   /// 把小球从吸附状态平滑拉出到完整可见位置

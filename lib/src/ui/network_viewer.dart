@@ -177,6 +177,22 @@ class _NetworkViewerState extends State<NetworkViewer> {
                   onTap: () => _showInterceptorEditor(),
                   color: InspectorColors.accent,
                 ),
+              if (_selectedRequest != null)
+                InspectorIconButton(
+                  icon: Icons.terminal_rounded,
+                  tooltip: 'Copy as cURL',
+                  onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    await ExportService.instance.copy(
+                      ExportService.instance.toCurl(_selectedRequest!),
+                    );
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Copied as cURL')),
+                      );
+                    }
+                  },
+                ),
               InspectorIconButton(
                 icon: Icons.content_copy_rounded,
                 tooltip: 'Copy as JSON',

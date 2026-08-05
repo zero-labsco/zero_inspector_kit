@@ -5,6 +5,7 @@ import '../models/network_request.dart';
 import '../models/log_entry.dart';
 import '../models/route_entry.dart';
 import '../models/interceptor_rule.dart';
+import 'alert_service.dart';
 
 /// 检查器服务，用于管理所有收集的数据 / Inspector service for managing all collected data
 ///
@@ -126,6 +127,7 @@ class InspectorService extends ChangeNotifier {
   void addNetworkRequest(NetworkRequest request) {
     _networkRequests.addFirst(request);
     _trimQueue(_networkRequests, _maxNetworkItems);
+    AlertService.instance.checkNetwork(request);
     _notifyThrottled();
   }
 
@@ -146,18 +148,18 @@ class InspectorService extends ChangeNotifier {
       final now = DateTime.now().millisecondsSinceEpoch;
       final responseTime = request.responseTime ?? now;
       final duration = responseTime - request.requestTime;
+      final updated = request.copyWith(
+        responseBody: responseBody ?? request.responseBody,
+        statusCode: statusCode ?? request.statusCode,
+        body: body ?? request.body,
+        responseTime: responseTime,
+        duration: duration,
+        maxBodyBytes: _maxBodyPreviewBytes,
+      );
       _networkRequests
         ..remove(request)
-        ..addFirst(
-          request.copyWith(
-            responseBody: responseBody ?? request.responseBody,
-            statusCode: statusCode ?? request.statusCode,
-            body: body ?? request.body,
-            responseTime: responseTime,
-            duration: duration,
-            maxBodyBytes: _maxBodyPreviewBytes,
-          ),
-        );
+        ..addFirst(updated);
+      AlertService.instance.checkNetwork(updated);
       _notifyThrottled();
     }
   }
@@ -167,6 +169,7 @@ class InspectorService extends ChangeNotifier {
   void addLogEntry(LogEntry entry) {
     _logEntries.addFirst(entry);
     _trimQueue(_logEntries, _maxLogItems);
+    AlertService.instance.checkLog(entry);
     _notifyThrottled();
   }
 

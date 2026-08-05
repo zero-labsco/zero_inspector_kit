@@ -10,6 +10,7 @@ import '../models/leak_record.dart';
 import '../models/memory_snapshot.dart';
 import '../platform/platform_channel.dart';
 import 'database_service.dart';
+import 'alert_service.dart';
 
 /// 内存检查服务 / Memory inspector service
 ///
@@ -620,6 +621,9 @@ class MemoryInspectorService extends ChangeNotifier {
     while (_memorySnapshots.length > _maxSnapshots) {
       _memorySnapshots.removeAt(0);
     }
+
+    // 告警检测：以进程 RSS（MB）为准 / Alert: use process RSS in MB
+    AlertService.instance.checkMemory(_currentProcessRss / (1024 * 1024));
 
     notifyListeners();
   }
