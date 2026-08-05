@@ -18,9 +18,26 @@ class NetworkViewer extends StatefulWidget {
 class _NetworkViewerState extends State<NetworkViewer> {
   String _searchKeyword = '';
   final TextEditingController _searchController = TextEditingController();
-  NetworkRequest? _selectedRequest;
+  // 只保存选中请求的 id，每次从服务持有的实时列表中解析。
+  // 这样当请求对象被更新（如响应体到达 / copyWith 替换）时，
+  // 详情页自动显示最新数据，避免持有过期引用导致的 UI 卡在旧状态。
+  // Only keep the selected request's id and resolve it from the live list each
+  // time. This keeps the detail view in sync when the request is replaced via
+  // copyWith (e.g. response body arrives), avoiding a stale reference.
+  String? _selectedRequestId;
   RequestInterceptorRule? _editingRule;
   bool _showInterceptorPanel = false;
+
+  /// 从实时列表中解析当前选中的请求；找不到（已被淘汰）时返回 null。
+  /// Resolves the selected request from the live list; null if evicted.
+  NetworkRequest? get _selectedRequest {
+    if (_selectedRequestId == null) return null;
+    final list = InspectorService.instance.networkRequests;
+    for (final r in list) {
+      if (r.id == _selectedRequestId) return r;
+    }
+    return null;
+  }
 
   @override
   void dispose() {
@@ -29,7 +46,8 @@ class _NetworkViewerState extends State<NetworkViewer> {
   }
 
   void _showInterceptorEditor() {
-    final request = _selectedRequest!;
+    final request = _selectedRequest;
+    if (request == null) return;
     final existingRule = InspectorService.instance.findMatchingRule(
       request.url,
       request.method,
@@ -127,7 +145,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
                   tooltip: 'Back',
                   onTap: () {
                     setState(() {
-                      _selectedRequest = null;
+                      _selectedRequestId = null;
                       _showInterceptorPanel = false;
                     });
                   },
@@ -405,7 +423,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => setState(() => _selectedRequest = request),
+        onTap: () => setState(() => _selectedRequestId = request.id),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(

@@ -656,6 +656,8 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                   style: TextStyle(
                     color: isSelected
                         ? InspectorColors.accent
+                        : table.error != null
+                        ? Colors.red
                         : InspectorColors.textPrimary,
                     fontSize: 12,
                     fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
@@ -663,21 +665,24 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: InspectorColors.border,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '${table.rowCount}',
-                  style: TextStyle(
-                    color: InspectorColors.accent,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
+              if (table.error != null)
+                Icon(Icons.error_outline, size: 14, color: Colors.red)
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: InspectorColors.border,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${table.rowCount}',
+                    style: TextStyle(
+                      color: InspectorColors.accent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -692,6 +697,50 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
         child: CircularProgressIndicator(
           color: InspectorColors.accent,
           strokeWidth: 2,
+        ),
+      );
+    }
+
+    // 查询失败：渲染错误态 + 重试按钮，而不是伪装成空列表。
+    // Query failed: render an error state with retry, not a fake empty list.
+    if (_tableData!.hasError) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 36, color: Colors.red),
+              const SizedBox(height: 12),
+              Text(
+                '查询失败',
+                style: TextStyle(
+                  color: InspectorColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _tableData!.error!,
+                style: TextStyle(
+                  color: InspectorColors.textSecondary,
+                  fontSize: 11,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (_currentDatabase != null) {
+                    _loadTableData(_currentDatabase!.path, _selectedTable!.name);
+                  }
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('重试'),
+              ),
+            ],
+          ),
         ),
       );
     }

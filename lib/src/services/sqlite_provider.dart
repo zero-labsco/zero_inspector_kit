@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/database_info.dart';
+import '../utils/inspector_internal_log.dart';
 import 'database_provider.dart';
 
 /// SQLite数据库提供者实现 / SQLite database provider implementation
@@ -41,6 +42,7 @@ class SqliteDatabaseProvider implements DatabaseProvider {
             if (databases.any((d) => d.path == file.path)) continue;
 
             Database? db;
+            String? scanError;
             try {
               db = await _openConnection(file.path);
               final tables = await _getTables(db);
@@ -51,16 +53,37 @@ class SqliteDatabaseProvider implements DatabaseProvider {
                   tables: tables,
                 ),
               );
-            } catch (_) {
-              // 单个文件打开失败不应阻断整个扫描 / A single bad file must not abort the scan.
+            } on DatabaseException catch (e, st) {
+              // 单个文件打开失败不应阻断整个扫描，但要把错误暴露出来。
+              // A single bad file must not abort the scan, but surface the error.
+              scanError = '无法打开数据库 ${file.path}: $e';
+              InspectorInternalLog.error('sqlite', scanError, error: e, stackTrace: st);
+            } catch (e, st) {
+              scanError = '扫描数据库 ${file.path} 失败: $e';
+              InspectorInternalLog.error('sqlite', scanError, error: e, stackTrace: st);
             } finally {
               // 扫描阶段不持有连接，归还缓存 / Don't keep connections during scan.
               _releaseConnection(file.path);
             }
+
+            // 打开/扫描失败也记录一条带错误信息的 DatabaseInfo，供 UI 提示。
+            // Record a DatabaseInfo carrying the error so the UI can warn.
+            if (scanError != null && !databases.any((d) => d.path == file.path)) {
+              databases.add(
+                DatabaseInfo(
+                  name: file.path.split(Platform.pathSeparator).last,
+                  path: file.path,
+                  tables: const [],
+                  error: scanError,
+                ),
+              );
+            }
           }
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      InspectorInternalLog.error('sqlite', '扫描数据库目录失败: $e', error: e, stackTrace: st);
+    }
 
     return databases;
   }
@@ -77,14 +100,32 @@ class SqliteDatabaseProvider implements DatabaseProvider {
         final tableName = row['name'] as String;
         if (tableName.startsWith('sqlite_')) continue;
 
-        final columns = await _getColumns(db, tableName);
-        final rowCount = await _getRowCount(db, tableName);
+        List<ColumnInfo> columns = const [];
+        int rowCount = 0;
+        String? tableError;
+        try {
+          columns = await _getColumns(db, tableName);
+          rowCount = await _getRowCount(db, tableName);
+        } catch (e, st) {
+          tableError = '读取表 $tableName 的 schema 失败: $e';
+          InspectorInternalLog.warning('sqlite', tableError, error: e, stackTrace: st);
+        }
 
         tables.add(
-          TableInfo(name: tableName, rowCount: rowCount, columns: columns),
+          TableInfo(
+            name: tableName,
+            rowCount: rowCount,
+            columns: columns,
+            error: tableError,
+          ),
         );
       }
-    } catch (_) {}
+    } catch (e, st) {
+      // 读取 sqlite_master 失败：整库 schema 不可用，报错交由调用方记录。
+      // Reading sqlite_master failed: schema unavailable; caller logs it.
+      InspectorInternalLog.error('sqlite', '读取表列表失败: $e', error: e, stackTrace: st);
+      rethrow;
+    }
 
     return tables;
   }
@@ -102,7 +143,15 @@ class SqliteDatabaseProvider implements DatabaseProvider {
           ColumnInfo(name: row['name'] as String, type: row['type'] as String),
         );
       }
-    } catch (_) {}
+    } catch (e, st) {
+      InspectorInternalLog.warning(
+        'sqlite',
+        '读取表 $tableName 的列信息失败: $e',
+        error: e,
+        stackTrace: st,
+      );
+      rethrow;
+    }
 
     return columns;
   }
@@ -114,7 +163,13 @@ class SqliteDatabaseProvider implements DatabaseProvider {
         'SELECT COUNT(*) FROM ${_quoteIdent(tableName)}',
       );
       return result.first.values.first as int;
-    } catch (_) {
+    } catch (e, st) {
+      InspectorInternalLog.warning(
+        'sqlite',
+        '读取表 $tableName 的行数失败: $e',
+        error: e,
+        stackTrace: st,
+      );
       return 0;
     }
   }
@@ -164,10 +219,16 @@ class SqliteDatabaseProvider implements DatabaseProvider {
         columns: columnNames,
         totalRows: totalRows,
       );
-    } catch (_) {
-      // 查询失败时返回空结果；错误态由后续批次的 InspectorResult 暴露给 UI。
-      // On failure return empty; error surfacing via InspectorResult comes in a later batch.
-      return QueryResult(rows: [], columns: []);
+    } on DatabaseException catch (e, st) {
+      // 查询失败：把错误暴露给 UI，而不是伪装成空列表。
+      // Query failed: surface the error to the UI instead of faking an empty list.
+      final message = '查询表 $tableName 失败: $e';
+      InspectorInternalLog.error('sqlite', message, error: e, stackTrace: st);
+      return QueryResult.failure(message);
+    } catch (e, st) {
+      final message = '查询表 $tableName 时发生未知错误: $e';
+      InspectorInternalLog.error('sqlite', message, error: e, stackTrace: st);
+      return QueryResult.failure(message);
     } finally {
       // query 不持有连接，立即归还缓存 / query does not keep the connection.
       _releaseConnection(dbPath);
@@ -210,7 +271,9 @@ class SqliteDatabaseProvider implements DatabaseProvider {
     for (final db in _connections.values) {
       try {
         await db.close();
-      } catch (_) {}
+      } catch (e, st) {
+        InspectorInternalLog.warning('sqlite', '关闭数据库连接失败: $e', error: e, stackTrace: st);
+      }
     }
     _connections.clear();
     _accessOrder.clear();

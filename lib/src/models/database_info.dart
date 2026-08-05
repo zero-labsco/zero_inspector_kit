@@ -9,7 +9,17 @@ class DatabaseInfo {
   /// 数据库表列表 / Database table list
   final List<TableInfo> tables;
 
-  DatabaseInfo({required this.name, required this.path, required this.tables});
+  /// 扫描该数据库时发生的错误（如无法打开）。非空时说明表列表可能不完整。
+  /// Error encountered while scanning this database (e.g. cannot open it).
+  /// Non-null means the table list may be incomplete.
+  final String? error;
+
+  DatabaseInfo({
+    required this.name,
+    required this.path,
+    required this.tables,
+    this.error,
+  });
 }
 
 /// 数据表信息模型 / Table info model
@@ -27,7 +37,13 @@ class TableInfo {
     required this.name,
     required this.rowCount,
     required this.columns,
+    this.error,
   });
+
+  /// 扫描该表时发生的错误（如无法读取 schema）。非空时说明列信息可能不完整。
+  /// Error encountered while scanning this table (e.g. cannot read schema).
+  /// Non-null means the column info may be incomplete.
+  final String? error;
 }
 
 /// 列信息模型 / Column info model
@@ -53,9 +69,35 @@ class QueryResult {
   /// Total filtered row count (for pagination). Falls back to [rows].length when absent.
   final int? totalRows;
 
-  QueryResult({required this.rows, required this.columns, this.totalRows});
+  /// 查询失败时非空。此时 [rows] 为空，UI 应渲染错误态而非（误导性的）空列表。
+  /// Non-null when the query failed. When set, [rows] is empty and the UI
+  /// should render an error state instead of a (misleading) empty list.
+  final String? error;
+
+  QueryResult({
+    required this.rows,
+    required this.columns,
+    this.totalRows,
+    this.error,
+  });
 
   /// 用于分页的总行数；未显式提供时按当前页行数近似。
   /// Total rows for pagination; approximates with current page length if not provided.
   int get total => totalRows ?? rows.length;
+
+  /// 查询是否失败 / Whether the query failed.
+  bool get hasError => error != null && error!.isNotEmpty;
+
+  /// 成功（可能为空）的结果 / A successful (possibly empty) result.
+  const QueryResult.empty()
+      : rows = const [],
+        columns = const [],
+        totalRows = 0,
+        error = null;
+
+  /// 携带错误信息的失败结果 / A failed result carrying the error message.
+  const QueryResult.failure(this.error)
+      : rows = const [],
+        columns = const [],
+        totalRows = 0;
 }
