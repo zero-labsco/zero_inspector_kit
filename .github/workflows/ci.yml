@@ -3,17 +3,21 @@ name: CI
 on:
   push:
     branches: ['v*.*.*']
-    # 仅核心代码变更触发 CI，跳过纯文档/资源文件提交
-    # Only trigger CI for core code changes, skip pure doc/asset commits
+    # 仅核心代码变更触发 CI，跳过纯资源/非包文件提交
+    # Only trigger CI for core code changes, skip pure asset/non-package commits
+    # 注意：README*.md / CHANGELOG.md / docs/** 等用户态文档「不」在此忽略——否则纯文档 PR
+    # 会让 ci.yml 整条 workflow 被跳过，导致分支保护的 required checks 永远不出现、PR 无法合并。
+    # 纯文档改动仍会触发 ci.yml，但被 path-filter 判定为 code=false，重 job 绿色跳过。
+    # NOTE: user-facing docs (README*.md / CHANGELOG.md / docs/**) are intentionally NOT ignored.
+    # Ignoring them would skip the entire ci.yml workflow for docs-only PRs, leaving the
+    # branch-protection required checks permanently pending and blocking merge.
+    # Docs-only PRs still trigger ci.yml but the heavy jobs skip green via path-filter (code=false).
     paths-ignore:
       # Convention/agent docs (AGENTS.md, .codebuddy/**) are intentionally NOT ignored
       # so docs-only PRs still run CI and satisfy branch protection's required checks.
-      - 'README*.md'         # README files
-      - 'CHANGELOG.md'       # Changelog
       - 'CONTRIBUTING.md'    # Contributing guide (doesn't affect the package)
       - 'TODO.md'            # Todo file
-      - 'wiki/**'            # Wiki documentation directory
-      - 'docs/**'            # GitHub Pages content
+      - 'wiki/**'            # Wiki documentation directory (legacy, migrated to docs/)
       # 精细化忽略 GitHub 配置，但保留 workflows/ 目录的 CI 触发（Dependabot 改 action 版本需要跑 CI）
       # Finer-grained GitHub ignores — workflows MUST trigger CI (Dependabot action updates need CI)
       - '.github/ISSUE_TEMPLATE/**'     # Issue/PR templates
@@ -40,15 +44,14 @@ on:
     branches: [main, 'v*.*.*']
     # Apply same ignore rules for PRs
     # 对 PR 应用相同的忽略规则
+    # 注意：README*.md / CHANGELOG.md / docs/** 不在忽略列表（见 push 段说明），确保纯文档 PR 也能触发 ci.yml。
+    # NOTE: README*.md / CHANGELOG.md / docs/** are NOT ignored (see push block) so docs-only PRs still trigger ci.yml.
     paths-ignore:
       # Convention/agent docs (AGENTS.md, .codebuddy/**) are intentionally NOT ignored
       # so docs-only PRs still run CI and satisfy branch protection's required checks.
-      - 'README*.md'         # README files
-      - 'CHANGELOG.md'       # Changelog
       - 'CONTRIBUTING.md'    # Contributing guide (doesn't affect the package)
       - 'TODO.md'            # Todo file
-      - 'wiki/**'            # Wiki documentation directory
-      - 'docs/**'            # GitHub Pages content
+      - 'wiki/**'            # Wiki documentation directory (legacy, migrated to docs/)
       # 精细化忽略 GitHub 配置，但保留 workflows/ 目录的 CI 触发
       # Finer-grained GitHub ignores — workflows MUST trigger CI
       - '.github/ISSUE_TEMPLATE/**'
@@ -102,14 +105,17 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
+            # 所有文档/资源类文件（README*.md、CHANGELOG.md、docs/**、LICENSE、*.yml/*.yaml、*.txt、图片等）
+            # 均不在此列表 → 纯文档改动 code=false → 两个必需检查绿色跳过（不过 pana）。
+            # 仅当同时改动下列代码文件时，任一路径匹配 → code=true → 跑真实 analyze/test/pana。
+            # All doc/asset files (README*.md, CHANGELOG.md, docs/**, LICENSE, *.yml/*.yaml, *.txt, images, etc.)
+            # are NOT listed here, so docs-only changes → code=false → required checks skip green (no pana).
+            # Only when any code path below is also changed does code=true → run real Analyze/Test/Pana.
             code:
               - 'lib/**'
               - 'pubspec.yaml'
               - 'pubspec.lock'
               - 'analysis_options.yaml'
-              - 'README.md'
-              - 'CHANGELOG.md'
-              - 'LICENSE'
               - 'test/**'
               - 'example/lib/**'
               - 'example/pubspec.yaml'
