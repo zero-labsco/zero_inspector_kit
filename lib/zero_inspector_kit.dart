@@ -33,6 +33,7 @@ import 'src/ui/inspector_panel.dart';
 import 'src/models/log_entry.dart';
 import 'src/services/database_provider.dart';
 import 'src/services/sqlite_provider.dart';
+import 'src/services/inspector_service.dart';
 
 /// ZeroInspectorKit 插件入口类 / ZeroInspectorKit plugin entry class
 /// 提供一键初始化和应用包装功能，实现零侵入集成 / Provides one-click initialization and app wrapping for zero-invasion integration
@@ -62,6 +63,10 @@ class ZeroInspectorKit {
   /// [enableRouteTracking] 是否启用路由跟踪（默认 true）/ Whether to enable route tracking (default true)
   /// [customButton] 自定义悬浮按钮组件（可选）/ Custom floating button widget (optional)
   /// [onLogCaptured] 日志捕获回调，用于集成第三方日志库（可选）/ Log capture callback for third-party logging library integration (optional)
+  /// [maxNetworkItems] 网络请求缓存上限（默认 100）/ Network request cache cap (default 100)
+  /// [maxLogItems] 日志条目缓存上限（默认 500）/ Log entry cache cap (default 500)
+  /// [maxRouteItems] 路由记录缓存上限（默认 200）/ Route record cache cap (default 200)
+  /// [maxBodyPreviewBytes] body 预览字节上限，超出截断（默认 32KB）/ Body preview cap, longer bodies truncated (default 32KB)
   static void init({
     bool enable = true,
     bool enableLogCapture = true,
@@ -70,11 +75,24 @@ class ZeroInspectorKit {
     bool enableRouteTracking = true,
     Widget? customButton,
     void Function(LogEntry)? onLogCaptured,
+    int? maxNetworkItems,
+    int? maxLogItems,
+    int? maxRouteItems,
+    int? maxBodyPreviewBytes,
   }) {
     if (_initialized) return;
     _initialized = true;
 
     if (!enable) return;
+
+    // 应用容量与 body 预览配置（全部命名可选，向后兼容）
+    // Apply capacity & body preview configuration (all optional, backward compatible)
+    InspectorService.instance.configure(
+      maxNetworkItems: maxNetworkItems,
+      maxLogItems: maxLogItems,
+      maxRouteItems: maxRouteItems,
+      maxBodyPreviewBytes: maxBodyPreviewBytes,
+    );
 
     if (enableLogCapture) {
       InspectorLogInterceptor.instance.start();
