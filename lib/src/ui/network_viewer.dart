@@ -30,10 +30,10 @@ class _NetworkViewerState extends State<NetworkViewer> {
   RequestInterceptorRule? _editingRule;
   bool _showInterceptorPanel = false;
 
-  /// 导出时是否遮蔽敏感请求头（Authorization/Cookie 等）。默认开启。
+  /// 导出时是否遮蔽敏感请求头（Authorization/Cookie 等）。默认关闭（完整可见）。
   /// Whether to mask sensitive headers (Authorization/Cookie/...) on export.
-  /// Enabled by default for safety.
-  bool _maskSensitive = true;
+  /// Disabled by default so cURL/JSON reflect the real request verbatim.
+  bool _maskSensitive = false;
 
   /// 批量选择模式 / Batch selection mode
   bool _selectionMode = false;
@@ -186,7 +186,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
                   tooltip: _maskSensitive
                       ? 'Sensitive hidden'
                       : 'Sensitive visible',
-                  color: _maskSensitive ? InspectorColors.error : null,
+                  color: _maskSensitive ? InspectorColors.accent : null,
                   onTap: () => setState(() => _maskSensitive = !_maskSensitive),
                 ),
                 InspectorIconButton(
