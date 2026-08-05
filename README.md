@@ -15,6 +15,8 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 
 🌐 **[Official Website](https://www.zerolabsco.com/)**
 
+📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)**
+
 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
 ## Features
