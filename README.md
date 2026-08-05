@@ -11,7 +11,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** v1.2.2 fixes interceptor robustness issues (large-response OOM, overwritten third-party error reporting, concurrent same-URL request mis-association) and an unresolvable example dependency. All users are advised to upgrade to `^1.2.2`.
+> **🔔 Upgrade recommended:** v1.3.0 adds network batch operations, sensitive-field masking on export, one-click cURL copy, an alert system with an unread badge, and refactors the HTTP interceptor internally (no behavior change). All users are advised to upgrade to `^1.3.0`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)**
 
@@ -20,12 +20,13 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 ## Features
 
 - **Zero Invasion**: Integrate with just **1 line of code**, no need to modify any existing project code.
-- **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency. Supports modifying request body and headers via interceptor rules (for POST/PUT/PATCH requests).
+- **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency. Supports modifying request body and headers via interceptor rules (for POST/PUT/PATCH requests). Supports batch selection (batch "Copy as cURL" and batch deletion) and one-click cURL copy. A toolbar eye toggle masks sensitive headers (`Authorization`, `Cookie`, etc.) on export.
 - **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
 - **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
 - **Memory Monitor**: Real-time memory monitoring with trend chart, Dart Heap details, Native memory breakdown (Android PSS / iOS physicalFootprint), memory leak detection, image cache monitoring, and app storage statistics. Master switch to avoid performance overhead.
 - **FPS Monitor**: Real-time FPS measurement, frame duration stats, jank detection, and FPS trend chart (30-second window). Master switch to avoid performance overhead.
 - **Route Tracker**: Monitor navigation history and current route information.
+- **Alert System**: Define alert rules on network requests, logs, memory, and FPS to surface problems proactively. The floating button shows an unread-count badge (cleared when the panel is opened), and an Alerts tab lists triggered alerts.
 - **Floating Button**: Accessible floating inspector button with breathing animation, rendered via root `Overlay` so it stays independent of any page's widget tree. Drag and release to auto-dock and tuck into the nearest screen edge (only a small peek visible); tap the peek to smoothly pull it out, then tap again to open the panel. This avoids conflicts with system back-gesture edges.
 - **Modern UI**: Beautiful dark theme with gradient design, customizable colors via centralized theme configuration.
 - **Cross-platform**: Works on Android and iOS.
@@ -38,19 +39,19 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.2.2
+  zero_inspector_kit: ^1.3.0
 ```
 
 ### GitHub
 
-Alternatively, you can install from GitHub (replace `1.2.2` with the version you need):
+Alternatively, you can install from GitHub (replace `1.3.0` with the version you need):
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: v1.2.2
+      ref: v1.3.0
 ```
 
 ## Usage

@@ -11,7 +11,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.2.2 修复了拦截器的若干健壮性问题（大响应体 OOM、第三方错误上报被覆盖、并发同 URL 请求错乱）并修复了 example 依赖无法解析的问题。建议所有用户升级到 `^1.2.2`。
+> **🔔 推荐升级：** v1.3.0 新增网络批量操作、导出敏感字段遮蔽、一键复制 cURL、告警系统（悬浮球未读红点），并对 HTTP 拦截器做了纯内部重构（行为不变）。建议所有用户升级到 `^1.3.0`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
@@ -20,12 +20,13 @@
 ## 功能特性
 
 - **零侵入性**: 仅需一行代码即可集成，无需修改项目任何现有代码。
-- **网络检查器**: 实时捕获和查看所有 HTTP 请求，包括请求/响应头、请求体、状态码和延迟时间。支持通过拦截规则修改请求体和请求头（仅 POST/PUT/PATCH 请求）。
+- **网络检查器**: 实时捕获和查看所有 HTTP 请求，包括请求/响应头、请求体、状态码和延迟时间。支持通过拦截规则修改请求体和请求头（仅 POST/PUT/PATCH 请求）。支持批量选择（批量「Copy as cURL」与批量删除）和一键复制 cURL。工具栏眼睛开关可在导出时遮蔽敏感请求头（`Authorization`、`Cookie` 等）。
 - **日志系统**: 自动捕获应用中的日志，包括 print() 调用、Flutter 错误和异常。支持多种日志级别（verbose、debug、info、warning、error），并支持第三方日志库集成。
 - **数据库查看器**: 支持 SQLite 和其他数据库的检查，支持自定义数据库提供者。
 - **内存监控**: 实时内存监控，包含趋势图、Dart Heap 详情、Native 内存分项（Android PSS / iOS physicalFootprint）、内存泄漏检测、图片缓存监控和应用存储统计。提供总开关避免性能开销。
 - **FPS 监控**: 实时帧率测量、帧耗时统计、掉帧检测、FPS 趋势折线图（30 秒窗口）。提供总开关避免性能开销。
 - **路由追踪器**: 监控导航历史和当前路由信息。
+- **告警系统**: 可针对网络请求、日志、内存、FPS 定义告警规则，主动暴露问题。悬浮球显示未读告警数红点（打开面板即清零），Alerts 标签页列出已触发的告警。
 - **悬浮按钮**: 带呼吸动画的可访问悬浮检查按钮，通过根 `Overlay` 渲染，独立于任意页面的 widget 树。拖动松手后自动吸附并"收入"最近的屏幕边缘（仅露出小部分）；点击露出部分会平滑拉出到完整可见，再次点击才打开面板。此设计避免了与系统边缘返回手势的冲突。
 - **跨平台**: 支持 Android 和 iOS 平台。
 
@@ -37,19 +38,19 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.2.2
+  zero_inspector_kit: ^1.3.0
 ```
 
 ### GitHub
 
-或者，你也可以从 GitHub 安装（将 `1.2.1` 替换为你需要的版本号）：
+或者，你也可以从 GitHub 安装（将 `1.3.0` 替换为你需要的版本号）：
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: v1.2.1
+      ref: v1.3.0
 ```
 
 ## 使用方法

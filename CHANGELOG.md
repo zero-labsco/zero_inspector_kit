@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.3.0
+
+> **🚀 新功能 / New features：** 本版本为网络面板新增批量操作与敏感字段遮蔽导出，并引入告警系统与悬浮球未读红点；同时对 HTTP 拦截器做了纯内部重构（行为不变）。
+> This release adds batch operations and sensitive-field masking export to the network panel, introduces an alert system with an unread badge on the floating button, and refactors the HTTP interceptor internally (no behavior change).
+
+本版本在网络调试与告警能力上有较多增强，且保持公共 API 与拦截行为不变。
+This release adds substantial network-debugging and alerting enhancements while keeping the public API and interception behavior unchanged.
+
+**新增 / Added:**
+
+- 网络面板批量操作 / Network panel batch operations
+  - 列表支持批量选择模式，可批量复制 cURL（Copy as cURL）与批量删除请求
+  - The list supports a selection mode for batch "Copy as cURL" and batch deletion
+- 敏感字段遮蔽导出 / Sensitive-field masking on export
+  - 工具栏新增眼睛图标开关（默认关闭，即完整可见）；开启后 `toCurl` / `netToJson` / `netToHar` / `copyNet` / `exportNetToFile` 自动遮蔽 `Authorization`、`Cookie`、`Set-Cookie`、`Proxy-Authorization`、`X-Auth-Token`、`X-CSRF-Token`、`X-XSRF-Token` 等请求头
+  - New eye toggle in the toolbar (off by default, i.e. fully visible); when on, `toCurl`/`netToJson`/`netToHar`/`copyNet`/`exportNetToFile` mask `Authorization`, `Cookie`, `Set-Cookie`, `Proxy-Authorization`, `X-Auth-Token`, `X-CSRF-Token`, `X-XSRF-Token`, etc.
+  - 详情页「Copy as cURL」「Copy as JSON」跟随该开关，snackbar 在遮蔽时提示 `(sensitive hidden)`
+  - Detail-page "Copy as cURL"/"Copy as JSON" follow the toggle; the snackbar notes `(sensitive hidden)` when masking is active
+- 告警系统 / Alert system
+  - 新增 `AlertRule` 模型与 `AlertService`，可基于网络请求、日志、内存、FPS 触发条件评估告警
+  - Added `AlertRule` model and `AlertService` that evaluate alert conditions on network requests, logs, memory, and FPS
+  - 新增 Alerts 标签页，悬浮球显示未读告警数红点（点击面板即清零）
+  - New Alerts tab; the floating button shows an unread-count badge (cleared when the panel is opened)
+- cURL 复制 / cURL copy
+  - `ExportService.toCurl` 支持一键复制请求为 cURL 命令，便于在终端复现
+  - `ExportService.toCurl` copies a request as a cURL command for terminal reproduction
+- HTTP 拦截器重构 / HTTP interceptor refactor
+  - `http_interceptor.dart` 拆分为 `part` 文件（`inspector_http_client.dart`、`inspector_response_proxy.dart`），纯物理拆分，行为不变
+  - `http_interceptor.dart` split into `part` files (`inspector_http_client.dart`, `inspector_response_proxy.dart`); pure physical split, no behavior change
+
 ## 1.2.2
 
 > **🔔 推荐升级 / Upgrade recommended：** 本版本修复了拦截器的若干健壮性问题（大响应体 OOM、第三方错误上报被覆盖、并发同 URL 请求错乱），并修复了 example 依赖无法解析的问题。
