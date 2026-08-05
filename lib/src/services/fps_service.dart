@@ -3,6 +3,7 @@ import 'dart:ui' show FramePhase;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/material.dart';
+import 'alert_service.dart';
 
 /// 帧耗时记录 / Frame duration record
 ///
@@ -244,6 +245,9 @@ class FpsService extends ChangeNotifier {
     if (_fpsHistory.length > 60) {
       _fpsHistory.removeAt(0);
     }
+
+    // 告警检测 / Alert check
+    AlertService.instance.checkFps(_currentFps);
 
     notifyListeners();
   }

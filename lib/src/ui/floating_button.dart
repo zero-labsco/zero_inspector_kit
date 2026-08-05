@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import '../services/alert_service.dart';
 import 'theme/inspector_theme.dart';
 import 'inspector_panel.dart';
 
@@ -99,6 +100,7 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
   @override
   void initState() {
     super.initState();
+    AlertService.instance.unreadCount.addListener(_onUnreadChanged);
     _breathController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -123,9 +125,38 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
 
   @override
   void dispose() {
+    AlertService.instance.unreadCount.removeListener(_onUnreadChanged);
     _breathController.dispose();
     _dockController.dispose();
     super.dispose();
+  }
+
+  /// 未读告警数变化 → 触发重绘红点 / Unread alert change → repaint red dot
+  void _onUnreadChanged() => setState(() {});
+
+  /// 球体中心内容：有未读告警时显示红色数字，否则显示默认图标。
+  /// Ball center: red count when unread, otherwise the default icon.
+  Widget _buildCenter() {
+    final unread = AlertService.instance.unreadCount.value;
+    if (unread <= 0) {
+      return Icon(
+        _dockSide == _DockSide.left
+            ? Icons.chevron_right_rounded
+            : _dockSide == _DockSide.right
+            ? Icons.chevron_left_rounded
+            : Icons.bug_report_rounded,
+        color: InspectorColors.textPrimary,
+        size: InspectorDimensions.floatingButtonIconSize,
+      );
+    }
+    return Text(
+      unread.clamp(0, 99).toString(),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+    );
   }
 
   @override
@@ -182,15 +213,11 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
                   ],
                 ),
                 child: Center(
-                  child: Icon(
-                    _dockSide == _DockSide.left
-                        ? Icons.chevron_right_rounded
-                        : _dockSide == _DockSide.right
-                        ? Icons.chevron_left_rounded
-                        : Icons.bug_report_rounded,
-                    color: InspectorColors.textPrimary,
-                    size: InspectorDimensions.floatingButtonIconSize,
-                  ),
+                  // 未读告警 > 0 时把数字直接画进球体中心（吸附边缘时角标会被裁切，
+                  // 内嵌数字始终可见）。未读为 0 时显示原图标。
+                  // When there are unread alerts, render the count inside the ball
+                  // itself (a corner badge gets clipped when docked at the edge).
+                  child: _buildCenter(),
                 ),
               ),
             ),
@@ -290,6 +317,8 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
     } else {
       _togglePanelInternal();
     }
+    // 打开面板即视为已读 / Opening the panel marks alerts as read
+    AlertService.instance.clearUnread();
   }
 
   /// 把小球从吸附状态平滑拉出到完整可见位置

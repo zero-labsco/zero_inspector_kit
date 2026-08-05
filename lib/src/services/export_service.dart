@@ -49,6 +49,30 @@ class ExportService {
     'requests': requests.map((e) => e.toJson()).toList(),
   });
 
+  /// 网络请求 → 复制为 cURL 命令 / Network request → cURL command
+  ///
+  /// 生成可直接粘贴到终端执行的 curl 命令（含 method、headers、body）。
+  /// Produces a ready-to-run curl command (method, headers, body included).
+  String toCurl(NetworkRequest r) {
+    final buf = StringBuffer()..write('curl -X ${r.method} ');
+    // URL（含单引号时转义）/ URL (escape single quotes)
+    final url = r.url.replaceAll("'", "%27");
+    buf.writeln("'$url' \\");
+    for (final e in (r.headers ?? {}).entries) {
+      final name = e.key.replaceAll('"', '\\"');
+      final value = e.value.replaceAll('"', '\\"');
+      buf.writeln('  -H "$name: $value" \\');
+    }
+    if (r.body != null) {
+      final body = r.body.toString().replaceAll('"', '\\"');
+      buf.writeln('  -d "$body" \\');
+    }
+    // 去掉末尾的续行符 / Trim trailing line-continuation
+    var out = buf.toString();
+    if (out.endsWith(' \\\n')) out = out.substring(0, out.length - 3);
+    return out;
+  }
+
   /// 网络请求 → CSV / Network to CSV
   /// 列：method,url,statusCode,durationMs,requestTime,hasBody,hasResponse
   String netToCsv(List<NetworkRequest> requests) {
