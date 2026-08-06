@@ -17,7 +17,12 @@ on:
       # so docs-only PRs still run CI and satisfy branch protection's required checks.
       - 'CONTRIBUTING.md'    # Contributing guide (doesn't affect the package)
       - 'TODO.md'            # Todo file
-      - 'wiki/**'            # Wiki documentation directory (legacy, migrated to docs/)
+      # 注意：wiki/** 刻意不在此忽略。wiki 是遗留目录但仍有更新 PR；忽略它会导致纯 wiki 改动跳过整
+      # 条 workflow，使 required checks 永远不出现、PR 无法合并。纯 wiki 改动会触发 workflow，但
+      # path-filter 中无 wiki 路径 → code=false → 两个重 job 绿色跳过。
+      # NOTE: wiki/** is intentionally NOT ignored. It is a legacy directory but still receives update PRs;
+      # ignoring it would skip the entire workflow for wiki-only changes, leaving required checks pending.
+      # Wiki-only PRs still trigger the workflow, but path-filter has no wiki paths → code=false → heavy jobs skip green.
       # 精细化忽略 GitHub 配置，但保留 workflows/ 目录的 CI 触发（Dependabot 改 action 版本需要跑 CI）
       # Finer-grained GitHub ignores — workflows MUST trigger CI (Dependabot action updates need CI)
       - '.github/ISSUE_TEMPLATE/**'     # Issue/PR templates
@@ -51,7 +56,12 @@ on:
       # so docs-only PRs still run CI and satisfy branch protection's required checks.
       - 'CONTRIBUTING.md'    # Contributing guide (doesn't affect the package)
       - 'TODO.md'            # Todo file
-      - 'wiki/**'            # Wiki documentation directory (legacy, migrated to docs/)
+      # 注意：wiki/** 刻意不在此忽略。wiki 是遗留目录但仍有更新 PR；忽略它会导致纯 wiki 改动跳过整
+      # 条 workflow，使 required checks 永远不出现、PR 无法合并。纯 wiki 改动会触发 workflow，但
+      # path-filter 中无 wiki 路径 → code=false → 两个重 job 绿色跳过。
+      # NOTE: wiki/** is intentionally NOT ignored. It is a legacy directory but still receives update PRs;
+      # ignoring it would skip the entire workflow for wiki-only changes, leaving required checks pending.
+      # Wiki-only PRs still trigger the workflow, but path-filter has no wiki paths → code=false → heavy jobs skip green.
       # 精细化忽略 GitHub 配置，但保留 workflows/ 目录的 CI 触发
       # Finer-grained GitHub ignores — workflows MUST trigger CI
       - '.github/ISSUE_TEMPLATE/**'
