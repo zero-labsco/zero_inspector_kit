@@ -11,7 +11,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** v1.3.1 adds per-source alert throttling (prevents alert storms from sustained threshold breaches or request bursts) on top of v1.3.0's network batch operations, sensitive-field masking on export, one-click cURL copy, and the alert system with an unread badge. All users are advised to upgrade to `^1.3.1`.
+> **🔔 Upgrade recommended:** v1.3.2 fixes network request duration being calculated prematurely (before the response arrives) on top of v1.3.1's per-source alert throttling and v1.3.0's network batch operations, sensitive-field masking on export, one-click cURL copy, and the alert system with an unread badge. All users are advised to upgrade to `^1.3.2`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)**
 
@@ -41,19 +41,19 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.3.1
+  zero_inspector_kit: ^1.3.2
 ```
 
 ### GitHub
 
-Alternatively, you can install from GitHub (replace `1.3.1` with the version you need):
+Alternatively, you can install from GitHub (replace `1.3.2` with the version you need):
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: v1.3.1
+      ref: v1.3.2
 ```
 
 ## Usage

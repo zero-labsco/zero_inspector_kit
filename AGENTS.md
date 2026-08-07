@@ -42,6 +42,44 @@ This file defines the architecture, coding conventions, and required workflows f
 - PR titles MUST follow Conventional Commits, enforced by `pr-title-check.yml` (`amannn/action-semantic-pull-request@v6`).
 - Required checks before merge: `Analyze & Test`, `Pana Score Check`, `Check PR Title (Conventional Commits)`.
 
+### Pull request body template / PR 正文模板
+
+AI coding agents (CodeBuddy, Trae, Cursor, Claude Code, GitHub Copilot, Codex, etc.) and contributors SHOULD follow the body template below when opening PRs. Keep the `###` section structure; fill in real content. Use English as the primary language and Chinese as the secondary language (EN-primary, ZH-secondary) for each section. Brand the assistant with **Zero Buddy** (two words, NOT "ZeroBuddy") at the end.
+
+AI 协作工具（CodeBuddy、Trae、Cursor、Claude Code、GitHub Copilot、Codex 等）与贡献者开 PR 时应遵循以下正文模板。保留 `###` 章节结构并填入真实内容。每个章节采用英文为主、中文为辅（EN-primary, ZH-secondary）。文末以 **Zero Buddy**（两个单词，不要写成 "ZeroBuddy"）署名。
+
+```markdown
+### Summary / 摘要
+
+<one-line plain-English summary> + <对应中文一句话摘要>
+
+### Changes / 变更
+
+- <change bullet, EN> / <中文说明>
+- <change bullet, EN> / <中文说明>
+
+### Context / 背景
+
+<why this change is needed, EN> / <改动背景的中文说明>
+
+### Checklist / 检查项
+
+- [ ] Title follows Conventional Commits / 标题符合约定式提交
+- [ ] CI checks pass after merge / 合入后 CI 通过
+
+## Test plan
+
+- [ ] <how to verify, EN> / <验证方式>
+
+🤖 Generated with [Zero Buddy](https://www.zerolabsco.com)
+```
+
+Notes / 说明:
+- The PR **title** stays English-only and MUST follow Conventional Commits (enforced by `pr-title-check.yml`). Bilingual content goes in the body only.
+  PR **标题**仅用英文，且必须符合约定式提交（`pr-title-check.yml` 强制校验）。双语内容只放在正文。
+- For Dependabot PRs, do NOT author the body manually — `dependabot-pr-bilingual.yml` auto-appends the bilingual summary (see CI section).
+  Dependabot 的 PR 不要手动写正文，由 `dependabot-pr-bilingual.yml` 自动追加双语摘要（见 CI 段）。
+
 ### CI
 - `ci.yml`: `actions/checkout@v7`, `subosito/flutter-action@v2`, `actions/cache@v5` (pub cache keyed on `pubspec.lock` plus `example/pubspec.lock`); runs `flutter analyze`, `flutter test`, and `pana` score check.
 - `stale.yml`: `actions/stale@v11` marks stale issues/PRs.
@@ -66,7 +104,8 @@ This file defines the architecture, coding conventions, and required workflows f
    - `flutter pub publish --dry-run` — confirm the package scores well on `pana` and no files are unintentionally excluded.
 4. Commit on a branch, open PR, merge to `main` after the 3 required checks pass.
 5. Tag (drives publishing): `git tag vX.Y.Z <commit> && git push origin vX.Y.Z`. The `vX.Y.Z` tag — NOT a branch — triggers `pub-publish.yml`. Never name a branch `vX.Y.Z`; it collides with the tag refspec and breaks `git push`.
-6. Archive branch (optional, for release snapshots): create `release/vX.Y.Z` from the tagged commit via explicit refspec to avoid the tag/branch collision, e.g. `git push origin <commit>:refs/heads/release/vX.Y.Z`. These branches are inert (no CI triggers on them) and serve only as frozen snapshots.
+6. Archive branch (optional, for release snapshots): create `release-vX.Y.Z` from the tagged commit via explicit refspec to avoid the tag/branch collision, e.g. `git push origin <commit>:refs/heads/release-vX.Y.Z`. These branches are inert (no CI triggers on them) and serve only as frozen snapshots. The remote `v*` archive branches were renamed to `release-v*` to prevent tag/branch refspec ambiguity.
+   - 远程 `v*` 归档分支已重命名为 `release-*` 以避免 tag 与分支的 refspec 歧义。
 7. `pub-publish.yml` publishes via `k-paxian/dart-package-publisher@v1.6` using the `PUB_CREDENTIALS_JSON` secret (fields `accessToken`, `refreshToken`; set `flutter: true`). Do NOT pass OIDC fields (`idToken` / `tokenEndpoint` / `scopes`); the action does not support them and emits invalid-input warnings.
    - Note: `k-paxian` internally uses older actions that emit Node 20 deprecation warnings. This is accepted (B1 decision); functionality is unaffected.
 
