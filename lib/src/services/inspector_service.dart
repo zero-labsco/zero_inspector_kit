@@ -136,6 +136,11 @@ class InspectorService extends ChangeNotifier {
   /// [responseBody] 响应体数据 / Response body data
   /// [statusCode] HTTP状态码 / HTTP status code
   /// [body] 请求体数据 / Request body data
+  ///
+  /// 仅当 [statusCode] 非空时才视为"响应已到达"并设置 responseTime / duration；
+  /// 仅更新请求体（body）时不会过早标记请求已完成。
+  /// Only treats the update as a response arrival when [statusCode] is non-null;
+  /// updating only the request body (body) will not prematurely mark the request complete.
   void updateNetworkRequest(
     String id, {
     dynamic responseBody,
@@ -145,9 +150,23 @@ class InspectorService extends ChangeNotifier {
     final index = _indexOfNetworkRequest(id);
     if (index != -1) {
       final request = _networkRequests.elementAt(index);
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final responseTime = request.responseTime ?? now;
-      final duration = responseTime - request.requestTime;
+
+      // 仅当 statusCode 被提供时，才视为响应到达，更新 responseTime / duration。
+      // 仅提供 body（请求体捕获）时不应设置 responseTime，否则会导致耗时计算错误。
+      // Only set responseTime when statusCode is provided (indicates response arrival).
+      // Providing only body (request body capture) must not set responseTime,
+      // otherwise duration is calculated incorrectly.
+      final int? responseTime;
+      final int? duration;
+      if (statusCode != null) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        responseTime = request.responseTime ?? now;
+        duration = responseTime - request.requestTime;
+      } else {
+        responseTime = request.responseTime;
+        duration = request.duration;
+      }
+
       final updated = request.copyWith(
         responseBody: responseBody ?? request.responseBody,
         statusCode: statusCode ?? request.statusCode,

@@ -903,4 +903,159 @@ void main() {
       expect(updated.responseBody, equals('Service Unavailable'));
     });
   });
+
+  /// =======================================================================
+  /// InspectorService.updateNetworkRequest — responseTime 时机测试
+  /// InspectorService.updateNetworkRequest — responseTime timing tests
+  /// =======================================================================
+  group('InspectorService.updateNetworkRequest responseTime', () {
+    setUp(() {
+      InspectorService.instance.clearNetworkRequests();
+    });
+
+    tearDown(() {
+      InspectorService.instance.clearNetworkRequests();
+    });
+
+    test(
+      '仅更新 body 时不应设置 responseTime / Updating only body must not set responseTime',
+      () {
+        final service = InspectorService.instance;
+        final requestTime = DateTime.now().millisecondsSinceEpoch;
+
+        // 添加请求 / Add request
+        service.addNetworkRequest(
+          NetworkRequest(
+            id: 'test-1',
+            method: 'POST',
+            url: 'https://api.example.com/data',
+            requestTime: requestTime,
+          ),
+        );
+
+        // 仅更新请求体（无 statusCode）— 模拟拦截器捕获请求体
+        // Update only request body (no statusCode) — simulates interceptor
+        // capturing request body
+        service.updateNetworkRequest('test-1', body: '{"key":"value"}');
+
+        final request = service.networkRequests.firstWhere(
+          (r) => r.id == 'test-1',
+        );
+        expect(request.body, equals('{"key":"value"}'));
+        // 关键断言：responseTime 和 duration 不应被设置
+        // Key assertion: responseTime and duration must NOT be set
+        expect(
+          request.responseTime,
+          isNull,
+          reason: 'responseTime should not be set when only body is updated',
+        );
+        expect(
+          request.duration,
+          isNull,
+          reason: 'duration should not be set when only body is updated',
+        );
+      },
+    );
+
+    test(
+      '提供 statusCode 时应设置 responseTime / Providing statusCode should set responseTime',
+      () {
+        final service = InspectorService.instance;
+        final requestTime = DateTime.now().millisecondsSinceEpoch;
+
+        service.addNetworkRequest(
+          NetworkRequest(
+            id: 'test-2',
+            method: 'GET',
+            url: 'https://api.example.com/data',
+            requestTime: requestTime,
+          ),
+        );
+
+        // 更新响应（含 statusCode）— 模拟响应到达
+        // Update response (with statusCode) — simulates response arrival
+        service.updateNetworkRequest(
+          'test-2',
+          statusCode: 200,
+          responseBody: 'ok',
+        );
+
+        final request = service.networkRequests.firstWhere(
+          (r) => r.id == 'test-2',
+        );
+        expect(request.statusCode, equals(200));
+        expect(request.responseBody, equals('ok'));
+        expect(
+          request.responseTime,
+          isNotNull,
+          reason: 'responseTime must be set when statusCode is provided',
+        );
+        expect(
+          request.duration,
+          isNotNull,
+          reason: 'duration must be set when statusCode is provided',
+        );
+      },
+    );
+
+    test(
+      '先更新 body 再更新响应：responseTime 应为响应到达时间 / '
+      'Update body then response: responseTime should be response arrival time',
+      () {
+        final service = InspectorService.instance;
+        final requestTime = DateTime.now().millisecondsSinceEpoch;
+
+        service.addNetworkRequest(
+          NetworkRequest(
+            id: 'test-3',
+            method: 'POST',
+            url: 'https://api.example.com/data',
+            requestTime: requestTime,
+          ),
+        );
+
+        // 步骤 1：仅更新请求体（HTTP 拦截器在 close() 中调用）
+        // Step 1: Update only request body (called by HTTP interceptor in close())
+        service.updateNetworkRequest('test-3', body: '{"key":"value"}');
+
+        // 验证中间状态 / Verify intermediate state
+        var request = service.networkRequests.firstWhere(
+          (r) => r.id == 'test-3',
+        );
+        expect(
+          request.responseTime,
+          isNull,
+          reason: 'responseTime must be null after body-only update',
+        );
+
+        // 步骤 2：响应到达（含 statusCode）
+        // Step 2: Response arrives (with statusCode)
+        service.updateNetworkRequest(
+          'test-3',
+          statusCode: 201,
+          responseBody: 'created',
+        );
+
+        // 验证最终状态 / Verify final state
+        request = service.networkRequests.firstWhere((r) => r.id == 'test-3');
+        expect(request.statusCode, equals(201));
+        expect(request.body, equals('{"key":"value"}'));
+        expect(
+          request.responseTime,
+          isNotNull,
+          reason: 'responseTime must be set after response update',
+        );
+        expect(
+          request.duration,
+          isNotNull,
+          reason: 'duration must be set after response update',
+        );
+        expect(
+          request.duration,
+          greaterThanOrEqualTo(0),
+          reason: 'duration must be non-negative',
+        );
+      },
+    );
+  });
 }

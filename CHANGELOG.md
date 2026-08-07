@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.3.2
+
+> **🐛 缺陷修复 / Bug fix：** 修复网络请求耗时（duration）在响应尚未到达时即被错误计算的问题。
+> This release fixes an issue where network request duration was calculated prematurely, before the response had actually arrived.
+
+本版本修复了 HTTP 拦截器在捕获请求体（body）阶段误将请求标记为已完成、导致耗时计算错误的问题，并补充了对应的单元测试。公共 API 不变。
+This release fixes a bug where the HTTP interceptor mistakenly marked a request as complete (and computed its duration) during request-body capture, and adds unit tests for it. Public API unchanged.
+
+**修复 / Fixed:**
+
+- 网络请求耗时计算时机 / Network request duration timing
+  - `InspectorService.updateNetworkRequest` 现在仅在提供 `statusCode`（即响应到达）时才设置 `responseTime` 与 `duration`；仅更新请求体（body，例如 HTTP 拦截器在 `close()` 中捕获请求体）时保留原值，不再过早标记请求已完成
+  - `InspectorService.updateNetworkRequest` now only sets `responseTime` and `duration` when `statusCode` is provided (response arrival). Updating only the request body (e.g. HTTP interceptor capturing the body in `close()`) keeps them unset, so requests are no longer prematurely marked complete
+  - 修复后：先捕获请求体、后收到响应的请求，其 `duration` 反映真实的响应耗时而非请求体捕获时刻
+  - After the fix: a request whose body is captured first and response arrives later reports `duration` for the real response time, not the body-capture moment
+- 单元测试 / Unit tests
+  - `test/models_test.dart` 新增 `InspectorService.updateNetworkRequest responseTime` 测试组，覆盖：仅更新 body 不设置 `responseTime`、提供 `statusCode` 设置、先 body 后响应的时序
+  - `test/models_test.dart` adds the `InspectorService.updateNetworkRequest responseTime` group covering: body-only update leaves `responseTime` unset, `statusCode` sets it, and the body-then-response sequence
+
 ## 1.3.1
 
 > **🛡️ 告警防风暴 / Alert storm protection：** 本版本为告警系统新增同源节流，避免持续超阈值（内存/FPS 轮询）或突发 5xx/慢请求淹没告警缓冲与未读红点。
