@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../models/network_request.dart';
 import '../services/inspector_service.dart';
 
@@ -141,12 +143,9 @@ class InspectorDioInterceptor extends InspectorDioInterceptorBase {
   /// 生成指定长度的随机字符串 / Generate random string of specified length
   String _randomString(int length) {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    return List.generate(length, (_) => chars[_randomInt(chars.length)]).join();
-  }
-
-  /// 生成指定范围内的随机整数 / Generate random integer within specified range
-  int _randomInt(int max) {
-    return DateTime.now().microsecond % max;
+    final random = Random();
+    return List.generate(length, (_) => chars[random.nextInt(chars.length)])
+        .join();
   }
 
   /// 转换headers为 `Map<String, String>` 格式 / Convert headers to `Map<String, String>` format

@@ -223,7 +223,10 @@ class _InspectorHttpClient implements HttpClient {
 
   static String _randomString(int length) {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    var random = DateTime.now().microsecond;
+    // 使用 Object hash + 微秒作为种子，避免全零种子导致 XorShift 退化
+    // Use object hash + microsecond as seed to avoid all-zero seed that degenerates XorShift
+    var random = Object().hashCode ^ DateTime.now().microsecond;
+    if (random == 0) random = 1; // XorShift 零种子会全零 / zero seed degenerates
     return List.generate(length, (_) {
       random =
           (random ^ (random << 13)) ^
