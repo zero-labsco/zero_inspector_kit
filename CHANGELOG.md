@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.3.3
+
+> **🛡️ 网络拦截健壮性 / Network interception robustness：** 本版本加固了网络拦截，避免并发请求 ID 碰撞、大请求体导致 OOM，以及二进制 / 非 UTF-8 响应体解析异常。公共 API 不变。
+> This release hardens network interception: cryptographic request-ID uniqueness under concurrent requests, a 512 KB body cap to prevent OOM on large uploads, and safe handling of binary / non-UTF-8 bodies. Public API unchanged.
+
+本版本整合了此前分散的健壮性修复，统一了请求 ID 生成逻辑（微秒时间戳 + `Random.secure` + 自增计数器），并对请求 / 响应体捕获增加上限与编码回退。支持 iOS 的 podspec 同步更新至 `1.3.3`。
+This release consolidates previously scattered robustness fixes, unifying request-ID generation (microsecond timestamp + `Random.secure` + monotonic counter) and adding a body cap plus encoding fallback to request/response capture. The iOS podspec is bumped to `1.3.3` in sync.
+
+**修复 / Fixed:**
+
+- 请求 ID 唯一性 / Request-ID uniqueness
+  - `InspectorHttpClient` 与 `InspectorDioInterceptor` 的请求 ID 现由「微秒时间戳 + `Random.secure()` 随机数 + 自增计数器」组合生成，杜绝高并发下同一毫秒内产生重复 ID 导致响应数据错配
+  - `InspectorHttpClient` and `InspectorDioInterceptor` now build request IDs from a microsecond timestamp plus a `Random.secure()` value plus a monotonic counter, eliminating duplicate IDs under heavy concurrency that could mis-associate response data
+- 大请求体 OOM / OOM on large bodies
+  - HTTP 拦截器对请求体（`body`）设置 512 KB 上限；超限时仅记录截断提示，避免大文件上传时内存暴涨
+  - The HTTP interceptor caps the captured request `body` at 512 KB and records a truncation note beyond it, preventing memory blowups on large uploads
+- 二进制 / 非 UTF-8 响应体 / Binary & non-UTF-8 bodies
+  - 响应体优先按 UTF-8 解码，失败时对不可解码的字节做转义，避免二进制内容解析抛错
+  - Response bodies now decode as UTF-8 first, falling back to escaping undecodable bytes so binary content no longer throws
+- 响应大小展示 / Response size display
+  - `InspectorResponseProxy` 在 `contentLength == -1`（未知长度）时显示 "unknown size"，不再误显示为 0
+  - `InspectorResponseProxy` shows "unknown size" when `contentLength == -1` instead of incorrectly showing 0
+- 测试 / Tests
+  - 新增 `test/request_id_collision_test.dart`（会话 ID 唯一性、大请求体截断、二进制 / 非 UTF-8 回退）
+  - 新增 `test/http_interceptor_test.dart`（请求 / 响应体捕获）
+  - `test/models_test.dart` 新增并发请求 ID 唯一性测试组
+  - Adds `test/request_id_collision_test.dart` (session-ID uniqueness, large-body truncation, binary / non-UTF-8 fallback), `test/http_interceptor_test.dart` (request/response body capture), and a concurrent request-ID uniqueness group in `test/models_test.dart`
+
 ## 1.3.2
 
 > **🐛 缺陷修复 / Bug fix：** 修复网络请求耗时（duration）在响应尚未到达时即被错误计算的问题。
