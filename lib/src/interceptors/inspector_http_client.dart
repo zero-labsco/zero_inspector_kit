@@ -59,7 +59,7 @@ class _InspectorHttpClient implements HttpClient {
       try {
         // 格式：req_<微秒时间戳>_<8位随机>_<自增计数器>
         // 计数器确保即使随机源在同一 tick 内重复，ID 也仍然唯一
-        // Format: req_<microsecond-timestamp>_<8-char-random>_<monotonic-counter>
+        // Format: req_&lt;microsecond-timestamp&gt;_&lt;8-char-random&gt;_&lt;monotonic-counter&gt;
         // The counter ensures uniqueness even if the random source repeats
         // within the same tick.
         final n = ++_idCounter;
