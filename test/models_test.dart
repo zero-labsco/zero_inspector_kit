@@ -1058,4 +1058,50 @@ void main() {
       },
     );
   });
+
+  /// =======================================================================
+  /// InspectorDioInterceptor — 并发请求 ID 唯一性测试
+  /// InspectorDioInterceptor — concurrent request ID uniqueness tests
+  /// =======================================================================
+  group('InspectorDioInterceptor concurrent request ID uniqueness', () {
+    setUp(() {
+      InspectorService.instance.clearNetworkRequests();
+    });
+
+    tearDown(() {
+      InspectorService.instance.clearNetworkRequests();
+    });
+
+    test(
+      '同一毫秒内并发请求应生成不同 ID / Concurrent requests in the same millisecond should generate unique IDs',
+      () {
+        final interceptor = InspectorDioInterceptor();
+
+        // 快速连续发起多个请求到同一 URL（模拟并发场景）
+        // Fire multiple requests to the same URL in rapid succession (concurrent scenario)
+        for (var i = 0; i < 20; i++) {
+          interceptor.onRequest({
+            'method': 'GET',
+            'url': 'https://api.example.com/concurrent',
+            'headers': <String, dynamic>{},
+            'data': null,
+          });
+        }
+
+        final requests = InspectorService.instance.networkRequests;
+        final ids = requests.map((r) => r.id).toList();
+        final uniqueIds = ids.toSet();
+
+        // 所有请求 ID 必须唯一 / All request IDs must be unique
+        expect(
+          uniqueIds.length,
+          equals(ids.length),
+          reason:
+              'Concurrent requests must have unique IDs. '
+              'Got ${ids.length} requests but only ${uniqueIds.length} unique IDs. '
+              'Duplicate IDs would cause response data to be associated with the wrong request.',
+        );
+      },
+    );
+  });
 }

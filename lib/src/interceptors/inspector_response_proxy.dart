@@ -37,9 +37,13 @@ class _InspectorResponseProxy implements HttpClientResponse {
       if (_requestId != null) {
         final String body;
         if (_captureExceeded) {
-          body =
-              '[Response body too large to capture '
-              '(${_response.contentLength} bytes)]';
+          // contentLength 为 -1 表示 chunked 传输或无 Content-Length 头，
+          // 此时不要把 -1 当作字节数显示给用户。
+          // contentLength == -1 means chunked transfer or no Content-Length
+          // header; don't display "-1 bytes" to the user.
+          final len = _response.contentLength;
+          final lenText = len > 0 ? '$len' : 'unknown size';
+          body = '[Response body too large to capture ($lenText)]';
         } else {
           body = utf8.decode(_bodyBytes);
         }

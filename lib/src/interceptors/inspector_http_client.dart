@@ -25,6 +25,18 @@ class _InspectorHttpClient implements HttpClient {
 
   static const String _dioRequestIdHeader = 'x-inspector-request-id';
 
+  /// 加密随机源 / Cryptographic random source
+  ///
+  /// 用 [Random.secure] 而非基于 [DateTime.now] 的派生值，
+  /// 避免同一微秒内的并发请求生成相同 ID。
+  /// Use [Random.secure] instead of [DateTime.now]-derived values to avoid
+  /// ID collisions for concurrent requests in the same microsecond.
+  static final Random _random = Random.secure();
+
+  /// 进程内单调递增计数器，作为 ID 唯一性的最后一道防线
+  /// Process-wide monotonic counter as the last line of defense for ID uniqueness
+  static int _idCounter = 0;
+
   /// 判断是否为 WebSocket 升级握手请求 / Check if this is a WebSocket upgrade handshake
   ///
   /// WebSocket 握手本质上是带 Upgrade: websocket 的 HTTP 请求，
@@ -45,8 +57,14 @@ class _InspectorHttpClient implements HttpClient {
     String? requestId;
     if (!isWs) {
       try {
+        // 格式：req_<微秒时间戳>_<8位随机>_<自增计数器>
+        // 计数器确保即使随机源在同一 tick 内重复，ID 也仍然唯一
+        // Format: req_<microsecond-timestamp>_<8-char-random>_<monotonic-counter>
+        // The counter ensures uniqueness even if the random source repeats
+        // within the same tick.
+        final n = ++_idCounter;
         requestId =
-            'req_${DateTime.now().millisecondsSinceEpoch}_${_randomString(8)}';
+            'req_${DateTime.now().microsecondsSinceEpoch}_${_randomString(8)}_$n';
       } catch (_) {}
     }
 
@@ -223,15 +241,10 @@ class _InspectorHttpClient implements HttpClient {
 
   static String _randomString(int length) {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    var random = DateTime.now().microsecond;
-    return List.generate(length, (_) {
-      random =
-          (random ^ (random << 13)) ^
-          ((random ^ (random << 13)) >> 17) ^
-          (((random ^ (random << 13)) ^ ((random ^ (random << 13)) >> 17)) <<
-              5);
-      return chars[random.abs() % chars.length];
-    }).join();
+    return List.generate(
+      length,
+      (_) => chars[_random.nextInt(chars.length)],
+    ).join();
   }
 }
 
@@ -245,6 +258,22 @@ class _InspectorRequestProxy implements HttpClientRequest {
   final String? _requestId;
   final List<int> _bodyBytes = [];
   bool _isClosed = false;
+
+  /// 请求体最大捕获字节数 / Max request body capture size in bytes
+  ///
+  /// 超过此大小后停止缓冲 body 副本，仅继续透传到原生请求，
+  /// 避免大文件上传（>100MB）把整份 body 加载进内存导致 OOM。
+  /// After exceeding this size, stop buffering a body copy and just pass
+  /// the stream through to the underlying request to avoid OOM on large uploads.
+  static const int _maxRequestCaptureBytes = 512 * 1024; // 512 KB
+
+  /// 是否已超过请求体捕获限制 / Whether request body capture limit has been exceeded
+  bool _requestCaptureExceeded = false;
+
+  /// 用户通过 [addStream] 提供的流是否已通过 tee 直接转发到底层请求
+  /// Whether the user-provided stream via [addStream] was already tee'd to
+  /// the underlying request (so [close] must NOT replay the captured body)
+  bool _streamTeeForwarded = false;
 
   _InspectorRequestProxy(this._request, this._requestId);
 
@@ -285,15 +314,52 @@ class _InspectorRequestProxy implements HttpClientRequest {
     } catch (_) {}
 
     try {
-      if (finalBodyBytes.isNotEmpty && _requestId != null) {
-        final body = utf8.decode(finalBodyBytes);
-        InspectorService.instance.updateNetworkRequest(_requestId, body: body);
+      if (_requestId != null) {
+        if (finalBodyBytes.isNotEmpty) {
+          try {
+            final body = utf8.decode(finalBodyBytes);
+            InspectorService.instance.updateNetworkRequest(
+              _requestId,
+              body: body,
+            );
+          } catch (_) {
+            // body 含有非 UTF-8 数据（如二进制上传），回退到占位说明，
+            // 避免非 UTF-8 序列导致整个 update 静默失败
+            // Body contains non-UTF-8 data (e.g. binary upload); fall back
+            // to a placeholder to avoid silently losing the whole update.
+            InspectorService.instance.updateNetworkRequest(
+              _requestId,
+              body: _requestCaptureExceeded
+                  ? '[Request body too large to capture '
+                        '(>$_maxRequestCaptureBytes bytes)]'
+                  : '[Request body is not valid UTF-8]',
+            );
+          }
+        } else if (_requestCaptureExceeded) {
+          // body 超出捕获上限且无预览，记录占位说明，避免 OOM
+          // Body exceeded capture cap with no preview; record placeholder
+          InspectorService.instance.updateNetworkRequest(
+            _requestId,
+            body:
+                '[Request body too large to capture '
+                '(>$_maxRequestCaptureBytes bytes)]',
+          );
+        }
       }
     } catch (_) {}
 
-    try {
-      await _request.addStream(Stream.value(finalBodyBytes));
-    } catch (_) {}
+    // 若用户通过 [addStream] 已经把数据流直接透传到了底层请求，则
+    // 不再重复发送 _bodyBytes，避免：
+    //   1) 重复发送相同字节
+    //   2) 因为只缓冲了前 512KB 而把大文件上传截断到 512KB
+    // If the user already tee'd the stream to the wire via [addStream], do
+    // not replay [_bodyBytes] here to avoid (1) duplicate bytes on the wire
+    // and (2) truncating large uploads because we only buffered a 512KB cap.
+    if (!_streamTeeForwarded) {
+      try {
+        await _request.addStream(Stream.value(finalBodyBytes));
+      } catch (_) {}
+    }
 
     return _request
         .close()
@@ -336,8 +402,34 @@ class _InspectorRequestProxy implements HttpClientRequest {
       await _request.addStream(stream);
       return;
     }
-    await for (final chunk in stream) {
-      _bodyBytes.addAll(chunk);
+    // Tee 模式：把数据流直接透传到底层请求以避免 OOM（特别是大文件上传），
+    // 同时仅缓冲前 [_maxRequestCaptureBytes] 字节给检查器预览。
+    // 标记 _streamTeeForwarded 让 [close] 不要重复发送。
+    // Tee pattern: forward the stream directly to the underlying request to
+    // avoid OOM on large uploads, while buffering only the first
+    // [_maxRequestCaptureBytes] bytes for the inspector preview. The
+    // _streamTeeForwarded flag tells [close] not to replay the buffer.
+    _streamTeeForwarded = true;
+    final controller = StreamController<List<int>>();
+    final forwardFut = _request.addStream(controller.stream);
+    try {
+      await for (final chunk in stream) {
+        if (_bodyBytes.length < _maxRequestCaptureBytes) {
+          final remaining = _maxRequestCaptureBytes - _bodyBytes.length;
+          if (chunk.length <= remaining) {
+            _bodyBytes.addAll(chunk);
+          } else {
+            _bodyBytes.addAll(chunk.sublist(0, remaining));
+            _requestCaptureExceeded = true;
+          }
+        } else {
+          _requestCaptureExceeded = true;
+        }
+        controller.add(chunk);
+      }
+    } finally {
+      await controller.close();
+      await forwardFut;
     }
   }
 
