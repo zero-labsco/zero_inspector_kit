@@ -121,7 +121,7 @@ jobs:
         uses: actions/checkout@v7
       - name: Filter paths
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             # 所有文档/资源类文件（README*.md、CHANGELOG.md、docs/**、LICENSE、*.yml/*.yaml、*.txt、图片等）
