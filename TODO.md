@@ -277,3 +277,91 @@
     - Heavy feature, can be a standalone future version
   - **涉及文件 / Related files**:
     - `lib/src/ui/widget_inspector.dart`（新增 / new）
+
+---
+
+## HarmonyOS (OpenHarmony) 适配调研 / HarmonyOS (OpenHarmony) Adaptation Research
+
+> 分支：`feat/ohos-support`（基于 `main`）。调研时间：2026-08-12。
+> Branch: `feat/ohos-support` (based on `main`). Research date: 2026-08-12.
+
+### 可行性结论 / Feasibility verdict
+
+- ✅ **可行 / Feasible**，但属于中等偏大的工程，不是开关式支持。
+  Feasible, but a medium-to-large effort — not a toggle.
+- 鸿蒙用的是 **OpenHarmony SIG 的 Flutter 定制分支**（非官方稳定版），你的官方 Flutter 3.41.7（安卓/iOS）**完全不受影响**，两者物理隔离在不同目录。
+  HarmonyOS uses OpenHarmony SIG's custom Flutter fork (not official stable). Your official Flutter 3.41.7 (Android/iOS) is **unaffected**; the two are physically isolated in separate directories.
+- 已在本机装好鸿蒙 Flutter：`D:\Flutter\fvm\versions\custom_3.35.8-ohos-1.0.1`（Dart 3.9.2），通过 fvm 管理；OpenHarmony SDK 在 `D:\OpenHarmony\Sdk`（API 20）。
+  HarmonyOS Flutter installed locally: `D:\Flutter\fvm\versions\custom_3.35.8-ohos-1.0.1` (Dart 3.9.2), managed via fvm; OpenHarmony SDK at `D:\OpenHarmony\Sdk` (API 20).
+
+### 平台分流方案（保安卓/iOS 稳定性）/ Platform branching (keep Android/iOS stable)
+
+- Dart 侧用 `defaultTargetPlatform == TargetPlatform.ohos` 做 `if`/`switch` 分流（鸿蒙分支给 `TargetPlatform` 加了 `ohos` 枚举值）。
+  Use `defaultTargetPlatform == TargetPlatform.ohos` for `if`/`switch` branching (the OHOS fork adds an `ohos` enum value to `TargetPlatform`).
+- 插件层利用现有 `plugin_platform_interface`：注册 `ZeroInspectorKitOhos`（新写）与 `ZeroInspectorKitMethodChannel`（安卓/iOS 原样不动）并存。
+  Leverage the existing `plugin_platform_interface`: register a new `ZeroInspectorKitOhos` alongside the untouched `ZeroInspectorKitMethodChannel` (Android/iOS unchanged).
+- 原生代码放新目录 `ohos/`（ArkTS `.ets`），`android/` 与 `ios/` 目录互不干扰；普通 `flutter build apk/ios` 不会编译 `ohos/`。
+  Native code lives in a new `ohos/` dir (ArkTS `.ets`); `android/` and `ios/` are untouched; normal `flutter build apk/ios` won't compile `ohos/`.
+
+### 两个核心风险点调研结果 / Two core risk findings
+
+#### 风险 1：`HttpOverrides` 网络拦截在鸿蒙 Engine 是否生效？ ✅ 生效
+
+- 调研结论（来源：CSDN《Flutter 三方库 http_client_interceptor 的鸿蒙化适配指南》2026-03-11）：
+  - 鸿蒙端**原生支持** `HttpOverrides` + 注入代理 `HttpClient` 的全局拦截方案，**不需要额外 package**。
+  - 能拦截全量 Dart 原生 `HttpClient` 请求，含第三方插件内部直接使用的 `HttpClient`（对业务代码零侵入）。
+  - 限制/坑点：
+    1. 必须在**首个 `main()` 的 `runZoned` 内启动 `runApp`**，覆盖不全则部分请求绕过拦截；
+    2. 需正确传递 `SecurityContext` 以免 HTTPS 证书校验失败；
+    3. 响应流需"包装流非破坏嗅探"，避免过早关闭 Body 流导致业务代码拿不到数据。
+- 对本插件影响：网络日志拦截（`HttpOverrides` + `inspector_http_client`）**核心机制在鸿蒙可用**，但需在 `runAppWithInspector` 入口确保 `HttpOverrides.runZoned` 覆盖完整，并在鸿蒙下验证 HTTPS 与流式响应读取。
+  Impact: the network-log interception core (`HttpOverrides` + `inspector_http_client`) **is usable on OHOS**, but `runAppWithInspector` must ensure full `runZoned` coverage, and HTTPS/streaming responses must be verified on OHOS.
+
+#### 风险 2：`sqflite` 在鸿蒙是否可用？ ✅ 可用（推荐 2.3.x）
+
+- 调研结论（来源：CSDN《Flutter 三方库 sqflite 的鸿蒙化适配与实战指南》2026-05-13）：
+  - `sqflite` 在鸿蒙上兼容性总体不错，**无需替换为其他包**。
+  - 推荐版本 `sqflite: ^2.3.0`（原文标注「2.3.x 在鸿蒙上比较稳定」）。
+  - 数据库路径用 `sqflite` 自带的 `getDatabasesPath()` + `path` 包 `join()`，**不依赖 `path_provider`**（本插件已用 `sqflite` + `path_provider`，鸿蒙下 `path_provider` 需替换为 `path_provider_harmonyos` 或用 `getDatabasesPath()` 直接替代）。
+  - 踩坑：路径拼接必须用 `path` 包 `join`，禁止字符串 `+ '/'`。
+- 对本插件影响：数据库查看器（基于 `sqflite`）**可在鸿蒙复用**，但 `pubspec.yaml` 依赖需处理：
+  - `path_provider` → 鸿蒙下用 `path_provider_harmonyos`（或条件依赖 / `dependency_overrides`）；
+  - `sqflite` 当前 `^2.4.0`（调研推荐 2.3.x 稳定；2.4.0 在鸿蒙应可用，需在真机/模拟器实测确认）。
+  Impact: the database viewer (based on `sqflite`) **can be reused on OHOS**, but `pubspec.yaml` deps need handling: `path_provider` → `path_provider_harmonyos` on OHOS (or conditional dep / `dependency_overrides`). Current `sqflite: ^2.4.0` likely works on OHOS — verify on device/simulator.
+
+### 需要补齐的清单 / Checklist of what to add
+
+#### 高优先级 / High priority
+
+- [ ] **新增 `ohos/` 原生目录与 ArkTS 插件实现 / Add `ohos/` native dir + ArkTS plugin**
+  - 参考：`ohos/` 下实现 `ZeroInspectorKitPlugin.ets`，`implements FlutterPlugin, MethodCallHandler`，注册 MethodChannel `zero_inspector_kit`。
+  - 安卓 `ZeroInspectorKitPlugin.kt` / iOS `ZeroInspectorKitPlugin.swift` 不动。
+- [ ] **新增 `ZeroInspectorKitOhos` 平台实现类 / Add `ZeroInspectorKitOhos` platform impl**
+  - 在 `lib/zero_inspector_kit_platform_interface.dart` 注册；barrel 按 `TargetPlatform.ohos` 分流。
+- [ ] **`pubspec.yaml` 约束对齐 / Align `pubspec.yaml` constraints**
+  - `environment: dart` 当前 `>=3.11.0`，但鸿蒙 Dart 是 3.9.2 → **不满足**。需改为条件约束或 `>=3.9.2 <4.0.0`（注意：改低会放宽官方约束，需评估；或用 `dependency_overrides` 临时解决）。
+  - `flutter: ">=3.3.0"` 满足（鸿蒙 3.35.8 ≥ 3.3.0）。
+  - `path_provider` 增加鸿蒙条件依赖 `path_provider_harmonyos`。
+- [ ] **验证 `runAppWithInspector` 在鸿蒙的 `HttpOverrides.runZoned` 覆盖 / Verify `HttpOverrides.runZoned` coverage on OHOS**
+  - 确保入口 Zone 覆盖完整，HTTPS + 流式响应在鸿蒙实测通过。
+
+#### 中优先级 / Medium priority
+
+- [ ] **Memory / FPS 监控在鸿蒙的可用性 / Memory & FPS monitoring on OHOS**
+  - `addTimingsCallback`（FPS）与 VM Service（内存）在鸿蒙 Engine 是否保留需实测（FPS 大概率可用；VM Service 取决于鸿蒙 Debug 模式支持）。
+- [ ] **`docs/Installation.md` 增加鸿蒙段落 / Add OHOS section to `docs/Installation.md`**
+  - 说明需使用 fvm 的鸿蒙 Flutter 分支编译 `.hap`，不走 pub.dev。
+- [ ] **CI 与发布策略 / CI & publish strategy**
+  - 鸿蒙包不走 pub.dev（走华为/OpenHarmony 私仓或单独发布），CI 需排除 `ohos/` 对官方 `flutter analyze` 的干扰（或加 `if (ohos)` 隔离）。
+
+#### 低优先级 / Low priority
+
+- [ ] **`release` 模式的 tree-shake 剔除在鸿蒙是否生效 / Verify release tree-shake on OHOS**
+  - 确认 `kReleaseMode` 在鸿蒙下表现，保证 Inspector 在 release 构建被剔除。
+
+### 下一步 / Next steps
+
+- 当前仅完成调研与清单沉淀，**未改动任何业务代码**（安卓/iOS 保持稳定）。
+  Only research and this checklist so far — **no business code changed** (Android/iOS stay stable).
+- 建议先在一个最小 demo 验证「MethodChannel + HttpOverrides 在鸿蒙跑通」，再回头铺开本插件全功能。
+  Recommend validating a minimal demo ("MethodChannel + HttpOverrides on OHOS") before fully porting this plugin.
