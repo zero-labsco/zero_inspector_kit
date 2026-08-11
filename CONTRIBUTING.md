@@ -159,13 +159,13 @@ Name test files `<source_file>_test.dart` and place them under `test/` mirroring
 ## Pull Request Process
 
 1. **Update CHANGELOG.md** under an `## [Unreleased]` section (or create one if missing). Describe what changed and why.
-2. **Update documentation** if your change affects public API or user-facing behavior (README.md, README_zh.md, wiki/).
+2. **Update documentation** if your change affects public API or user-facing behavior (README.md, README_zh.md, docs/).
 3. **Bilingual comments** must be added for any new code.
 4. **CI must pass** — the CI workflow runs format check, analyze, and tests on every PR.
 5. **Keep PRs focused** — one feature/fix per PR makes review faster.
 6. **Link related issues** in the PR description (e.g., `Closes #123`).
 
-> PR 流程:1) 在 CHANGELOG.md 的 `## [Unreleased]` 节更新变更说明;2) 若影响公开 API 或用户行为,同步更新 README/wiki;3) 新代码必须加双语注释;4) CI 必须通过;5) 一个 PR 只做一件事,便于审查;6) 在 PR 描述中关联相关 Issue(如 `Closes #123`)。
+> PR 流程:1) 在 CHANGELOG.md 的 `## [Unreleased]` 节更新变更说明;2) 若影响公开 API 或用户行为,同步更新 README/docs;3) 新代码必须加双语注释;4) CI 必须通过;5) 一个 PR 只做一件事,便于审查;6) 在 PR 描述中关联相关 Issue(如 `Closes #123`)。
 
 ### PR Title Convention
 

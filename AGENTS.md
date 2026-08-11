@@ -87,7 +87,7 @@ Notes / 说明:
 - `dart-format-fix.yml`: on PR `opened`/`synchronize`/`reopened` (and `workflow_dispatch` manual trigger), runs `dart format .` and, if it changed anything, auto-commits and pushes the fix back to the **same PR branch** as `github-actions[bot]`. Keeps style consistent without reviewer nudging. Note: uses `pull_request` (not `pull_request_target`) with `permissions: contents: write`; if branch protection blocks workflow pushes or requires signed commits, switch it to open a fix branch / post a comment instead.
 - `link-check.yml`: on PR changes to `README.md`, `README_zh.md`, `CHANGELOG.md`, `docs/**` (and `workflow_dispatch` manual trigger), runs `lychee-action@v2` to scan those docs for dead/broken links and fails only on real broken links (mailto and common redirects/rate-limits are excluded). Use the Actions tab manual run to scan the default branch on demand.
 - `pr-title-check.yml` details: allowed types are `feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert`; `requireScope` is `false`; PRs labeled `dependencies` or `github-actions` are ignored. The same type list applies to commit messages (Conventional Commits).
-- `paths-ignore` skips pure assets/non-package files (images `**.png`/`**.jpg`/`**gif`/`**webp`/`**svg`/`**ico`, `**.txt`, `**.gitignore`, `LICENSE`, example build artifacts, etc.) but it MUST NOT blanket-ignore all `**.md` or `docs/**`. `README*.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `TODO.md`, `wiki/**`, `docs/**` are intentionally **kept OUT of `paths-ignore`** so docs-only PRs still trigger the `ci.yml` workflow — otherwise the entire workflow would be skipped and the branch-protection required checks would never appear (yellow), blocking merge.
+- `paths-ignore` skips pure assets/non-package files (images `**.png`/`**.jpg`/`**gif`/`**webp`/`**svg`/`**ico`, `**.txt`, `**.gitignore`, `LICENSE`, example build artifacts, etc.) but it MUST NOT blanket-ignore all `**.md` or `docs/**`. `README*.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `TODO.md`, `docs/**` are intentionally **kept OUT of `paths-ignore`** so docs-only PRs still trigger the `ci.yml` workflow — otherwise the entire workflow would be skipped and the branch-protection required checks would never appear (yellow), blocking merge.
 - Whether a triggered run actually executes the heavy jobs is decided by the `path-filter` job's `code` output:
   - The `code` list contains **only code paths** (`lib/**`, `pubspec.yaml`, `pubspec.lock`, `analysis_options.yaml`, `test/**`, `example/lib/**`, `example/pubspec.yaml`, `example/pubspec.lock`, `example/analysis_options.yaml`, `.github/workflows/ci.yml`).
   - A **docs/asset-only PR** (any `*.md` / `*.yml` / `*.txt` / `docs/**` / images / `LICENSE`) matches no entry in the `code` list → `code=false` → `Analyze & Test` and `Pana Score Check` **skip green** (pana NOT run), satisfying branch protection so the PR can merge.
@@ -104,8 +104,9 @@ Notes / 说明:
      - [ ] the `^X.Y.Z` dependency constraint in the install snippet
      - [ ] the `` `X.Y.Z` `` placeholder in "install from GitHub" (replace `X.Y.Z` with the version you need)
      - [ ] the `ref: vX.Y.Z` in the GitHub install git block
-     - NOTE: historical prose like "on top of vX.(Y-1)'s ..." refers to the PREVIOUS version and must NOT be bumped — only literal version references above change.
-   - [ ] `README_zh.md`: same three spots as `README.md` (`^X.Y.Z`, `` `X.Y.Z` `` placeholder, `ref: vX.Y.Z`). Historical prose stays.
+     - [ ] the "🔔 Upgrade recommended" callout — the leading version token `vX.Y.Z` that anchors the current release's summary MUST be bumped to the new version (e.g. `v1.3.4 cleans up ...`); also update its trailing "upgrade to `^X.Y.Z`" advice.
+     - NOTE: historical prose like "on top of vX.(Y-1)'s ..." refers to the PREVIOUS version and must NOT be bumped — only literal version references above change. The leading version in the upgrade callout is NOT historical prose; it describes the new release and must be bumped.
+   - [ ] `README_zh.md`: same spots as `README.md` (`^X.Y.Z`, `` `X.Y.Z` `` placeholder, `ref: vX.Y.Z`, and the leading `vX.Y.Z` in the "🔔 推荐升级：" callout). Historical prose stays.
    - [ ] `docs/Installation.md`: the `^X.Y.Z` dependency constraint.
    - [ ] `CHANGELOG.md`: add a new `## X.Y.Z` section at the top describing the changes.
    - Grep sanity check before committing: `grep -rn "old_version" README.md README_zh.md docs/Installation.md` must return NOTHING (only legitimate historical prose may remain).
@@ -127,12 +128,12 @@ Notes / 说明:
 - **Checked-in file ignored by `.gitignore`** — Pub flags any file that is BOTH in the git index AND matched by `.gitignore` (error message points at e.g. `.codebuddy/skills/zero-inspector-kit/SKILL.md`). Fix: do NOT try to solve this with `.pubignore` (pub's "checked-in but ignored" check ignores `.pubignore`); instead **untrack** the path so it is no longer "checked in":
   `git rm -r --cached .codebuddy` (file stays on disk, remains gitignored, no longer in the index). Keep `.codebuddy/` ignored in `.gitignore` — it is personal IDE data.
 - **Top-level `docs/` directory (plural name)** — Pub warns that plural top-level dirs aren't recognized by its layout convention and suggests renaming to `doc/`. Do NOT rename: `docs/` is the GitHub Pages site (served from `docs/github-pages`), renaming breaks the Pages workflow. Fix: exclude it from the package via `.pubignore` (`docs/`).
-- **`.pubignore` usage** — Add a `.pubignore` at repo root to keep repo-internal content out of the published tarball. Recommended entries: `docs/`, `.codebuddy/`, `wiki/`, `AGENTS.md`, `CONTRIBUTING.md`, `TODO.md`. `.pubignore` is respected by `dart pub publish` but does NOT silence the "checked-in but gitignored" conflict above.
+- **`.pubignore` usage** — Add a `.pubignore` at repo root to keep repo-internal content out of the published tarball. Recommended entries: `docs/`, `.codebuddy/`, `AGENTS.md`, `CONTRIBUTING.md`, `TODO.md`. `.pubignore` is respected by `dart pub publish` but does NOT silence the "checked-in but gitignored" conflict above.
 
 When re-tagging after a fix, force-update both the `vX.Y.Z` tag and the `release/vX.Y.Z` archive branch to the new commit so the publish job runs against the corrected tree.
 
 ### Documentation site (GitHub Pages)
-- Source content lives in `docs/` (migrated from `wiki/` via `git mv wiki docs`).
+- Source content lives in `docs/`. The legacy `wiki/` directory was removed; `docs/` is now the single source of truth.
 - Publishing branch: `docs/github-pages`; GitHub Pages serves the `/docs` folder of that branch.
 - Live site: https://zero-labsco.github.io/zero_inspector_kit/
 - To update docs: edit `docs/` on `docs/github-pages`, commit, push; Pages redeploys automatically.
