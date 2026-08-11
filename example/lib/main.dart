@@ -52,8 +52,20 @@ class _HomePageState extends State<HomePage>
   void initState() {
     super.initState();
 
+    _verifyOhosPlugin();
     _setupLoggerIntegration();
     _initTestDatabase();
+  }
+
+  /// 验证 ohos 原生插件是否被正确打包并调用 / Verify the ohos native plugin is bundled and invoked
+  Future<void> _verifyOhosPlugin() async {
+    try {
+      final version = await ZeroInspectorKitPlatform.instance
+          .getPlatformVersion();
+      print('[ZeroInspectorKit] getPlatformVersion => $version');
+    } catch (e) {
+      print('[ZeroInspectorKit] getPlatformVersion failed: $e');
+    }
   }
 
   /// 设置 Logger 日志库集成 / Set up Logger log library integration

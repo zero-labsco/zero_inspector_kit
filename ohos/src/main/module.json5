@@ -1,0 +1,9 @@
+{
+  "module": {
+    "name": "zero_inspector_kit",
+    "type": "har",
+    "deviceTypes": [
+      "default"
+    ]
+  }
+}

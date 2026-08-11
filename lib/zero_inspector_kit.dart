@@ -22,10 +22,12 @@ export 'src/utils/inspector_log.dart';
 export 'src/utils/memory_leak_tracking.dart';
 
 export 'zero_inspector_kit_platform_interface.dart';
+export 'zero_inspector_kit_ohos.dart';
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'zero_inspector_kit_platform_interface.dart';
 import 'src/interceptors/log_interceptor.dart';
 import 'src/interceptors/http_interceptor.dart';
 import 'src/interceptors/route_observer.dart';
@@ -83,6 +85,14 @@ class ZeroInspectorKit {
   }) {
     if (_initialized) return;
     _initialized = true;
+
+    // 按运行平台注册对应的平台实现（ohos 走 ZeroInspectorKitOhos，
+    // 安卓/iOS 保持 MethodChannelZeroInspectorKit）。必须早于任何
+    // `ZeroInspectorKitPlatform.instance` 的首次访问。
+    // Register the platform implementation for the running platform (ohos ->
+    // ZeroInspectorKitOhos, Android/iOS stay MethodChannelZeroInspectorKit).
+    // Must run before the first `ZeroInspectorKitPlatform.instance` access.
+    ZeroInspectorKitPlatform.ensurePlatformImplementation();
 
     if (!enable) return;
 

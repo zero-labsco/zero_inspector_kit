@@ -3,7 +3,7 @@ description: "Demonstrates how to use the zero_inspector_kit plugin."
 publish_to: 'none'
 
 environment:
-  sdk: '>=3.11.0 <4.0.0'
+  sdk: '>=3.9.2 <4.0.0'
 
 dependencies:
   flutter:
