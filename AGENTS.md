@@ -97,6 +97,18 @@ Notes / 说明:
 
 ### Release and publish
 1. Bump `version` in `pubspec.yaml` (semver; major bump for breaking public API).
+   **Mandatory version-bump checklist — every one of these MUST be updated to the new version `X.Y.Z` (and the old version string removed). Missing any of them is a recurring, real mistake — verify each explicitly, do not assume a previous pass covered them:**
+   - [ ] `pubspec.yaml` → `version: X.Y.Z`
+   - [ ] `ios/zero_inspector_kit.podspec` → `s.version = 'X.Y.Z'` (this file is often stale; always check it)
+   - [ ] `README.md`:
+     - [ ] the `^X.Y.Z` dependency constraint in the install snippet
+     - [ ] the `` `X.Y.Z` `` placeholder in "install from GitHub" (replace `X.Y.Z` with the version you need)
+     - [ ] the `ref: vX.Y.Z` in the GitHub install git block
+     - NOTE: historical prose like "on top of vX.(Y-1)'s ..." refers to the PREVIOUS version and must NOT be bumped — only literal version references above change.
+   - [ ] `README_zh.md`: same three spots as `README.md` (`^X.Y.Z`, `` `X.Y.Z` `` placeholder, `ref: vX.Y.Z`). Historical prose stays.
+   - [ ] `docs/Installation.md`: the `^X.Y.Z` dependency constraint.
+   - [ ] `CHANGELOG.md`: add a new `## X.Y.Z` section at the top describing the changes.
+   - Grep sanity check before committing: `grep -rn "old_version" README.md README_zh.md docs/Installation.md` must return NOTHING (only legitimate historical prose may remain).
 2. Update `README.md` / `CHANGELOG.md` as needed.
 3. Locally verify before pushing:
    - `flutter analyze` — must pass with no errors.
@@ -135,4 +147,4 @@ When re-tagging after a fix, force-update both the `vX.Y.Z` tag and the `release
 - [ ] Use a typed branch (`feat/...`) and a Conventional Commits PR title.
 - [ ] Ensure the 3 required status checks pass before requesting review/merge.
 - [ ] For user-facing changes, update `README.md` and the `docs/` site.
-- [ ] For releases, bump `version`, update changelog, tag `vX.Y.Z` (triggers publish), and optionally push a `release/vX.Y.Z` archive branch via explicit refspec.
+- [ ] For releases, bump `version` AND follow the **Mandatory version-bump checklist** under "Release and publish" above (pubspec, iOS podspec, README.md, README_zh.md, docs/Installation.md, CHANGELOG.md — grep for the old version string to confirm nothing is left). Tag `vX.Y.Z` (triggers publish), and optionally push a `release/vX.Y.Z` archive branch via explicit refspec.
