@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.4
+
+> **🧹 元数据与文档清理 / Metadata & docs cleanup：** 本版本补充了 `pubspec.yaml` 的 `documentation` 字段，移除了与 `docs/` 完全镜像的遗留 `wiki/` 目录（统一文档单一信息源），并启用了更严格的 `analysis_options.yaml` 规则（已修复因此暴露的 5 处代码问题）。公共 API 不变。
+> This release adds the `documentation` field to `pubspec.yaml`, removes the legacy `wiki/` directory (a mirror of `docs/`, now the single source of truth), and enables stricter `analysis_options.yaml` rules (5 latent code issues fixed as a result). Public API unchanged.
+
+- 元数据 / Metadata
+  - `pubspec.yaml` 新增 `documentation` 字段，指向 GitHub Pages 文档站，提升 pub.dev 评分
+  - Added `documentation` field to `pubspec.yaml` pointing to the GitHub Pages site for a better pub.dev score
+- 文档 / Docs
+  - 删除与 `docs/` 内容完全重复的遗留 `wiki/` 目录，并清理 `.github/workflows/ci.yml`、`AGENTS.md`、`CONTRIBUTING.md` 中对 `wiki/**` 的残留引用；`docs/` 成为唯一文档源
+  - Removed the legacy `wiki/` directory (a duplicate of `docs/`) and cleaned up `wiki/**` references in `ci.yml`, `AGENTS.md`, `CONTRIBUTING.md`; `docs/` is now the single source of truth
+- 代码质量 / Code quality
+  - `analysis_options.yaml` 启用 13 条安全 lint 规则（如 `prefer_single_quotes`、`unawaited_futures`），并修复 5 处因此触发的 info 级问题，现 `flutter analyze` 零问题
+  - `analysis_options.yaml` enables 13 safe lint rules (e.g. `prefer_single_quotes`, `unawaited_futures`); 5 resulting info-level issues fixed, `flutter analyze` is now clean
+
 ## 1.3.3
 
 > **🛡️ 网络拦截健壮性 / Network interception robustness：** 本版本加固了网络拦截，避免并发请求 ID 碰撞、大请求体导致 OOM，以及二进制 / 非 UTF-8 响应体解析异常。公共 API 不变。

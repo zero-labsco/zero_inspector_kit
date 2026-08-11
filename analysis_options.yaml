@@ -2,3 +2,21 @@ include: package:flutter_lints/flutter.yaml
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+
+linter:
+  rules:
+    # Consistent style / readability — only rules that don't require large-scale
+    # refactors of the existing code base.
+    - always_declare_return_types
+    - annotate_overrides
+    - avoid_empty_else
+    - avoid_relative_lib_imports
+    - avoid_returning_this
+    - avoid_types_on_closure_parameters
+    - curly_braces_in_flow_control_structures
+    - prefer_single_quotes
+    - require_trailing_commas
+    - unawaited_futures
+    - use_key_in_widget_constructors
+    - use_rethrow_when_possible
+    - void_checks

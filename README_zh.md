@@ -11,7 +11,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.3.3 在 v1.3.2 修复网络请求耗时提前计算的基础上，进一步强化了网络拦截的健壮性 —— 采用加密级请求 ID 生成（并发请求下不碰撞）、对请求/响应体设置 512 KB 上限以避免大文件上传时 OOM、并安全处理二进制 / 非 UTF-8 内容。建议所有用户升级到 `^1.3.3`。
+> **🔔 推荐升级：** v1.3.4 进行了元数据与文档清理 —— 为 `pubspec.yaml` 新增 `documentation` 字段、移除与 `docs/` 重复的遗留 `wiki/` 目录（统一为单一文档源）、并启用更严格的 `analysis_options.yaml` lint 规则（修复了 5 处潜在问题）—— 在 v1.3.3 强化的网络拦截、v1.3.2 修复网络请求耗时、v1.3.1 按来源告警节流、以及 v1.3.0 网络批量操作、导出敏感字段脱敏、一键复制 cURL、带未读角标的告警系统之上。建议所有用户升级到 `^1.3.4`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
@@ -40,19 +40,19 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.3.3
+  zero_inspector_kit: ^1.3.4
 ```
 
 ### GitHub
 
-或者，你也可以从 GitHub 安装（将 `1.3.3` 替换为你需要的版本号）：
+或者，你也可以从 GitHub 安装（将 `1.3.4` 替换为你需要的版本号）：
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: v1.3.3
+      ref: v1.3.4
 ```
 
 ## 使用方法

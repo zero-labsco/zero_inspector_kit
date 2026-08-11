@@ -8,7 +8,7 @@ on:
     # 注意：README*.md / CHANGELOG.md / docs/** 等用户态文档「不」在此忽略——否则纯文档 PR
     # 会让 ci.yml 整条 workflow 被跳过，导致分支保护的 required checks 永远不出现、PR 无法合并。
     # 纯文档改动仍会触发 ci.yml，但被 path-filter 判定为 code=false，重 job 绿色跳过。
-    # NOTE: user-facing docs (README*.md / CHANGELOG.md / docs/** / wiki/**, plus any other
+    # NOTE: user-facing docs (README*.md / CHANGELOG.md / docs/**, plus any other
     # `**.md`) are intentionally NOT ignored. Ignoring them would skip the entire ci.yml
     # workflow for docs-only PRs, leaving the branch-protection required checks permanently
     # pending and blocking merge. Docs-only PRs still trigger ci.yml but the heavy jobs
@@ -18,17 +18,11 @@ on:
       # Convention/agent docs (AGENTS.md, .codebuddy/**) are intentionally NOT ignored
       # so docs-only PRs still run CI and satisfy branch protection's required checks.
       # 注意：以下文档类项刻意不在此忽略（否则纯文档 PR 会让整条 workflow 跳过、required checks 黄色卡死）：
-      #   README*.md / CHANGELOG.md / docs/** / wiki/** / CONTRIBUTING.md / TODO.md / 任意其他 **.md
+      #   README*.md / CHANGELOG.md / docs/** / CONTRIBUTING.md / TODO.md / 任意其他 **.md
       # 它们不是 code 路径，但作为文档 PR 要让 workflow 触发（code=false → 绿色跳过）。
       # NOTE: the following doc-like paths are intentionally NOT ignored (same reason as above):
-      #   README*.md / CHANGELOG.md / docs/** / wiki/** / CONTRIBUTING.md / TODO.md / any other **.md
+      #   README*.md / CHANGELOG.md / docs/** / CONTRIBUTING.md / TODO.md / any other **.md
       # They are not in the code path-filter, so docs-only PRs still trigger ci.yml but skip heavy jobs green.
-      # 注意：wiki/** 刻意不在此忽略。wiki 是遗留目录但仍有更新 PR；忽略它会导致纯 wiki 改动跳过整
-      # 条 workflow，使 required checks 永远不出现、PR 无法合并。纯 wiki 改动会触发 workflow，但
-      # path-filter 中无 wiki 路径 → code=false → 两个重 job 绿色跳过。
-      # NOTE: wiki/** is intentionally NOT ignored. It is a legacy directory but still receives update PRs;
-      # ignoring it would skip the entire workflow for wiki-only changes, leaving required checks pending.
-      # Wiki-only PRs still trigger the workflow, but path-filter has no wiki paths → code=false → heavy jobs skip green.
       # 精细化忽略 GitHub 配置，但保留 workflows/ 目录的 CI 触发（Dependabot 改 action 版本需要跑 CI）
       # Finer-grained GitHub ignores — workflows MUST trigger CI (Dependabot action updates need CI)
       - '.github/ISSUE_TEMPLATE/**'     # Issue/PR templates
@@ -55,22 +49,16 @@ on:
     branches: [main, 'v*.*.*']
     # Apply same ignore rules for PRs
     # 对 PR 应用相同的忽略规则
-    # 注意：README*.md / CHANGELOG.md / docs/** / wiki/** / CONTRIBUTING.md / TODO.md / 任意其他 **.md
+    # 注意：README*.md / CHANGELOG.md / docs/** / CONTRIBUTING.md / TODO.md / 任意其他 **.md
     # 不在忽略列表（见 push 段说明），确保纯文档 PR 也能触发 ci.yml，required checks 不会黄色卡死。
-    # NOTE: README*.md / CHANGELOG.md / docs/** / wiki/** / CONTRIBUTING.md / TODO.md / any other **.md
+    # NOTE: README*.md / CHANGELOG.md / docs/** / CONTRIBUTING.md / TODO.md / any other **.md
     # are NOT ignored (see push block) so docs-only PRs still trigger ci.yml.
     paths-ignore:
       # Convention/agent docs (AGENTS.md, .codebuddy/**) are intentionally NOT ignored
       # so docs-only PRs still run CI and satisfy branch protection's required checks.
       # 注意：以下文档类项刻意不在此忽略（原因见 push 段）：README*.md / CHANGELOG.md / docs/** /
-      # wiki/** / CONTRIBUTING.md / TODO.md / 任意其他 **.md —— 它们不是 code 路径，但会让 workflow
+      # CONTRIBUTING.md / TODO.md / 任意其他 **.md —— 它们不是 code 路径，但会让 workflow
       # 触发（code=false → 绿色跳过），避免纯文档 PR 的 required checks 黄色卡死。
-      # 注意：wiki/** 刻意不在此忽略。wiki 是遗留目录但仍有更新 PR；忽略它会导致纯 wiki 改动跳过整
-      # 条 workflow，使 required checks 永远不出现、PR 无法合并。纯 wiki 改动会触发 workflow，但
-      # path-filter 中无 wiki 路径 → code=false → 两个重 job 绿色跳过。
-      # NOTE: wiki/** is intentionally NOT ignored. It is a legacy directory but still receives update PRs;
-      # ignoring it would skip the entire workflow for wiki-only changes, leaving required checks pending.
-      # Wiki-only PRs still trigger the workflow, but path-filter has no wiki paths → code=false → heavy jobs skip green.
       # 精细化忽略 GitHub 配置，但保留 workflows/ 目录的 CI 触发
       # Finer-grained GitHub ignores — workflows MUST trigger CI
       - '.github/ISSUE_TEMPLATE/**'

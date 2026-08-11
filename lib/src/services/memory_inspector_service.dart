@@ -445,7 +445,7 @@ class MemoryInspectorService extends ChangeNotifier {
 
     // 异步触发 VM Service 连接，不阻塞其他功能
     // Async trigger VM Service connection, does not block other features
-    _ensureVmServiceInitialized();
+    unawaited(_ensureVmServiceInitialized());
 
     notifyListeners();
   }

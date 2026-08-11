@@ -87,6 +87,7 @@ class ExportService {
   String toCurl(NetworkRequest r, {bool maskSensitive = false}) {
     final buf = StringBuffer()..write('curl -X ${r.method} ');
     // URL（含单引号时转义）/ URL (escape single quotes)
+    // ignore: prefer_single_quotes — 这里需要双引号以便把单引号转义为 %27
     final url = r.url.replaceAll("'", "%27");
     buf.writeln("'$url' \\");
     for (final e in (r.headers ?? {}).entries) {
