@@ -41,12 +41,12 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.3.2
+  zero_inspector_kit: ^1.3.3
 ```
 
 ### GitHub
 
-Alternatively, you can install from GitHub (replace `1.3.2` with the version you need):
+Alternatively, you can install from GitHub (replace `1.3.3` with the version you need):
 
 ```yaml
 dependencies:
