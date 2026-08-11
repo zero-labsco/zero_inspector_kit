@@ -183,6 +183,12 @@ jobs:
       - name: Check plugin formatting
         run: dart format --set-exit-if-changed lib/
 
+      # 仅分析 lib/：官方稳定 Flutter 不编译 ohos/ 原生目录，也不识别
+      # TargetPlatform.ohos；OHOS 专属 Dart 代码用运行时 toString().contains('ohos')
+      # 判断，故官方 analyze 不会因 ohos 平台报错。鸿蒙真机验证在定制 Flutter 下单独进行。
+      # Analyze lib/ only: official stable Flutter neither compiles the ohos/ native
+      # dir nor knows TargetPlatform.ohos; OHOS-specific Dart uses a runtime
+      # toString().contains('ohos') check, so official analyze won't fail on it.
       - name: Run static analysis on plugin
         run: flutter analyze lib/
 
