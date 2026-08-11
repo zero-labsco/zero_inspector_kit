@@ -65,6 +65,14 @@
   - `flutter analyze` 0 issues，`dart format` 通过。核心能力仍纯 Dart 跨平台共用，鸿蒙专属分支预留在 ohos 实现类内。
 - [x] **`pubspec.yaml` 平台声明 / `pubspec.yaml` platform declaration** ✅ (2026-08-12)
   - `flutter.plugin.platforms` 已加 `ohos`（package `zero_inspector_kit`, pluginClass `ZeroInspectorKitPlugin`），插件已被识别并打包进 HAP。
+- [x] **`ohos` 原生方法对标安卓/iOS / `ohos` native methods parity with Android/iOS** ✅ (2026-08-12)
+  - `ohos/.../ZeroInspectorKitPlugin.ets` 补齐中英双语注释（原仅一行占位），并与 kt/swift 对齐 MethodChannel 契约：实现 `getPlatformVersion` / `getNativeLogs` / `startNativeLogListener` / `stopNativeLogListener` / `getProcessMemoryInfo`。
+  - `getProcessMemoryInfo` 返回与 iOS 一致的字段结构（含 `rss`/`totalPss`/`totalMem`/`availMem`/`lowMemory` 等），鸿蒙具体取值暂以 0 填充占位，避免 Dart 侧解析异常。Dart 侧 `PlatformChannel` 早已定义这 4 个方法，此前 `.ets` 缺实现会导致 `notImplemented`/null，现已对齐。
+- [x] **`ohos` 接入真实内存与日志取值 / `ohos` real memory & log values** ✅ (2026-08-12, 代码已接入)
+  - **内存（真实）**：`getProcessMemoryInfo` 同步读取应用自身 `/proc/self/status`（普通应用可读），正则解析 `VmRSS:`（真实进程常驻内存，字节）填入 `rss`/`totalRss`，`VmSwap:` 填入 `totalSwapPss`；其余安卓分项（PSS 等）OpenHarmony 无等价 API → 填 0 + `notAvailable: true`；设备级 `totalMem`/`availMem` 无公开 API → 0 + `notAvailable: true`。
+  - **日志（真实但非全量）**：OpenHarmony **无** logcat 等价读取 API（hilog 仅写、不可读系统日志流），但可通过 `@ohos.hiviewdfx.hiAppEvent` 的 `addWatcher` **真实订阅应用级崩溃/卡死事件**（`hiAppEvent.event.APP_CRASH` / `APP_FREEZE`）。已落地 **B 方案**：`startNativeLogListener` 开启订阅（幂等）、`onReceive` 把事件 JSON 序列化进 `appEvents` 缓存、`getNativeLogs` 回放缓存（截断到 `limit` 条，保持 `List<String>` 契约）、`stopNativeLogListener` 取消订阅并清空。需在 `module.json5` 声明 `ohos.permission.APP_TRACKING_CONSENT` 权限（reason 用字面量，免资源引用）。注意：这是"应用级异常事件"而非全量 stdout 日志——与 iOS 用 `dup2` 抓 stdout/stderr 的真实全量日志**能力不同**；iOS 早已真实接好，无需改动。
+  - 已对照 `@ohos.file.fs.readTextSync` / `@ohos.hilog` + `%{public}s` / `@ohos.hiviewdfx.hiAppEvent.addWatcher`/`removeWatcher` 公开契约编写；`flutter analyze lib` 无回归。
+  - ⚠️ **验证限制**：完整 `flutter build hap` 需在鸿蒙定制 Flutter `custom_3.35.8-ohos-1.0.1` 下编译，该 SDK 本会话已不可用（fvm versions 为空），故未做端到端增量编译验证，需你下次用定制 Flutter 重跑 `flutter build hap` 确认 `.ets` 编译通过。
 - [ ] **`pubspec.yaml` 依赖约束对齐 / Align `pubspec.yaml` dependency constraints**
   - `environment: dart` 当前 `>=3.11.0`，但鸿蒙 Dart 是 3.9.2 → **不满足**。需条件约束或 `>=3.9.2 <4.0.0`（评估放宽影响），或 `dependency_overrides` 临时解。
   - `flutter: ">=3.3.0"` 满足（鸿蒙 3.35.8 ≥ 3.3.0）。
@@ -90,5 +98,5 @@
 
 - 已完成：调研 + `ohos/` 原生骨架 + `pubspec.yaml` 平台声明 + 示例 `flutter build hap` 跑通（unsigned HAP）+ `flutter analyze`/`dart format` 通过。安卓/iOS 业务代码保持未动。
   Done: research + `ohos/` native skeleton + `pubspec.yaml` platform declaration + example `flutter build hap` (unsigned HAP) + `flutter analyze`/`dart format` green. Android/iOS business code untouched.
-- 待办：补 `ZeroInspectorKitOhos` Dart 分流类、`path_provider` 鸿蒙依赖、dart 约束对齐；并在真机实测网络拦截/数据库/内存FPS/HTTPS 流式。
-  Todo: add `ZeroInspectorKitOhos` Dart branch class, `path_provider` OHOS dep, dart constraint alignment; verify network/db/memory/FPS/HTTPS-streaming on real device.
+- 待办：`path_provider` 鸿蒙依赖、dart 约束对齐；鸿蒙 `getProcessMemoryInfo`/`getNativeLogs` 具体取值接入；并在真机实测网络拦截/数据库/内存FPS/HTTPS 流式。
+  Todo: wire `path_provider` OHOS dep, dart constraint alignment; fill in real values for ohos `getProcessMemoryInfo`/`getNativeLogs`; verify network/db/memory/FPS/HTTPS-streaming on real device.

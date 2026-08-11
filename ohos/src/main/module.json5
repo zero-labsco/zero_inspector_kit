@@ -4,6 +4,18 @@
     "type": "har",
     "deviceTypes": [
       "default"
+    ],
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.APP_TRACKING_CONSENT",
+        "reason": "$string:app_tracking_reason",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
+      }
     ]
   }
 }

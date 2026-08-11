@@ -1,0 +1,8 @@
+{
+  "string": [
+    {
+      "name": "app_tracking_reason",
+      "value": "ZeroInspectorKit needs to subscribe to app crash and freeze events to display native-level exception logs in the developer inspector"
+    }
+  ]
+}
