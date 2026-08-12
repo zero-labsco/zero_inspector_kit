@@ -9,9 +9,11 @@ import 'memory_viewer.dart';
 import 'route_viewer.dart';
 import 'fps_viewer.dart';
 import 'alerts_viewer.dart';
+import 'widget_tree_viewer.dart';
 
 /// 检查器面板 / Inspector panel
-/// 包含网络、日志、数据库、内存、FPS、路由六个查看器 / Contains six viewers: network, logs, database, memory, FPS, routes
+/// 包含网络、日志、数据库、内存、FPS、路由、告警、Widget 八个查看器
+/// Contains eight viewers: network, logs, database, memory, FPS, routes, alerts, widgets
 class InspectorPanel extends StatefulWidget {
   /// 关闭面板回调 / Close panel callback
   final VoidCallback onClose;
@@ -40,6 +42,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     FpsViewer(key: ValueKey('fps')),
     RouteViewer(key: ValueKey('routes')),
     AlertsViewer(key: ValueKey('alerts')),
+    WidgetTreeInspector(key: ValueKey('widgets')),
   ];
 
   /// 标签页标题 / Tab titles
@@ -51,6 +54,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     'FPS',
     'Routes',
     'Alerts',
+    'Widgets',
   ];
 
   /// 标签页图标 / Tab icons
@@ -62,6 +66,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     Icons.speed_rounded,
     Icons.route_rounded,
     Icons.notifications_active_rounded,
+    Icons.visibility_rounded,
   ];
 
   @override

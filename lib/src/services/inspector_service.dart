@@ -41,6 +41,11 @@ class InspectorService extends ChangeNotifier {
   /// 拦截总开关 / Interceptor master switch
   bool _interceptorEnabled = false;
 
+  /// 网络瀑布图（Timeline）默认开启偏好 / Network timeline default-on preference
+  /// 由 [ZeroInspectorKit.init] 预置，供 NetworkViewer 初始化总开关。
+  /// Seeded by init(); read by NetworkViewer to pre-set its master switch.
+  bool preferNetworkTimeline = false;
+
   /// 各类数据容量上限（可经 [configure] 调整）/ Per-category capacities (tunable via [configure])
   int _maxNetworkItems = 100;
   int _maxLogItems = 500;

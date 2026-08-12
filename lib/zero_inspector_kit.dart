@@ -8,6 +8,9 @@ export 'src/services/inspector_service.dart';
 export 'src/services/database_service.dart';
 export 'src/services/sqlite_provider.dart';
 export 'src/services/database_provider.dart';
+export 'src/services/shared_prefs_provider.dart';
+export 'src/services/hive_provider.dart';
+export 'src/services/widget_tree_service.dart';
 export 'src/services/fps_service.dart';
 export 'src/services/export_service.dart';
 export 'src/ui/inspector_panel.dart';
@@ -35,6 +38,9 @@ import 'src/models/log_entry.dart';
 import 'src/services/database_provider.dart';
 import 'src/services/sqlite_provider.dart';
 import 'src/services/inspector_service.dart';
+import 'src/services/shared_prefs_provider.dart';
+import 'src/services/hive_provider.dart';
+import 'src/services/widget_tree_service.dart';
 
 /// ZeroInspectorKit 插件入口类 / ZeroInspectorKit plugin entry class
 /// 提供一键初始化和应用包装功能，实现零侵入集成 / Provides one-click initialization and app wrapping for zero-invasion integration
@@ -74,6 +80,8 @@ class ZeroInspectorKit {
     bool enableNetworkCapture = true,
     bool enableDatabaseScan = true,
     bool enableRouteTracking = true,
+    bool enableWidgetInspector = true,
+    bool enableNetworkTimeline = true,
     Widget? customButton,
     void Function(LogEntry)? onLogCaptured,
     int? maxNetworkItems,
@@ -109,6 +117,56 @@ class ZeroInspectorKit {
     if (enableDatabaseScan) {
       DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
     }
+
+    // Widget 树与网络瀑布图默认开启（快照式，不影响运行时性能，无需开关）。
+    // Widget tree & network waterfall are on by default (snapshot-based, no
+    // runtime cost, so no user toggle needed).
+    if (enableWidgetInspector) {
+      WidgetTreeService.instance.isEnabled = true;
+    }
+    // 预置网络瀑布图偏好（详情页默认展示时间轴）。
+    // Pre-seed the timeline preference (detail page shows the timeline by default).
+    InspectorService.instance.preferNetworkTimeline = enableNetworkTimeline;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // 自定义数据库源（SP / Hive）一行注册 / One-line custom DB registration
+  // ────────────────────────────────────────────────────────────────
+
+  /// 注册 SharedPreferences 作为可查看的"数据库"源 / Register SharedPreferences as a viewable DB source.
+  ///
+  /// 仅需一行，无需引入任何第三方包依赖 / Just one line, no extra package dependency:
+  /// ```dart
+  /// final prefs = await SharedPreferences.getInstance();
+  /// ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs));
+  /// ```
+  /// 适配器 [SharedPreferencesAdapter] 随本包导出，零插件依赖 / The
+  /// [SharedPreferencesAdapter] adapter ships with this package (zero plugin dep).
+  static void registerSharedPrefs(SharedPrefsLike prefs) {
+    DatabaseRegistry.instance.registerProvider(
+      SharedPrefsProvider(prefs: prefs),
+    );
+  }
+
+  /// 注册一个或多个 Hive Box 作为可查看的"数据库"源 / Register one or more Hive boxes as viewable DB sources.
+  ///
+  /// 仅需一行，无需引入 hive 包依赖 / Just one line, no hive dependency:
+  /// ```dart
+  /// final settings = await Hive.openBox('settings');
+  /// final cache = await Hive.openBox('cache');
+  /// ZeroInspectorKit.registerHive({
+  ///   'settings': HiveBoxAdapter(settings),
+  ///   'cache': HiveBoxAdapter(cache),
+  /// });
+  /// ```
+  /// 适配器 [HiveBoxAdapter] 随本包导出，零插件依赖 / The [HiveBoxAdapter]
+  /// adapter ships with this package (zero plugin dep).
+  static void registerHive(Map<String, HiveBoxLike> boxes) {
+    for (final entry in boxes.entries) {
+      DatabaseRegistry.instance.registerProvider(
+        HiveProvider(box: entry.value, name: entry.key),
+      );
+    }
   }
 
   /// 包装应用并显示悬浮检查器按钮 / Wrap app and show floating inspector button
@@ -122,9 +180,28 @@ class ZeroInspectorKit {
   /// 此方法会自动调用 init() / This method automatically calls init()
   /// [app] 应用根组件 / App root widget
   /// [enable] 是否启用检查器（默认 true）/ Whether to enable inspector (default true)
-  static void runAppWithInspector(Widget app, {bool enable = true}) {
-    init(enable: enable);
+  static void runAppWithInspector(
+    Widget app, {
+    bool enable = true,
+    bool enableWidgetInspector = true,
+    bool enableNetworkTimeline = true,
+  }) {
+    init(
+      enable: enable,
+      enableWidgetInspector: enableWidgetInspector,
+      enableNetworkTimeline: enableNetworkTimeline,
+    );
 
+    // 用 zone 包裹 runApp 以捕获 print() 日志（InspectorLogInterceptor 的
+    // debugPrint 覆写 + ZoneSpecification.print 共同生效）。
+    // 注意：binding 必须在该 zone 内首次初始化 —— 调用方不要在 runAppWithInspector
+    // 之前调用 WidgetsFlutterBinding.ensureInitialized() 或 await 任何会触发
+    // platform channel 的插件（如 SharedPreferences），否则 binding 会在外层
+    // zone 初始化，与 runApp 所在 zone 不一致，触发 "Zone mismatch" 断言。
+    // The binding must be initialized in this same zone — callers must NOT
+    // call ensureInitialized() or await plugin/platform-channel calls before
+    // runAppWithInspector, or the binding gets initialized in the outer zone
+    // and Flutter throws "Zone mismatch".
     runZonedGuarded(
       () => runApp(wrapApp(app, enable: enable)),
       (error, stackTrace) {
