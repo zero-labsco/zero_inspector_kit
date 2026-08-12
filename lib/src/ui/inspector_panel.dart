@@ -88,7 +88,18 @@ class _InspectorPanelState extends State<InspectorPanel>
   }
 
   /// 监控开关变化 → 刷新头部状态行 / Monitor toggle → refresh header status row
-  void _onMonitorChanged() => setState(() {});
+  /// 仅在"已开启监控集合"真正变化时才重建面板，避免内存监控每 500ms 的数据
+  /// 刷新（enabled 未变）持续重建整个面板、打断趋势图手势。
+  /// Only rebuilds the panel when the set of active monitors actually changes,
+  /// so the per-500ms data ticks (enabled unchanged) don't keep rebuilding the
+  /// whole panel and interrupt trend-chart gestures.
+  String? _lastActiveMonitors;
+  void _onMonitorChanged() {
+    final current = _activeMonitors.join(',');
+    if (current == _lastActiveMonitors) return;
+    _lastActiveMonitors = current;
+    if (mounted) setState(() {});
+  }
 
   /// 当前已开启的实时监控标签 / Currently active real-time monitor labels
   List<String> get _activeMonitors {

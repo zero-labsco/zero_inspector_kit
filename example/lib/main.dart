@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
@@ -148,6 +149,17 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
   final _httpClient = HttpClient();
   int _requestCount = 0;
 
+  // 第三方 logger 演示用的实例（懒创建），与"检查器日志"完全解耦。
+  // Lazily-created instance for the third-party logger demo, fully decoupled
+  // from the inspector's own logs.
+  Logger? _logger;
+  // 是否开启了"检查器 → logger"转发。只在用户显式开关时才设置全局回调，
+  // 关闭时复位为 null，避免污染后续所有日志捕获。
+  // Whether "inspector → logger" forwarding is on. The global callback is only
+  // set while the toggle is on, and reset to null when off, so it never leaks
+  // into unrelated log captures.
+  bool _forwardingToLogger = false;
+
   @override
   void initState() {
     super.initState();
@@ -220,6 +232,107 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
     }
   }
 
+  /// 演示日志查看器：通过 InspectorLogInterceptor 输出各层级、不同 tag 的日志，
+  /// 并故意抛出一个被捕获的异常（连同 stack），方便在 Log 查看器里演示分级、
+  /// 搜索与按 tag 筛选。
+  /// Demo the Log viewer: emit logs of every level with different tags via
+  /// InspectorLogInterceptor, plus a caught exception (with stack) so the Log
+  /// viewer can demo level filtering, search, and tag grouping.
+  void _emitDemoLogs() {
+    InspectorLog.v('Bootstrap sequence started', tag: 'lifecycle');
+    InspectorLog.d('Hydrating cached config from disk', tag: 'cache');
+    InspectorLog.i('User session restored (uid=1024)', tag: 'auth');
+    InspectorLog.i('Fetched 12 items from remote API', tag: 'network');
+    InspectorLog.w('Slow response: /feed took 1820ms', tag: 'network');
+    InspectorLog.w('Token expires in 90s, will refresh soon', tag: 'auth');
+    InspectorLog.e('Failed to decode push payload', tag: 'push');
+    try {
+      throw StateError('Simulated crash in background sync');
+    } catch (error, stack) {
+      InspectorLog.e('Background sync error: $error\n$stack', tag: 'sync');
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Emitted demo logs — open the Log viewer'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// 演示第三方日志库集成：使用 `logger` 包（pub.dev 上的 logger 2.x）输出日志。
+  /// 检查器会自动通过 print() 捕获这些日志（归类为 Info 级别），无需任何配置。
+  /// 本函数只负责"logger → 检查器"这一段（单向），不触碰全局转发状态，
+  /// 因此与 _emitDemoLogs 完全互不影响。
+  /// Demo third-party logger integration: emit logs via the `logger` package.
+  /// The inspector auto-captures them through print() (classified as Info), no
+  /// config needed. This only covers the "logger → inspector" direction and
+  /// never touches the global forwarding state, so it is fully independent of
+  /// _emitDemoLogs.
+  void _emitLoggerLogs() {
+    final logger = _logger ??= Logger(
+      printer: PrettyPrinter(methodCount: 0, errorMethodCount: 3),
+    );
+    logger.t('logger verbose: lazy-loaded feature flags');
+    logger.d('logger debug: cache hit ratio = 0.87');
+    logger.i('logger info: order #8852 created');
+    logger.w('logger warning: retry 2/3 after timeout');
+    logger.e(
+      'logger error: payment gateway returned 503',
+      error: 'gateway_unavailable',
+      stackTrace: StackTrace.current,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Emitted logger logs — auto-captured by Log viewer'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// 切换"检查器 → logger"转发开关。开启时设置一次全局回调，关闭时复位为
+  /// null，确保不影响其它演示（例如 demo 日志）的捕获行为。
+  /// Toggle the "inspector → logger" forwarding switch. When on, install the
+  /// global callback once; when off, reset it to null so other demos (e.g. demo
+  /// logs) are unaffected.
+  void _toggleLoggerForwarding() {
+    final logger = _logger ??= Logger(
+      printer: PrettyPrinter(methodCount: 0, errorMethodCount: 3),
+    );
+    setState(() {
+      _forwardingToLogger = !_forwardingToLogger;
+    });
+    if (_forwardingToLogger) {
+      InspectorLog.onLogCaptured = (entry) {
+        // 用 level.name 判断级别（无需直接引用插件的 LogLevel 类型）。
+        // Use level.name to avoid importing the internal LogLevel type.
+        final lvl = entry.level.name == 'error' ? Level.error : Level.info;
+        logger.log(lvl, '[inspector] ${entry.message}');
+      };
+    } else {
+      // 关闭时清除回调，避免永久污染后续日志捕获。
+      // Clear the callback when off so it never leaks into later captures.
+      InspectorLog.onLogCaptured = null;
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _forwardingToLogger
+                ? 'Forwarding inspector logs → logger: ON'
+                : 'Forwarding inspector logs → logger: OFF',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   /// 触发一次强制掉帧：在 UI 线程做一段同步重计算，制造可见的 jank，
   /// 让 FPS 监控页能看到掉帧标记与 FPS 抖动。
   /// Force a jank: a blocking synchronous computation on the UI thread so the
@@ -259,6 +372,35 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
             onPressed: _sendAllDemoRequests,
             icon: const Icon(Icons.cloud_download),
             label: const Text('Send mixed requests (GET/POST/PUT/DELETE)'),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _emitDemoLogs,
+            icon: const Icon(Icons.message_outlined),
+            label: const Text('Emit demo logs (see Log viewer)'),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _emitLoggerLogs,
+            icon: const Icon(Icons.library_books_outlined),
+            label: const Text('Emit logger logs (3rd-party)'),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _toggleLoggerForwarding,
+            icon: Icon(
+              _forwardingToLogger
+                  ? Icons.link_off_outlined
+                  : Icons.link_outlined,
+            ),
+            style: _forwardingToLogger
+                ? ElevatedButton.styleFrom(backgroundColor: Colors.orange)
+                : null,
+            label: Text(
+              _forwardingToLogger
+                  ? 'Forward inspector logs → logger: ON'
+                  : 'Forward inspector logs → logger: OFF',
+            ),
           ),
           const SizedBox(height: 12),
           ElevatedButton.icon(

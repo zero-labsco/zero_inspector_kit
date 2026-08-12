@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.6
+
+> **📊 趋势图交互增强 / Trend chart interaction:** 内存趋势图现在支持触摸交互——点击或拖动折线图区域可高亮最近的数据点，显示十字准线与浮动 Tooltip（精确数值 + 相对"现在"的时间偏移）。未触摸时仍显示 Current / Peak / Min 图例。无新增公共 API，组件沿用原构造签名。
+> The memory trend chart now supports touch interaction — tap or drag on the chart to highlight the nearest data point, showing a crosshair plus a floating tooltip with the exact value and the time offset from "now". The Current / Peak / Min legend is still shown when not touched. No new public API; the widget keeps its original constructor signature.
+
+- 内存 / Memory
+  - 新增趋势图触摸交互：点击 / 拖动定位最近数据点，绘制十字准线并高亮该点（蓝色外圈 + 实心点）
+  - Added trend chart touch interaction: tap/drag locates the nearest data point, drawing a crosshair and highlighting it (blue ring + solid dot)
+  - 触摸时顶部浮出 Tooltip，显示该时刻的精确数值与相对时间（如 `-1m 23s`）
+  - A floating tooltip appears on touch, showing the exact value and relative time (e.g. `-1m 23s`)
+  - 未触摸时保持原 Current / Peak / Min 图例展示，交互状态由 `StatefulWidget` 本地维护，不影响采样逻辑
+  - Untouched state keeps the original Current / Peak / Min legend; interaction state is local to a `StatefulWidget` and does not affect sampling logic
+
 ## 1.3.5
 
 > **🚀 检查器能力扩展 / Inspector capability expansion：** 本版本新增网络 **Timeline 瀑布图**、**系统分享**导出内容（基于 `share_plus`）、**Widget 检查器**（树形展示业务 Widget 树，自动排除检查器自身浮层），并将 **Database 查看器**扩展到 **SharedPreferences** 与 **Hive**。Widget 检查器与 Network Timeline 均**默认关闭、通过面板顶部开关控制（与内存监控一致）**。公共 API 新增 `SharedPrefsProvider`、`HiveProvider`、`NetworkTimeline`、`WidgetTreeInspector`、`WidgetTreeService`、`InspectorSwitchCard`，以及一行注册方法 `ZeroInspectorKit.registerSharedPrefs()` / `registerHive()` 与 `init` 配置项 `enableWidgetInspector` / `enableNetworkTimeline`。

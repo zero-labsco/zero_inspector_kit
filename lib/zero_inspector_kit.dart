@@ -362,21 +362,42 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   }
 
   /// 构建面板内容 / Build panel content
+  ///
+  /// 采用分层结构避免"点背景关闭"被误触发：
+  /// - 底层：覆盖全屏的透明 GestureDetector（onTap: 关闭面板）
+  /// - 上层：居中面板内容，内部 GestureDetector(onTap: (){}) 消费点击，
+  ///   因此点击面板本身不会冒泡到底层关闭层。
+  /// 原先的单层 GestureDetector(HitTestBehavior.opaque) 会在 InspectorPanel
+  /// 因 MemoryInspectorService 高频 notifyListeners 而重建时，被 Flutter
+  /// 重新派发的合成指针事件命中，导致开启内存监控后面板被自动关闭。
+  /// Uses a layered structure to avoid the "tap background to close" being
+  /// misfired: a full-screen background layer closes the panel on tap, while the
+  /// centered panel content sits on top and consumes taps (onTap: (){}) so
+  /// tapping the panel itself never bubbles to the close layer. The previous
+  /// single opaque GestureDetector was occasionally hit by a synthetic pointer
+  /// event when InspectorPanel rebuilt from MemoryInspectorService's frequent
+  /// notifications, auto-closing the panel right after enabling memory monitor.
   Widget _buildPanelContent() {
-    return GestureDetector(
-      onTap: _togglePanel,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        // 全透明遮罩，不阻挡背景显示
-        // Fully transparent overlay
-        color: Colors.transparent,
-        child: Center(
+    return Stack(
+      children: [
+        // 关闭层：点击空白区域关闭面板
+        // Close layer: tapping empty area closes the panel
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: _togglePanel,
+            behavior: HitTestBehavior.translucent,
+            child: Container(color: Colors.transparent),
+          ),
+        ),
+        // 面板内容层：在关闭层之上，点击面板内部不关闭
+        // Panel content layer: above the close layer; tapping inside is consumed
+        Center(
           child: GestureDetector(
             onTap: () {},
             child: InspectorPanel(onClose: _togglePanel),
           ),
         ),
-      ),
+      ],
     );
   }
 

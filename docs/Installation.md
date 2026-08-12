@@ -8,7 +8,7 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.3.5
+  zero_inspector_kit: ^1.3.6
 ```
 
 Then run:
