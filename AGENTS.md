@@ -103,7 +103,7 @@ Notes / 说明:
    - [ ] `README.md`:
      - [ ] the `^X.Y.Z` dependency constraint in the install snippet
      - [ ] the `` `X.Y.Z` `` placeholder in "install from GitHub" (replace `X.Y.Z` with the version you need)
-     - [ ] the `ref: vX.Y.Z` in the GitHub install git block
+     - [ ] the `ref: release/vX.Y.Z` in the GitHub install git block (use the `release/vX.Y.Z` archive **branch**, NOT the `vX.Y.Z` tag — the tag collides with branch refspec and breaks `git push`)
      - [ ] the "🔔 Upgrade recommended" callout — the leading version token `vX.Y.Z` that anchors the current release's summary MUST be bumped to the new version (e.g. `v1.3.4 cleans up ...`); also update its trailing "upgrade to `^X.Y.Z`" advice.
      - NOTE: historical prose like "on top of vX.(Y-1)'s ..." refers to the PREVIOUS version and must NOT be bumped — only literal version references above change. The leading version in the upgrade callout is NOT historical prose; it describes the new release and must be bumped.
    - [ ] `README_zh.md`: same spots as `README.md` (`^X.Y.Z`, `` `X.Y.Z` `` placeholder, `ref: vX.Y.Z`, and the leading `vX.Y.Z` in the "🔔 推荐升级：" callout). Historical prose stays.

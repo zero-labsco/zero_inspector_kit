@@ -11,7 +11,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.3.5 扩展了检查器能力 —— 新增网络 **Timeline 瀑布图**（单请求耗时与并发重叠可视化）、通过 `share_plus` **系统分享**导出的日志/请求、**Widget 检查器**（面包屑导航式业务 Widget 树），以及 **Database 查看器**现在也覆盖 **SharedPreferences** 与 **Hive**（通过一行 API 注册）—— 在 v1.3.4 元数据/文档清理、v1.3.3 强化的网络拦截、v1.3.2 修复网络请求耗时、v1.3.1 按来源告警节流、以及 v1.3.0 网络批量操作、导出敏感字段脱敏、一键复制 cURL、带未读角标的告警系统之上。建议所有用户升级到 `^1.3.5`。
+> **🔔 推荐升级：** v1.3.6 扩展了检查器能力 —— 新增内存**趋势图触摸交互**（点击或拖动高亮最近数据点，显示十字准线与浮动 Tooltip 精确数值及时间戳）—— 在 v1.3.5 网络 Timeline 瀑布图、`share_plus` 系统分享、Widget 检查器、SharedPreferences/Hive 数据库支持、v1.3.4 元数据/文档清理、v1.3.3 强化的网络拦截、v1.3.2 修复网络请求耗时、v1.3.1 按来源告警节流、以及 v1.3.0 网络批量操作、导出敏感字段脱敏、一键复制 cURL、带未读角标的告警系统之上。建议所有用户升级到 `^1.3.6`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
@@ -40,19 +40,19 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.3.5
+  zero_inspector_kit: ^1.3.6
 ```
 
 ### GitHub
 
-或者，你也可以从 GitHub 安装（将 `1.3.5` 替换为你需要的版本号）：
+或者，你也可以从 GitHub 安装（将 `1.3.6` 替换为你需要的版本号）：
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: v1.3.5
+      ref: release/v1.3.6
 ```
 
 ## 使用方法

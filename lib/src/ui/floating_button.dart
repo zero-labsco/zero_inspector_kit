@@ -343,23 +343,37 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
 
   /// 构建展开的检查器面板（独立模式）/ Build expanded inspector panel (standalone mode)
   Widget _buildExpandedPanel() {
+    // 分层结构：底层关闭层（点击空白关闭）+ 上层面板（点击内部不关闭）。
+    // 避免 InspectorPanel 因内存监控高频 notifyListeners 重建时，被 Flutter
+    // 重新派发的合成指针事件命中全屏 GestureDetector 而误关面板。
+    // Layered: a full-screen close layer (tap empty area to close) under the
+    // centered panel that consumes taps. Prevents a synthetic pointer event
+    // (fired when InspectorPanel rebuilds from memory monitor notifications)
+    // from hitting the close gesture and auto-closing the panel.
     return Positioned(
       left: 0,
       top: 0,
       right: 0,
       bottom: 0,
-      child: GestureDetector(
-        onTap: _togglePanelInternal,
-        child: Container(
-          // 全透明遮罩，不阻挡背景显示 / Fully transparent overlay, doesn't block background
-          color: Colors.transparent,
-          child: Center(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: _togglePanelInternal,
+              behavior: HitTestBehavior.translucent,
+              child: Container(
+                // 全透明遮罩，不阻挡背景显示 / Fully transparent overlay
+                color: Colors.transparent,
+              ),
+            ),
+          ),
+          Center(
             child: GestureDetector(
               onTap: () {},
               child: InspectorPanel(onClose: _togglePanelInternal),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

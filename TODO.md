@@ -120,22 +120,26 @@
 
 ### 低优先级
 
-- [ ] **文件导出 + 系统分享 / File export & system share**
-  - **状态**: 待实现 / To be implemented
+- [x] **文件导出 + 系统分享 / File export & system share** ✅ 已完成 / Done
+  - **状态**: 已实现 / Implemented
   - **实现方案 / Implementation**:
-    - 将数据写入临时文件（如 `_inspector_export_*.json`）
-    - Write data to temp file (e.g. `_inspector_export_*.json`)
-    - 通过 `share_plus` 调用系统分享面板（微信/邮件/Drive 等）
-    - Use `share_plus` to invoke system share panel (WeChat/Email/Drive etc.)
+    - 新增 `share_plus: ^13.2.0` 依赖（`pubspec.yaml`）
+    - Added `share_plus: ^13.2.0` dependency (`pubspec.yaml`)
+    - 数据写入应用临时文件（`getTemporaryDirectory` 下的 `zero_inspector_logs.*` / `zero_inspector_net.*`）
+    - Write data to app temp file (`zero_inspector_logs.*` / `zero_inspector_net.*` under `getTemporaryDirectory`)
+    - 通过 `SharePlus.instance.share(ShareParams(files: [...]))` 唤起系统分享面板（微信/邮件/Drive 等）
+    - Invoke system share sheet via `SharePlus.instance.share(...)` (WeChat/Email/Drive etc.)
     - 用户可选「复制到剪贴板」或「保存/分享为文件」
     - User can choose "copy to clipboard" or "save/share as file"
-    - 需要额外依赖 `share_plus`（约 4KB，Android/iOS 原生实现）
-    - Requires extra dependency `share_plus` (~4KB, native Android/iOS implementation)
+    - 导出格式覆盖 JSON / 纯文本 / CSV / HAR / cURL（HAR 可直接导入 Chrome DevTools / Charles）
+    - Export formats: JSON / plain text / CSV / HAR / cURL (HAR importable into Chrome DevTools / Charles)
+    - 导出时对敏感头（Authorization/Cookie 等）支持遮蔽（`maskSensitive`）
+    - Sensitive headers (Authorization/Cookie etc.) are masked on export (`maskSensitive`)
   - **涉及文件 / Related files**:
-    - `lib/src/services/export_service.dart`（扩展 / extended）
+    - `lib/src/services/export_service.dart`（扩展：`writeToFile` / `exportLogsToFile` / `exportNetToFile` / `shareFile` / `exportLogsAndShare` / `exportNetAndShare` 等）
     - `lib/src/ui/log_viewer.dart`（扩展 / extended）
     - `lib/src/ui/network_viewer.dart`（扩展 / extended）
-    - `pubspec.yaml`（新增依赖 / add dependency）
+    - `pubspec.yaml`（新增 `share_plus` 依赖 / add `share_plus` dependency）
 
 ---
 
@@ -143,17 +147,19 @@
 
 ### 中优先级
 
-- [ ] **趋势图触摸交互 / Trend chart touch interaction**
-  - **状态**: 待实现 / To be implemented
+- [x] **趋势图触摸交互 / Trend chart touch interaction** ✅ 已完成 / Done
+  - **状态**: 已实现 / Implemented
   - **实现方案 / Implementation**:
-    - 触摸折线图显示指示器（Tooltip 显示精确数值和时间）
-    - Touch on chart shows tooltip with exact value and timestamp
-    - 支持手指滑动查看历史数据点
-    - Support finger drag to browse historical data points
-    - Y 轴标签动态自适应当前最大值
-    - Y-axis labels auto-adapt to current max value
+    - 触摸折线图显示十字准线 + 高亮最近数据点，并浮出 Tooltip 显示精确数值与相对时间（如 `-1m 23s`）
+    - Touch on chart shows crosshair + highlighted nearest point, popping a tooltip with exact value and relative time (e.g. `-1m 23s`)
+    - 支持手指拖动实时跟手浏览历史数据点（onPanDown/onPanUpdate 定位最近索引，onPanEnd 复位图例）
+    - Support finger drag to browse historical data points in real time (onPanDown/onPanUpdate locate nearest index, onPanEnd resets to legend)
+    - 未触摸时仍显示 Current / Peak / Min 图例；交互状态由 `StatefulWidget` 本地维护，不改变采样逻辑
+    - Legend (Current / Peak / Min) shown when untouched; interaction state is local to a `StatefulWidget`, no change to sampling
+    - Y 轴标签动态自适应当前最大值（max / 中值 / min 三档）
+    - Y-axis labels auto-adapt to current max value (max / mid / min)
   - **涉及文件 / Related files**:
-    - `lib/src/ui/memory_trend_chart.dart`（扩展 / extended）
+    - `lib/src/ui/memory_trend_chart.dart`（扩展：`MemoryTrendChart` 改为 `StatefulWidget`，`_LineChartPainter` 新增 `highlightIndex` 十字准线绘制 / extended）
 
 - [ ] **内存历史窗口可配置 / Configurable memory history window**
   - **状态**: 待实现 / To be implemented
@@ -172,18 +178,22 @@
 
 ### 中优先级
 
-- [ ] **网络请求 Timeline / 瀑布图 / Network request timeline view**
-  - **状态**: 待实现 / To be implemented
+- [x] **网络请求 Timeline / 瀑布图 / Network request timeline view** ✅ 已完成 / Done
+  - **状态**: 已实现 / Implemented
   - **实现方案 / Implementation**:
-    - 按时间轴展示所有请求的并行关系
-    - Show parallel request relationships along a time axis
-    - 每个请求的耗时分解（发送/等待/接收）
-    - Per-request duration breakdown (send/wait/receive)
-    - 慢请求预警（>3s 标红）
-    - Slow request warning (>3s highlighted in red)
+    - 以统一时间窗（最早请求 → 最晚响应，两端各留 5% 余量）展示所有请求的并行关系
+    - Show parallel request relationships along a shared time axis (earliest start → latest finish, 5% safe margin on both ends)
+    - 每个请求分解为「等待段」（accent 色条）与「响应段」（success 色圆点），点击行可下钻详情
+    - Per-request breakdown into a "wait" segment (accent bar) and "response" marker (success dot); tap a row to drill into detail
+    - 左侧方法徽标（按 GET/POST/... 着色）+ URL 摘要，右侧轨道按比例映射；列表自身 `ListView` 滚动，固定行高，无无限高度溢出风险
+    - Left method badge (colored by GET/POST/...) + URL summary, right track scaled to ratio; list scrolls via its own `ListView` with fixed row height (no unbounded-height overflow)
+    - 顶部图例 + 请求总数；暂无请求时显示空状态
+    - Legend + total count on top; empty state when no requests
   - **涉及文件 / Related files**:
-    - `lib/src/ui/network_timeline.dart`（新增 / new）
-    - `lib/src/ui/network_viewer.dart`（扩展 / extended）
+    - `lib/src/ui/network_timeline.dart`（新增 / new）：`NetworkTimeline` + `_TimelineRow`
+    - `lib/src/ui/network_viewer.dart`（扩展：在查看器中集成 Timeline 视图 / extended）
+    - `lib/zero_inspector_kit.dart`（注册导出 / registered for export）
+    - `lib/src/services/inspector_service.dart`（引用 / referenced）
 
 - [ ] **网络请求更多筛选维度 / More network request filters**
   - **状态**: 待实现 / To be implemented
@@ -237,20 +247,21 @@
 
 ### 中优先级
 
-- [ ] **SharedPreferences / UserDefaults 查看器 / SharedPreferences viewer**
-  - **状态**: 待实现 / To be implemented
+- [x] **SharedPreferences 查看器 / SharedPreferences viewer** ✅ 已完成 / Done
+  - **状态**: 已实现（并入 Database 体系）/ Implemented (merged into Database)
   - **实现方案 / Implementation**:
-    - 列出所有 SharedPreferences 文件
-    - List all SharedPreferences files
-    - 查看 key-value 数据（支持 String/int/bool 等类型）
-    - View key-value data (supports String/int/bool types)
-    - 支持搜索和导出
-    - Support search and export
-    - 通过 `getSharedPreferences` 读取
-    - Read via `getSharedPreferences`
+    - 作为「自定义数据库源」并入 Database：SP 键值对被呈现为单库单表 `preferences`（`key` / `type` / `value` 三列），复用 `DatabaseViewer` 的浏览、搜索、导出流程
+    - Merged into Database as a "custom DB source": SP key-values are exposed as a single DB / table `preferences` (`key`/`type`/`value`), reusing `DatabaseViewer`'s browse, search & export flow
+    - 通过抽象契约 `SharedPrefsLike`（仅声明查看所需方法）适配，**插件自身不依赖 `shared_preferences`**，用户传入自己持有的实例即可兼容任意版本
+    - Adapted via abstract `SharedPrefsLike` contract; the plugin does NOT depend on `shared_preferences` — callers pass their own instance for any version compatibility
+    - 一行注册：`ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs))`
+    - One-line registration: `ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs))`
+    - 支持按 key 关键字搜索、按类型识别（bool/int/double/String/List<String>）
+    - Supports key-keyword search and type detection (bool/int/double/String/List<String>)
   - **涉及文件 / Related files**:
-    - `lib/src/services/shared_prefs_service.dart`（新增 / new）
-    - `lib/src/ui/shared_prefs_viewer.dart`（新增 / new）
+    - `lib/src/services/shared_prefs_provider.dart`（新增：`SharedPrefsLike` / `SharedPreferencesAdapter` / `SharedPrefsProvider`）
+    - `lib/zero_inspector_kit.dart`（新增 `registerSharedPrefs()` 公开 API + 导出）
+    - `lib/src/ui/database_viewer.dart`（复用，无单独 SP 查看器页面 / reused, no separate SP viewer page）
 
 ---
 

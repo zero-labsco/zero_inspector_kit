@@ -4,8 +4,13 @@ import 'theme/inspector_theme.dart';
 
 /// 内存趋势图组件 / Memory trend chart widget
 ///
-/// 使用 [CustomPaint] 自绘折线图，展示内存历史数据
-/// Uses [CustomPaint] to draw a custom line chart showing memory history data
+/// 使用 [CustomPaint] 自绘折线图，展示内存历史数据。
+/// Uses [CustomPaint] to draw a custom line chart showing memory history data.
+///
+/// 支持触摸交互：点击或拖动折线图区域，会显示十字准线、高亮最近的数据点，
+/// 并在顶部浮出 tooltip 显示该时刻的数值与时间。
+/// Supports touch interaction: tapping or dragging on the chart shows a crosshair,
+/// highlights the nearest data point, and pops a tooltip with the value and time.
 ///
 /// 支持的指标 / Supported metrics:
 /// - [MemoryMetric.processRss] 进程 RSS（始终可用）/ Process RSS (always available)
@@ -16,7 +21,7 @@ import 'theme/inspector_theme.dart';
 ///
 /// 当选中指标对应数据不可用时，会显示 N/A 占位说明
 /// When the data for the selected metric is unavailable, an N/A placeholder is shown
-class MemoryTrendChart extends StatelessWidget {
+class MemoryTrendChart extends StatefulWidget {
   /// 内存历史快照列表 / Memory historical snapshot list
   final List<MemorySnapshot> snapshots;
 
@@ -37,6 +42,28 @@ class MemoryTrendChart extends StatelessWidget {
     this.onMetricChanged,
     this.vmServiceAvailable = false,
   });
+
+  @override
+  State<MemoryTrendChart> createState() => _MemoryTrendChartState();
+}
+
+class _MemoryTrendChartState extends State<MemoryTrendChart> {
+  /// 当前触摸高亮的数据点索引 / Currently highlighted data point index
+  ///
+  /// 为 null 时表示未触摸，显示图例（Current / Peak / Min）
+  /// null means not touched; the legend (Current / Peak / Min) is shown instead
+  int? _touchedIndex;
+
+  /// 根据触摸位置（相对绘图区的局部 x）定位最近的数据点索引
+  /// Locate the nearest data point index from a touch x offset (local to chart)
+  int? _indexFromLocalX(double localX, double chartWidth, int pointCount) {
+    if (pointCount < 2 || chartWidth <= 0) return null;
+    final padding = _LineChartPainter.padding;
+    final usableWidth = chartWidth - padding * 2;
+    final ratio = ((localX - padding) / usableWidth).clamp(0.0, 1.0);
+    final index = (ratio * (pointCount - 1)).round();
+    return index.clamp(0, pointCount - 1);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +107,7 @@ class MemoryTrendChart extends StatelessWidget {
         ),
         const Spacer(),
         Text(
-          '${snapshots.length}/${240}',
+          '${widget.snapshots.length}/${240}',
           style: TextStyle(
             color: InspectorColors.textHint,
             fontSize: 11,
@@ -98,14 +125,14 @@ class MemoryTrendChart extends StatelessWidget {
       runSpacing: 6,
       children: MemoryMetric.values.map((m) {
         final enabled = _isMetricEnabled(m);
-        final selected = m == metric;
+        final selected = m == widget.metric;
         return _buildMetricChip(
           label: m.label,
           selected: selected,
           enabled: enabled,
           color: m.color,
-          onTap: enabled && onMetricChanged != null
-              ? () => onMetricChanged!(m)
+          onTap: enabled && widget.onMetricChanged != null
+              ? () => widget.onMetricChanged!(m)
               : null,
         );
       }).toList(),
@@ -115,7 +142,7 @@ class MemoryTrendChart extends StatelessWidget {
   /// 检查指标是否可用 / Check if metric is enabled
   bool _isMetricEnabled(MemoryMetric m) {
     if (m == MemoryMetric.processRss) return true;
-    return vmServiceAvailable;
+    return widget.vmServiceAvailable;
   }
 
   /// 构建指标 Chip / Build metric chip
@@ -158,17 +185,17 @@ class MemoryTrendChart extends StatelessWidget {
   Widget _buildChartArea() {
     // 指标数据不可用时显示 N/A
     // Show N/A when metric data is unavailable
-    if (!_isMetricEnabled(metric)) {
+    if (!_isMetricEnabled(widget.metric)) {
       return _buildUnavailableChart();
     }
 
     // 没有数据时显示空状态
     // Show empty state when no data
-    if (snapshots.isEmpty) {
+    if (widget.snapshots.isEmpty) {
       return _buildEmptyChart();
     }
 
-    final values = snapshots.map((s) => _getValue(s)).toList();
+    final values = widget.snapshots.map((s) => _getValue(s)).toList();
     final maxValue = values.reduce((a, b) => a > b ? a : b);
     final minValue = values.reduce((a, b) => a < b ? a : b);
     final currentValue = values.last;
@@ -190,24 +217,124 @@ class MemoryTrendChart extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 触摸高亮时的浮动 tooltip / Floating tooltip when touched
+        if (_touchedIndex != null)
+          _buildTooltip(_touchedIndex!, values)
+        else
+          // 无触摸时显示图例：Current / Peak / Min
+          // Legend: Current / Peak / Min when not touched
+          _buildLegend(currentValue, maxValue, minValue),
+        const SizedBox(height: 10),
         // 图表主体：左侧 Y 轴标签 + 中间折线图 / Chart body: left Y-axis labels + center line chart
-        // 使用 IntrinsicHeight 确保 Y 轴标签高度与折线图区域一致
-        // Use IntrinsicHeight so Y-axis labels match chart area height
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 左侧 Y 轴标签 / Left Y-axis labels
-              SizedBox(
-                width: 52,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: yLabels
-                      .map(
-                        (label) => Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: Text(
+        // 注意：不要使用 IntrinsicHeight 包裹 Expanded/LayoutBuilder，否则在父级
+        // 高频重建（如开启内存监控时 InspectorPanel 每 500ms setState）时会触发
+        // `!_debugDoingThisLayout` 布局断言失败，导致面板渲染树损坏、视图消失。
+        // NOTE: do NOT wrap Expanded/LayoutBuilder in IntrinsicHeight here — it
+        // triggers a `!_debugDoingThisLayout` layout assertion when the parent
+        // rebuilds frequently (e.g. InspectorPanel setState every 500ms while
+        // memory monitoring is on), corrupting the panel render tree and making
+        // the view disappear.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 左侧 Y 轴标签（固定高度对齐图表主体）/ Left Y-axis labels (fixed height)
+            SizedBox(
+              width: 52,
+              height: 100,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: yLabels
+                    .map(
+                      (label) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: InspectorColors.textHint,
+                            fontSize: 9,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            // 中间折线图 + 底部 X 轴标签 / Center line chart + bottom X-axis labels
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // LayoutBuilder 仅用于获取折线图实际宽度定位触摸点，
+                  // 不再置于 IntrinsicHeight 内，避免布局断言崩溃。
+                  // LayoutBuilder only measures the chart width for touch hit
+                  // testing; kept out of IntrinsicHeight to avoid layout crash.
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final chartWidth = constraints.maxWidth;
+                      return GestureDetector(
+                        // 点击定位最近数据点 / Tap to locate nearest point
+                        onTapDown: (details) {
+                          final idx = _indexFromLocalX(
+                            details.localPosition.dx,
+                            chartWidth,
+                            values.length,
+                          );
+                          if (idx != null) {
+                            setState(() => _touchedIndex = idx);
+                          }
+                        },
+                        onTapCancel: () => setState(() => _touchedIndex = null),
+                        // 拖动实时跟手 / Drag to follow finger in real time
+                        onPanDown: (details) {
+                          final idx = _indexFromLocalX(
+                            details.localPosition.dx,
+                            chartWidth,
+                            values.length,
+                          );
+                          if (idx != null) {
+                            setState(() => _touchedIndex = idx);
+                          }
+                        },
+                        onPanUpdate: (details) {
+                          final idx = _indexFromLocalX(
+                            details.localPosition.dx,
+                            chartWidth,
+                            values.length,
+                          );
+                          if (idx != null) {
+                            setState(() => _touchedIndex = idx);
+                          }
+                        },
+                        onPanEnd: (_) => setState(() => _touchedIndex = null),
+                        child: SizedBox(
+                          height: 100,
+                          width: double.infinity,
+                          child: CustomPaint(
+                            painter: _LineChartPainter(
+                              values: values,
+                              maxValue: safeMax,
+                              lineColor: widget.metric.color,
+                              fillColor: widget.metric.color.withValues(
+                                alpha: 0.2,
+                              ),
+                              backgroundColor: InspectorColors.surface,
+                              gridColor: InspectorColors.divider,
+                              highlightIndex: _touchedIndex,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 4),
+                  // 底部 X 轴标签 / Bottom X-axis labels
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: xLabels
+                        .map(
+                          (label) => Text(
                             label,
                             style: TextStyle(
                               color: InspectorColors.textHint,
@@ -215,75 +342,10 @@ class MemoryTrendChart extends StatelessWidget {
                               fontFamily: 'monospace',
                             ),
                           ),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-              // 中间折线图 + 底部 X 轴标签 / Center line chart + bottom X-axis labels
-              Expanded(
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 100,
-                      width: double.infinity,
-                      child: CustomPaint(
-                        painter: _LineChartPainter(
-                          values: values,
-                          maxValue: safeMax,
-                          lineColor: metric.color,
-                          fillColor: metric.color.withValues(alpha: 0.2),
-                          backgroundColor: InspectorColors.surface,
-                          gridColor: InspectorColors.divider,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // 底部 X 轴标签 / Bottom X-axis labels
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: xLabels
-                          .map(
-                            (label) => Text(
-                              label,
-                              style: TextStyle(
-                                color: InspectorColors.textHint,
-                                fontSize: 9,
-                                fontFamily: 'monospace',
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        // 图例：Current / Peak / Min / Legend: Current / Peak / Min
-        Row(
-          children: [
-            Expanded(
-              child: _buildChartLegend(
-                'Current',
-                _formatBytes(currentValue),
-                metric.color,
-              ),
-            ),
-            Expanded(
-              child: _buildChartLegend(
-                'Peak',
-                _formatBytes(maxValue),
-                InspectorColors.warning,
-              ),
-            ),
-            Expanded(
-              child: _buildChartLegend(
-                'Min',
-                _formatBytes(minValue),
-                InspectorColors.textSecondary,
+                        )
+                        .toList(),
+                  ),
+                ],
               ),
             ),
           ],
@@ -292,9 +354,98 @@ class MemoryTrendChart extends StatelessWidget {
     );
   }
 
+  /// 构建触摸 tooltip / Build touch tooltip
+  ///
+  /// 显示高亮点的数值与时间（相对"现在"的偏移）
+  /// Shows the highlighted point's value and time (offset from "now")
+  Widget _buildTooltip(int index, List<int> values) {
+    final snapshot = widget.snapshots[index];
+    final value = values[index];
+    final now = widget.snapshots.isNotEmpty
+        ? widget.snapshots.last.timestamp
+        : DateTime.now();
+    final delta = now.difference(snapshot.timestamp);
+    final timeLabel = delta.inSeconds <= 0
+        ? 'Now'
+        : '-${(delta.inSeconds / 60).floor()}m ${delta.inSeconds % 60}s';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: widget.metric.color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: widget.metric.color.withValues(alpha: 0.4),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: widget.metric.color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _formatBytes(value),
+            style: TextStyle(
+              color: widget.metric.color,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'monospace',
+            ),
+          ),
+          const Spacer(),
+          Text(
+            timeLabel,
+            style: TextStyle(
+              color: InspectorColors.textHint,
+              fontSize: 11,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建图例项组 / Build legend group
+  Widget _buildLegend(int currentValue, int maxValue, int minValue) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildChartLegend(
+            'Current',
+            _formatBytes(currentValue),
+            widget.metric.color,
+          ),
+        ),
+        Expanded(
+          child: _buildChartLegend(
+            'Peak',
+            _formatBytes(maxValue),
+            InspectorColors.warning,
+          ),
+        ),
+        Expanded(
+          child: _buildChartLegend(
+            'Min',
+            _formatBytes(minValue),
+            InspectorColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
   /// 获取快照对应指标的值 / Get the value of the metric for the snapshot
   int _getValue(MemorySnapshot s) {
-    switch (metric) {
+    switch (widget.metric) {
       case MemoryMetric.processRss:
         return s.processRss;
       case MemoryMetric.heapUsage:
@@ -463,8 +614,11 @@ class _LineChartPainter extends CustomPainter {
   /// 网格线颜色 / Grid line color
   final Color gridColor;
 
+  /// 高亮数据点的索引；为 null 时不绘制十字准线 / Highlighted point index; null disables crosshair
+  final int? highlightIndex;
+
   /// 内边距（图表距离画布边缘）/ Padding (chart to canvas edge)
-  static const double _padding = 4.0;
+  static const double padding = 4.0;
 
   /// 网格水平线数量 / Number of horizontal grid lines
   static const int _gridLineCount = 4;
@@ -476,6 +630,7 @@ class _LineChartPainter extends CustomPainter {
     required this.fillColor,
     required this.backgroundColor,
     required this.gridColor,
+    this.highlightIndex,
   });
 
   @override
@@ -498,12 +653,12 @@ class _LineChartPainter extends CustomPainter {
       ..strokeWidth = 0.5
       ..style = PaintingStyle.stroke;
 
-    final chartHeight = size.height - _padding * 2;
+    final chartHeight = size.height - padding * 2;
     for (var i = 0; i <= _gridLineCount; i++) {
-      final y = _padding + (chartHeight / _gridLineCount) * i;
+      final y = padding + (chartHeight / _gridLineCount) * i;
       canvas.drawLine(
-        Offset(_padding, y),
-        Offset(size.width - _padding, y),
+        Offset(padding, y),
+        Offset(size.width - padding, y),
         gridPaint,
       );
     }
@@ -516,7 +671,7 @@ class _LineChartPainter extends CustomPainter {
       if (values.isNotEmpty) {
         final x = size.width / 2;
         final normalized = maxValue > 0 ? values.first / maxValue : 0.0;
-        final y = size.height - _padding - (chartHeight * normalized);
+        final y = size.height - padding - (chartHeight * normalized);
 
         final dotPaint = Paint()..color = lineColor;
         canvas.drawCircle(Offset(x, y), 2, dotPaint);
@@ -526,25 +681,25 @@ class _LineChartPainter extends CustomPainter {
 
     // 4. 计算每个数据点的坐标
     // 4. Calculate coordinates for each data point
-    final chartWidth = size.width - _padding * 2;
+    final chartWidth = size.width - padding * 2;
     final stepX = chartWidth / (values.length - 1);
 
     final points = <Offset>[];
     for (var i = 0; i < values.length; i++) {
-      final x = _padding + stepX * i;
+      final x = padding + stepX * i;
       final normalized = maxValue > 0 ? values[i] / maxValue : 0.0;
       // 留 5% 顶部空间避免折线贴边
       // Leave 5% top space to avoid line touching the edge
-      final y = size.height - _padding - (chartHeight * 0.95 * normalized);
+      final y = size.height - padding - (chartHeight * 0.95 * normalized);
       points.add(Offset(x, y));
     }
 
     // 5. 绘制填充区域（折线下方）
     // 5. Draw fill area (below the line)
     final fillPath = Path()
-      ..moveTo(points.first.dx, size.height - _padding)
+      ..moveTo(points.first.dx, size.height - padding)
       ..addPoints(points.map((p) => Offset(p.dx, p.dy)).toList())
-      ..lineTo(points.last.dx, size.height - _padding)
+      ..lineTo(points.last.dx, size.height - padding)
       ..close();
 
     final fillPaint = Paint()
@@ -573,6 +728,37 @@ class _LineChartPainter extends CustomPainter {
       ..color = lineColor.withValues(alpha: 0.3)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(lastPoint, 5, ringPaint);
+
+    // 8. 触摸高亮：十字准线 + 选中点圈
+    // 8. Touch highlight: crosshair + highlighted point ring
+    if (highlightIndex != null &&
+        highlightIndex! >= 0 &&
+        highlightIndex! < points.length) {
+      final hp = points[highlightIndex!];
+      // 竖向准线 / Vertical crosshair line
+      final crossPaint = Paint()
+        ..color = lineColor.withValues(alpha: 0.35)
+        ..strokeWidth = 0.5
+        ..style = PaintingStyle.stroke;
+      canvas.drawLine(
+        Offset(hp.dx, padding),
+        Offset(hp.dx, size.height - padding),
+        crossPaint,
+      );
+      // 横向准线 / Horizontal crosshair line
+      canvas.drawLine(
+        Offset(padding, hp.dy),
+        Offset(size.width - padding, hp.dy),
+        crossPaint,
+      );
+      // 选中点：外圈 + 实心点 / Highlighted point: outer ring + solid dot
+      final highlightRing = Paint()
+        ..color = lineColor.withValues(alpha: 0.25)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(hp, 7, highlightRing);
+      final highlightDot = Paint()..color = lineColor;
+      canvas.drawCircle(hp, 3.5, highlightDot);
+    }
   }
 
   @override
@@ -582,7 +768,8 @@ class _LineChartPainter extends CustomPainter {
     return oldDelegate.values != values ||
         oldDelegate.maxValue != maxValue ||
         oldDelegate.lineColor != lineColor ||
-        oldDelegate.fillColor != fillColor;
+        oldDelegate.fillColor != fillColor ||
+        oldDelegate.highlightIndex != highlightIndex;
   }
 }
 
