@@ -268,12 +268,38 @@
   - **涉及文件 / Related files**:
     - `lib/src/ui/floating_button.dart`（扩展 / extended）
 
-- [ ] **Widget 检查器 / Widget inspector**
-  - **状态**: 待实现 / To be implemented
+- [x] **Widget 检查器 / Widget inspector** ✅ 已完成 / Done
+  - **状态**: 已实现 / Implemented
   - **实现方案 / Implementation**:
-    - 类似 Flutter Inspector 的 Widget 树查看功能
-    - Widget tree inspection similar to Flutter Inspector
-    - 重量级功能，可作为后续独立版本
-    - Heavy feature, can be a standalone future version
+    - 对当前渲染树拍一次快照（构建后回调），以**面包屑导航**方式浏览（类似文件管理器）：主列表只显示当前层，点击含子节点的项即下钻到下一层，顶部分层面包屑可一键跳回任意祖先层；叶子节点点击弹出底部抽屉看详情
+    - Snapshot the current widget tree (post-frame callback) and browse it via **breadcrumb navigation** (file-manager style): main list shows only the current level, tap an item with children to drill into its children, breadcrumb bar jumps back to any ancestor, tapping a leaf opens a bottom-sheet detail
+    - 浏览交互历经「内联可折叠树 + 横向滑动整棵树」打磨为面包屑导航，彻底消除深层节点的 `RenderFlex` 横向溢出与反直觉横滑
+    - Browsing evolved from "inline collapsible tree with whole-tree horizontal scroll" into breadcrumb navigation, removing the `RenderFlex` horizontal overflow and unintuitive panning on deep trees
+    - 非实时（one-shot snapshot），点击工具栏刷新或开关重建以重新快照
+    - Not live (one-shot snapshot); tap toolbar Refresh or toggle the switch to re-snapshot
   - **涉及文件 / Related files**:
-    - `lib/src/ui/widget_inspector.dart`（新增 / new）
+    - `lib/src/models/widget_tree_node.dart`（新增 / new）
+    - `lib/src/services/widget_tree_service.dart`（新增 / new）
+    - `lib/src/ui/widget_tree_viewer.dart`（新增 / new）
+  - **用户 API / User API**:
+    - 通过 `ZeroInspectorKit` 总开关开启；无需额外 API 调用
+    - Enabled via the `ZeroInspectorKit` master switch; no extra API call needed
+
+- [ ] **路由追踪穿透包装 Widget / Route tracking through wrapper widgets**
+  - **状态**: 待实现 / To be implemented
+  - **背景 / Context**:
+    - 当前 `runAppWithInspector` 仅在 `app is MaterialApp` 时才注入 `InspectorRouteObserver`；若用户传 `StatelessWidget` / `Container` 等中间层包着 `MaterialApp`，observer 不会被注册，路由栏永远显示 `0 routes`
+    - Currently `_wrapAppWithRouteObserver` only injects `InspectorRouteObserver` when `app is MaterialApp`; if the user passes a `StatelessWidget`/`Container` wrapping a `MaterialApp`, the observer is never registered and Routes shows `0 routes` forever
+  - **实现方案（路线 C，推荐）/ Implementation (Approach C, recommended)**:
+    - 在包装期模拟 build，穿过中间层（StatelessWidget/StatefulWidget/Container/Builder 等无 Navigator 的壳），找到真正的 `MaterialApp` 子树后再注入 `navigatorObservers`
+    - During wrapping, simulate a build pass to drill through intermediate shells (StatelessWidget/StatefulWidget/Container/Builder etc. that hold no Navigator) and inject `navigatorObservers` once the real `MaterialApp` subtree is found
+    - 向后兼容，不改动公共 API；仅修改 `lib/zero_inspector_kit.dart` 的 `_wrapAppWithRouteObserver`
+    - Backward compatible, no public API change; only touch `_wrapAppWithRouteObserver` in `lib/zero_inspector_kit.dart`
+  - **为何不选其他路线 / Why not other approaches**:
+    - 路线 A（事后遍历 Element 树注入 observer）：`RouteObserver` 依赖 Navigator 主动回调，事后注入无法补救，不可行
+    - Approach A (inject observer by traversing the Element tree after the fact): `RouteObserver` relies on Navigator callbacks, post-hoc injection can't work — infeasible
+    - 路线 B（再包一层 Navigator）：会破坏路由栈语义（push/pop 作用于内层 Navigator），代价过大
+    - Approach B (wrap another Navigator): breaks route-stack semantics (push/pop hit the inner Navigator) — too costly
+  - **涉及文件 / Related files**:
+    - `lib/zero_inspector_kit.dart`（扩展 / extended）
+    - 建议补充单元测试 / Add unit tests recommended

@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/log_entry.dart';
 import '../models/network_request.dart';
 
@@ -223,6 +225,51 @@ class ExportService {
       _ => netToJson(requests, maskSensitive: maskSensitive),
     };
     return writeToFile(content, 'zero_inspector_net.$format');
+  }
+
+  // ==================== 系统分享 / System share ====================
+
+  /// 通过系统分享面板分享已导出的文件（调用 share_plus）。
+  /// Share an already-exported file via the system share sheet.
+  ///
+  /// [path] 为 [writeToFile] / [exportLogsToFile] / [exportNetToFile] 返回的路径。
+  /// [mimeType] 建议显式指定以便接收方能正确识别（如 json 传 'application/json'）。
+  /// [path] is the path returned by the file export methods above.
+  Future<void> shareFile(String path, {String? mimeType}) async {
+    try {
+      final file = XFile(path, mimeType: mimeType);
+      await SharePlus.instance.share(ShareParams(files: [file]));
+    } catch (e) {
+      debugPrint('ExportService.shareFile error: $e');
+    }
+  }
+
+  /// 导出日志并唤起系统分享 / Export logs then open the share sheet
+  Future<void> exportLogsAndShare(
+    List<LogEntry> logs, {
+    bool json = true,
+  }) async {
+    final path = await exportLogsToFile(logs, json: json);
+    await shareFile(path, mimeType: json ? 'application/json' : 'text/plain');
+  }
+
+  /// 导出网络请求并唤起系统分享（支持 json/csv/har）/ Export net then share
+  Future<void> exportNetAndShare(
+    List<NetworkRequest> requests, {
+    String format = 'json',
+    bool maskSensitive = false,
+  }) async {
+    final path = await exportNetToFile(
+      requests,
+      format: format,
+      maskSensitive: maskSensitive,
+    );
+    final mime = switch (format) {
+      'csv' => 'text/csv',
+      'har' => 'application/json',
+      _ => 'application/json',
+    };
+    await shareFile(path, mimeType: mime);
   }
 
   // ==================== 复制方法 / Copy methods ====================

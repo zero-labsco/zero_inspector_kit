@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.3.5
+
+> **🚀 检查器能力扩展 / Inspector capability expansion：** 本版本新增网络 **Timeline 瀑布图**、**系统分享**导出内容（基于 `share_plus`）、**Widget 检查器**（树形展示业务 Widget 树，自动排除检查器自身浮层），并将 **Database 查看器**扩展到 **SharedPreferences** 与 **Hive**。Widget 检查器与 Network Timeline 均**默认关闭、通过面板顶部开关控制（与内存监控一致）**。公共 API 新增 `SharedPrefsProvider`、`HiveProvider`、`NetworkTimeline`、`WidgetTreeInspector`、`WidgetTreeService`、`InspectorSwitchCard`，以及一行注册方法 `ZeroInspectorKit.registerSharedPrefs()` / `registerHive()` 与 `init` 配置项 `enableWidgetInspector` / `enableNetworkTimeline`。
+> This release adds a network **Timeline / waterfall view**, **system sharing** of exported content (via `share_plus`), a **Widget inspector** (collapsible business widget tree, auto-excluding the inspector's own overlay), and extends the **Database viewer** to **SharedPreferences** and **Hive**. Both the Widget inspector and Network Timeline are **off by default and toggled via a top switch in the panel (like memory monitoring)**. New public API: `SharedPrefsProvider`, `HiveProvider`, `NetworkTimeline`, `WidgetTreeInspector`, `WidgetTreeService`, `InspectorSwitchCard`, plus one-line registration `ZeroInspectorKit.registerSharedPrefs()` / `registerHive()` and `init` flags `enableWidgetInspector` / `enableNetworkTimeline`.
+
+- 网络 / Network
+  - 新增 Timeline 瀑布图视图（`NetworkTimeline`），在 NetworkViewer 中以时间轴展示每个请求的耗时与并发重叠，可点击定位详情
+  - Added a Timeline/waterfall view (`NetworkTimeline`) showing per-request duration & overlap on a time axis, tappable to locate details in NetworkViewer
+  - Network Timeline 现由面板顶部**总开关**控制，默认关闭；开启后工具栏才出现视图切换，关闭时始终以列表展示（避免无谓的瀑布图布局开销）
+  - Network Timeline is now gated by a top **master switch** in the panel, off by default; enabling it reveals the view toggle, and the list is always shown otherwise
+- Widget 检查器 / Widget inspector
+  - 新增 Widget 树检查器（`WidgetTreeInspector`），以**面包屑导航**浏览当前渲染树快照（主列表只显示当前层、点击下钻、面包屑跳回祖先），叶子节点弹出详情，自动排除检查器自身子树
+  - Added a widget-tree inspector (`WidgetTreeInspector`) that browses a **breadcrumb navigation** snapshot of the current widget tree (current-level list, tap to drill in, breadcrumb jumps back to ancestors), with a leaf detail sheet, auto-excluding the inspector's own subtree
+  - 由 `WidgetTreeService` 驱动，面板顶部**总开关**控制，默认关闭；仅开启后才遍历渲染树（避免无谓开销），与内存监控一致
+  - Driven by `WidgetTreeService`, gated by a top **master switch**, off by default; the element tree is walked only when enabled (no needless overhead), matching memory monitoring
+- 导出 / Export
+  - 新增基于 `share_plus` 的**系统分享**，日志与网络请求均可一键分享导出文件（pubspec 新增 `share_plus` 依赖）
+  - Added `share_plus`-based **system sharing** — logs and network requests can be shared via the system sheet (new `share_plus` dependency)
+- 数据库 / Database
+  - Database 查看器现支持 **SharedPreferences** 与 **Hive**：新增 `SharedPrefsProvider` / `HiveProvider`，通过 `DatabaseRegistry.instance.registerProvider(...)` 手动注册（插件零依赖，自动适配任意版本）
+  - The Database viewer now supports **SharedPreferences** and **Hive**: new `SharedPrefsProvider` / `HiveProvider` registered manually via `DatabaseRegistry.instance.registerProvider(...)` (zero plugin dependency, any version supported)
+  - 新增**一行注册 API**：`ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs))` 与 `ZeroInspectorKit.registerHive({'name': HiveBoxAdapter(box)})`，无需手动拼接 `DatabaseRegistry`
+  - New **one-line registration API**: `ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs))` and `ZeroInspectorKit.registerHive({'name': HiveBoxAdapter(box)})` — no need to touch `DatabaseRegistry` directly
+  - `init` / `runAppWithInspector` 新增 `enableWidgetInspector`、`enableNetworkTimeline` 配置项，可直接预置对应开关为开启
+  - `init` / `runAppWithInspector` gain `enableWidgetInspector` and `enableNetworkTimeline` flags to pre-enable the switches
+- Widget 检查器交互打磨 / Widget inspector UX polish
+  - 将浏览方式从「内联可折叠树 + 横向滑动整棵树」改为**面包屑导航**（类似文件管理器）：主列表只显示当前层节点，点击含子节点的项即下钻到下一层，顶部分层面包屑可一键跳回任意祖先层；叶子节点点击弹出底部抽屉看详情。彻底消除深层节点的 `RenderFlex` 横向溢出与反直觉横滑，层级关系依然清晰
+  - Reworked browsing from an "inline collapsible tree with whole-tree horizontal scroll" to **breadcrumb navigation** (file-manager style): the main list shows only the current level; tapping an item with children drills into its children, and the breadcrumb bar jumps back to any ancestor; tapping a leaf opens a bottom-sheet detail. This removes the `RenderFlex` horizontal overflow and unintuitive panning on deep trees while keeping the hierarchy clear
+- Routes 视图交互打磨 / Routes view UX polish
+  - 将路由详情从「底部抽屉」改为与 Network 一致的**同面板双屏详情**（列表 ↔ 详情切换）：点击记录进入详情页，工具栏显示 `Back` 返回箭头 + `Route Detail` 标题，大段 Arguments JSON 可完整滚动展示；列表态工具栏保留数量徽章与清空按钮
+  - Reworked route detail from a bottom-sheet into a **same-panel list ↔ detail** view matching Network: tapping a record opens the detail page with a `Back` arrow + `Route Detail` title in the toolbar, letting long `Arguments` JSON scroll fully; the list state keeps the count badge and Clear button
+
 ## 1.3.4
 
 > **🧹 元数据与文档清理 / Metadata & docs cleanup：** 本版本补充了 `pubspec.yaml` 的 `documentation` 字段，移除了与 `docs/` 完全镜像的遗留 `wiki/` 目录（统一文档单一信息源），并启用了更严格的 `analysis_options.yaml` 规则（已修复因此暴露的 5 处代码问题）。公共 API 不变。

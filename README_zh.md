@@ -11,7 +11,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.3.4 进行了元数据与文档清理 —— 为 `pubspec.yaml` 新增 `documentation` 字段、移除与 `docs/` 重复的遗留 `wiki/` 目录（统一为单一文档源）、并启用更严格的 `analysis_options.yaml` lint 规则（修复了 5 处潜在问题）—— 在 v1.3.3 强化的网络拦截、v1.3.2 修复网络请求耗时、v1.3.1 按来源告警节流、以及 v1.3.0 网络批量操作、导出敏感字段脱敏、一键复制 cURL、带未读角标的告警系统之上。建议所有用户升级到 `^1.3.4`。
+> **🔔 推荐升级：** v1.3.5 扩展了检查器能力 —— 新增网络 **Timeline 瀑布图**（单请求耗时与并发重叠可视化）、通过 `share_plus` **系统分享**导出的日志/请求、**Widget 检查器**（面包屑导航式业务 Widget 树），以及 **Database 查看器**现在也覆盖 **SharedPreferences** 与 **Hive**（通过一行 API 注册）—— 在 v1.3.4 元数据/文档清理、v1.3.3 强化的网络拦截、v1.3.2 修复网络请求耗时、v1.3.1 按来源告警节流、以及 v1.3.0 网络批量操作、导出敏感字段脱敏、一键复制 cURL、带未读角标的告警系统之上。建议所有用户升级到 `^1.3.5`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
@@ -40,19 +40,19 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.3.4
+  zero_inspector_kit: ^1.3.5
 ```
 
 ### GitHub
 
-或者，你也可以从 GitHub 安装（将 `1.3.4` 替换为你需要的版本号）：
+或者，你也可以从 GitHub 安装（将 `1.3.5` 替换为你需要的版本号）：
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: v1.3.4
+      ref: v1.3.5
 ```
 
 ## 使用方法
@@ -98,16 +98,58 @@ class MyApp extends StatelessWidget {
 
 **生产构建**: 检查器在 release 模式下会自动禁用。你不需要移除任何代码 - Flutter 的 tree-shaking 会从生产构建中移除所有检查器相关代码。
 
-### 替代集成方式（两行代码）
+### 手动集成（更多控制权）
 
-如果你需要更多控制权，可以使用两行代码的方式：
+如果你需要更多控制权（例如要在启动时预开启某些开关，或注册自定义数据源），可以使用手动集成方式：
 
 ```dart
-void main() {
-  ZeroInspectorKit.init();
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive/hive.dart';
+
+void main() async {
+  // 1) 手动初始化（比一行 runAppWithInspector 更可控）
+  ZeroInspectorKit.init(
+    enableWidgetInspector: true,   // 可选：预开启 Widget Inspector
+    enableNetworkTimeline: true,   // 可选：预开启 Network Timeline
+  );
+
+  // 2) 注册自定义数据源（一行 API）
+  //    SharedPreferences / Hive：本包自身不依赖这两个包，
+  //    只要传入的对象暴露对应的读写接口即可（不强制版本）。
+  final prefs = await SharedPreferences.getInstance();
+  ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs));
+
+  final settings = await Hive.openBox('settings');
+  final cache = await Hive.openBox('cache');
+  ZeroInspectorKit.registerHive({
+    'settings': HiveBoxAdapter(settings),
+    'cache': HiveBoxAdapter(cache),
+  });
+
+  // 3) 用 wrapApp 包裹你的应用
   runApp(ZeroInspectorKit.wrapApp(const MyApp()));
 }
 ```
+
+> **关于依赖**：本包自己不需要 `shared_preferences` / `hive` 依赖；但**你的 app 若要查看这些数据，仍需要在自己的 `pubspec.yaml` 中加入对应包**（上面示例已 import），以便拿到 `prefs` / `box` 实例传给检查器。
+
+两者都会作为 **Database** 标签页下的条目出现，并复用与 SQLite 相同的浏览/导出流程。
+
+<details>
+<summary>想用更底层的 API？也可以自行注册提供者。</summary>
+
+```dart
+import 'package:zero_inspector_kit/zero_inspector_kit.dart';
+
+void main() {
+  ZeroInspectorKit.init();
+  DatabaseRegistry.instance.registerProvider(SharedPrefsProvider(prefs: prefs));
+  DatabaseRegistry.instance.registerProvider(HiveProvider(box: box, name: 'settings'));
+  runApp(ZeroInspectorKit.wrapApp(const MyApp()));
+}
+```
+
+</details>
 
 ### 日志记录
 
@@ -360,7 +402,7 @@ final history = FpsService.instance.fpsHistory;       // List<double>，60 条
 final records = FpsService.instance.frameRecords;      // List<FrameRecord>，不可修改
 ```
 
-## 自定义数据库提供者
+### 自定义数据库提供者
 
 要添加对其他数据库的支持，实现 `DatabaseProvider` 接口：
 
@@ -385,6 +427,23 @@ class MyCustomDatabaseProvider implements DatabaseProvider {
 // 注册提供者
 DatabaseRegistry.instance.registerProvider(MyCustomDatabaseProvider());
 ```
+
+### 🌳 Widget 检查器与网络瀑布流（默认关闭）
+
+两项功能默认关闭，避免在不需要时产生额外开销：
+
+- **Widget Inspector**：在面板中开启后，会**拍一次当前组件树的快照**（构建后回调），并以**面包屑导航**方式浏览（类似文件管理器）：主列表只显示当前层；点击含子节点的项即**下钻**到下一层，顶部分层面包屑可一键跳回任意祖先层；点击叶子节点弹出底部抽屉看详情。**它不是实时的**——开启后不会自动跟随 UI 变化；如需更新，点击工具栏的「刷新」按钮（或关闭再打开开关）重新快照。
+- **Network Timeline**：在 Network 面板中开启后，以时间轴瀑布图形式展示请求的发起与响应过程，便于发现并发与长阻塞。**它是实时的**——新请求到达会立即流入时间轴，无需手动刷新。
+
+```dart
+ZeroInspectorKit.runAppWithInspector(
+  const MyApp(),
+  enableWidgetInspector: true,    // 启动时预开启 Widget Inspector
+  enableNetworkTimeline: true,    // 启动时预开启 Network Timeline
+);
+```
+
+即使不预开启，也可以在运行时于面板内手动打开对应开关。
 
 ## API 参考
 

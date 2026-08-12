@@ -132,18 +132,21 @@ class _LogViewerState extends State<LogViewer> {
               ),
               InspectorIconButton(
                 icon: Icons.share_rounded,
-                tooltip: 'Copy as Text',
+                tooltip: 'Share as Text',
                 onTap: () async {
                   final logs = _filterLogs(
                     InspectorService.instance.logEntries,
                   );
                   if (logs.isEmpty) return;
                   final messenger = ScaffoldMessenger.of(context);
-                  await ExportService.instance.copyLogs(logs, json: false);
+                  await ExportService.instance.exportLogsAndShare(
+                    logs,
+                    json: false,
+                  );
                   if (mounted) {
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text('Copied ${logs.length} logs as Text'),
+                        content: Text('Sharing ${logs.length} logs as Text'),
                       ),
                     );
                   }

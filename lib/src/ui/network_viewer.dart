@@ -41,6 +41,11 @@ class _NetworkViewerState extends State<NetworkViewer> {
   /// 已选中的请求 id 集合 / Selected request ids
   final Set<String> _selectedIds = {};
 
+  @override
+  void initState() {
+    super.initState();
+  }
+
   /// 从实时列表中解析当前选中的请求；找不到（已被淘汰）时返回 null。
   /// Resolves the selected request from the live list; null if evicted.
   NetworkRequest? get _selectedRequest {
@@ -259,6 +264,29 @@ class _NetworkViewerState extends State<NetworkViewer> {
                   }
                 },
               ),
+              InspectorIconButton(
+                icon: Icons.share_rounded,
+                tooltip: 'Share as JSON',
+                onTap: () async {
+                  final requests = InspectorService.instance.networkRequests;
+                  if (requests.isEmpty) return;
+                  final messenger = ScaffoldMessenger.of(context);
+                  await ExportService.instance.exportNetAndShare(
+                    requests,
+                    maskSensitive: _maskSensitive,
+                  );
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Sharing ${requests.length} requests as JSON'
+                          '${_maskSensitive ? ' (sensitive hidden)' : ''}',
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
               if (_selectionMode)
                 InspectorIconButton(
                   icon: Icons.copy_all_rounded,
@@ -368,12 +396,19 @@ class _NetworkViewerState extends State<NetworkViewer> {
       );
     }
 
+    // 主视图始终为列表（与旧版一致），每个请求渲染为独立卡片，边界清晰。
+    // 时间轴（瀑布图）已移至单个请求的详情页中展示。
+    // The main view is always the list (same as before), each request rendered
+    // as a distinct card with clear separation. The timeline/waterfall now lives
+    // inside each request's detail page.
     return Column(
       children: [
         if (_selectionMode) _buildBatchBar(requests),
         Expanded(
-          child: ListView.builder(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
             itemCount: requests.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) => _buildRequestItem(requests[index]),
           ),
         ),
@@ -475,15 +510,23 @@ class _NetworkViewerState extends State<NetworkViewer> {
           }
         }),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(
-                color: _getStatusColor(request.status),
-                width: 3,
-              ),
-              bottom: BorderSide(color: InspectorColors.divider, width: 0.5),
+            color: InspectorColors.card,
+            borderRadius: BorderRadius.circular(
+              InspectorDimensions.cardRadius,
             ),
+            border: Border.all(
+              color: _getStatusColor(request.status).withValues(alpha: 0.35),
+              width: 0.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -723,8 +766,143 @@ class _NetworkViewerState extends State<NetworkViewer> {
           _buildDetailSection('Duration', request.durationText),
           if (request.responseBody != null)
             _buildDetailSection('Body', _formatJson(request.responseBody)),
+          const SizedBox(height: 16),
+          _buildTimelineCard(request),
         ],
       ),
+    );
+  }
+
+  /// 单个请求的时间轴卡片：横向展示 发起 → 等待(TTFB) → 响应 的耗时分解。
+  /// Timeline card for a single request: a horizontal breakdown of
+  /// send → wait (TTFB) → response.
+  Widget _buildTimelineCard(NetworkRequest request) {
+    final respTime = request.responseTime;
+    final waitMs =
+        respTime != null ? (respTime - request.requestTime) : null;
+    final totalMs = request.duration ?? waitMs;
+
+    String waitText;
+    String totalText;
+    if (waitMs != null) {
+      waitText = waitMs < 1000 ? '${waitMs}ms' : '${(waitMs / 1000).toStringAsFixed(2)}s';
+    } else {
+      waitText = '—';
+    }
+    if (totalMs != null) {
+      totalText = totalMs < 1000 ? '${totalMs}ms' : '${(totalMs / 1000).toStringAsFixed(2)}s';
+    } else {
+      totalText = 'pending';
+    }
+
+    // 等待段占整体的比例（无响应时按 100% 等待展示）。
+    final waitRatio = (totalMs != null && totalMs > 0 && waitMs != null)
+        ? (waitMs / totalMs).clamp(0.0, 1.0)
+        : 1.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(
+          'Timeline',
+          Icons.timeline_rounded,
+          InspectorColors.accent,
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: InspectorColors.card,
+            borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _timelineLegend(
+                    color: InspectorColors.accent,
+                    label: 'Wait (TTFB)',
+                    value: waitText,
+                  ),
+                  const SizedBox(width: 16),
+                  _timelineLegend(
+                    color: InspectorColors.success,
+                    label: 'Total',
+                    value: totalText,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 10,
+                child: Row(
+                  children: [
+                    // 等待段 / wait segment
+                    Expanded(
+                      flex: (waitRatio * 100).round().clamp(1, 100),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: InspectorColors.accent,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(5),
+                            bottomLeft: Radius.circular(5),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // 响应段 / response segment
+                    Expanded(
+                      flex: ((1 - waitRatio) * 100).round().clamp(0, 100),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: InspectorColors.success,
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(5),
+                            bottomRight: Radius.circular(5),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _timelineLegend({
+    required Color color,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            color: InspectorColors.textSecondary,
+            fontSize: 11,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: InspectorColors.textPrimary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
