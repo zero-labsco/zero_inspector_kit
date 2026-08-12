@@ -11,7 +11,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.3.6 扩展了检查器能力 —— 新增内存**趋势图触摸交互**（点击或拖动高亮最近数据点，显示十字准线与浮动 Tooltip 精确数值及时间戳）—— 在 v1.3.5 网络 Timeline 瀑布图、`share_plus` 系统分享、Widget 检查器、SharedPreferences/Hive 数据库支持、v1.3.4 元数据/文档清理、v1.3.3 强化的网络拦截、v1.3.2 修复网络请求耗时、v1.3.1 按来源告警节流、以及 v1.3.0 网络批量操作、导出敏感字段脱敏、一键复制 cURL、带未读角标的告警系统之上。建议所有用户升级到 `^1.3.6`。
+> **🔔 推荐升级：** v1.4.0 扩展了检查器能力 —— 新增**路由追踪穿透**：当根组件是包裹壳（例如 `StatelessWidget` / `Container` / `Builder` / `Padding` / `Center` 包着真正的 `MaterialApp`）时，检查器会穿透壳、定位内部 `MaterialApp` 并自动注入 `InspectorRouteObserver`，无需把 `MaterialApp` 直接作为根传入即可启用路由追踪 —— 在 v1.3.6 内存趋势图触摸交互（点击或拖动高亮最近数据点，显示十字准线与浮动 Tooltip 精确数值及时间戳）、v1.3.5 网络 Timeline 瀑布图、`share_plus` 系统分享、Widget 检查器、SharedPreferences/Hive 数据库支持、v1.3.4 元数据/文档清理、v1.3.3 强化的网络拦截、v1.3.2 修复网络请求耗时、v1.3.1 按来源告警节流、以及 v1.3.0 网络批量操作、导出敏感字段脱敏、一键复制 cURL、带未读角标的告警系统之上。建议所有用户升级到 `^1.4.0`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
@@ -40,19 +40,19 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.3.6
+  zero_inspector_kit: ^1.4.0
 ```
 
 ### GitHub
 
-或者，你也可以从 GitHub 安装（将 `1.3.6` 替换为你需要的版本号）：
+或者，你也可以从 GitHub 安装（将 `1.4.0` 替换为你需要的版本号）：
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.3.6
+      ref: release/v1.4.0
 ```
 
 ## 使用方法

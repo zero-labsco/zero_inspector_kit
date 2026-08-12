@@ -11,7 +11,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** v1.3.6 extends the inspector — adds **touch interaction to the memory trend chart** (tap/drag to highlight the nearest data point with a crosshair and a floating tooltip showing the exact value and timestamp) — on top of v1.3.5's network Timeline waterfall view, system sharing via `share_plus`, Widget inspector, and SharedPreferences/Hive database support, v1.3.4's metadata/docs cleanup, v1.3.3's hardened network interception, v1.3.2's network duration fix, v1.3.1's per-source alert throttling, and v1.3.0's network batch operations, sensitive-field masking on export, one-click cURL copy, and the alert system with an unread badge. All users are advised to upgrade to `^1.3.6`.
+> **🔔 Upgrade recommended:** v1.4.0 extends the inspector — adds **route-observer penetration for wrapped apps**: when your root widget is a shell (e.g. a `StatelessWidget` / `Container` / `Builder` / `Padding` / `Center` wrapping the real `MaterialApp`), the inspector now drills through the shell, finds the inner `MaterialApp`, and auto-injects `InspectorRouteObserver` so route tracking works without manual wiring — on top of v1.3.6's touch interaction on the memory trend chart, v1.3.5's network Timeline waterfall view, system sharing via `share_plus`, Widget inspector, and SharedPreferences/Hive database support, v1.3.4's metadata/docs cleanup, v1.3.3's hardened network interception, v1.3.2's network duration fix, v1.3.1's per-source alert throttling, and v1.3.0's network batch operations, sensitive-field masking on export, one-click cURL copy, and the alert system with an unread badge. All users are advised to upgrade to `^1.4.0`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)**
 
@@ -41,19 +41,19 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.3.6
+  zero_inspector_kit: ^1.4.0
 ```
 
 ### GitHub
 
-Alternatively, you can install from GitHub (replace `1.3.6` with the version you need):
+Alternatively, you can install from GitHub (replace `1.4.0` with the version you need):
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.3.6
+      ref: release/v1.4.0
 ```
 
 ## Usage

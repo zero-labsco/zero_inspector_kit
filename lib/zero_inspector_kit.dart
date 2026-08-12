@@ -29,6 +29,7 @@ export 'zero_inspector_kit_platform_interface.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' as foundation;
 import 'src/interceptors/log_interceptor.dart';
 import 'src/interceptors/http_interceptor.dart';
 import 'src/interceptors/route_observer.dart';
@@ -429,48 +430,111 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   }
 
   /// 包装应用并自动注入路由观察者 / Wrap app and auto-inject route observer
+  ///
+  /// 若根节点本身不是 [MaterialApp]，尝试穿透中间壳（StatelessWidget /
+  /// Container / Builder / Padding / Align / ... 等不含 Navigator 的组件），
+  /// 找到真正的 [MaterialApp] 子树后再注入 [InspectorRouteObserver]。
+  /// 若无法安全穿透（例如被 StatefulWidget 包裹或 build 依赖 InheritedWidget），
+  /// 则回退到此前的行为：新建一个外层 MaterialApp 包裹（此时路由追踪可能失效，
+  /// 但不会崩溃，属已知降级行为）。
   Widget _wrapAppWithRouteObserver(Widget app) {
-    if (app is MaterialApp) {
-      return MaterialApp(
-        key: app.key,
-        navigatorKey: app.navigatorKey ?? _navigatorKey,
-        scaffoldMessengerKey: app.scaffoldMessengerKey,
-        navigatorObservers: [
-          ...(app.navigatorObservers ?? []),
-          InspectorRouteObserver(),
-        ],
-        initialRoute: app.initialRoute,
-        onGenerateInitialRoutes: app.onGenerateInitialRoutes,
-        onGenerateRoute: app.onGenerateRoute,
-        onUnknownRoute: app.onUnknownRoute,
-        routes: app.routes ?? {},
-        builder: app.builder,
-        title: app.title,
-        onGenerateTitle: app.onGenerateTitle,
-        color: app.color,
-        theme: app.theme,
-        darkTheme: app.darkTheme,
-        themeMode: app.themeMode,
-        locale: app.locale,
-        localizationsDelegates: app.localizationsDelegates,
-        localeListResolutionCallback: app.localeListResolutionCallback,
-        localeResolutionCallback: app.localeResolutionCallback,
-        supportedLocales: app.supportedLocales,
-        debugShowMaterialGrid: app.debugShowMaterialGrid,
-        showPerformanceOverlay: app.showPerformanceOverlay,
-        checkerboardRasterCacheImages: app.checkerboardRasterCacheImages,
-        checkerboardOffscreenLayers: app.checkerboardOffscreenLayers,
-        showSemanticsDebugger: app.showSemanticsDebugger,
-        debugShowCheckedModeBanner: app.debugShowCheckedModeBanner,
-        shortcuts: app.shortcuts,
-        actions: app.actions,
-        restorationScopeId: app.restorationScopeId,
-        scrollBehavior: app.scrollBehavior,
-        home: app.home,
-      );
+    final injected = _tryInjectRouteObserver(app);
+    if (injected != null) return injected;
+    return _fallbackWrap(app);
+  }
+
+  /// 递归穿透中间壳，找到嵌套的 [MaterialApp] 并注入路由观察者。
+  /// 成功返回装饰后的子树，失败（无法安全穿透）返回 null。
+  /// 仅修改 [MaterialApp] 的 [navigatorObservers]，不改变任何其它属性。
+  Widget? _tryInjectRouteObserver(Widget widget, [int depth = 0]) {
+    if (depth > 32) return null;
+
+    // 命中真正的 MaterialApp：注入观察者后返回。
+    // Hit the real MaterialApp: inject the observer and return it.
+    if (widget is MaterialApp) {
+      return _decorateMaterialApp(widget);
     }
 
-    // 非 MaterialApp 情况，创建包装器
+    // 无 Navigator 的 StatelessWidget 壳（StatelessWidget / Container /
+    // Builder / SafeArea / MediaQuery / Directionality / SingleChildScrollView
+    // 等）：调用其 build 以触达内部子树。build 复用 widget 自身的配置字段，
+    // 因此重建出的子树与原始结构一致，仅最底层的 MaterialApp 被注入观察者。
+    // 若 build 访问了真实树才存在的 InheritedWidget（Stub 返回 null 导致抛错），
+    // 则交由下方 SingleChildRenderObjectWidget 分支或回退处理。
+    if (widget is StatelessWidget) {
+      try {
+        // ignore: invalid_use_of_protected_member
+        final built = widget.build(const _ShellBuildContext());
+        final injected = _tryInjectRouteObserver(built, depth + 1);
+        if (injected != null) return injected;
+      } catch (_) {
+        // Build touched inherited widgets unavailable outside a real tree.
+      }
+    }
+
+    // 单子 RenderObject 壳（Padding / Align / Center / SizedBox / Opacity /
+    // ColoredBox / ConstrainedBox / DecoratedBox）：读取唯一子节点递归处理，
+    // 成功后用原壳构造参数重建（仅替换 child）。不支持的壳类型则放弃该分支。
+    if (widget is SingleChildRenderObjectWidget) {
+      final child = widget.child;
+      if (child != null) {
+        final injected = _tryInjectRouteObserver(child, depth + 1);
+        if (injected != null) {
+          final rebuilt = _rebuildSingleChild(widget, injected);
+          if (!identical(rebuilt, widget)) return rebuilt;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// 注入 [InspectorRouteObserver] 到 [MaterialApp.navigatorObservers]，
+  /// 完整拷贝其余字段以保持语义不变。/ Inject the route observer while copying
+  /// every other property so behavior is unchanged.
+  MaterialApp _decorateMaterialApp(MaterialApp app) {
+    return MaterialApp(
+      key: app.key,
+      navigatorKey: app.navigatorKey ?? _navigatorKey,
+      scaffoldMessengerKey: app.scaffoldMessengerKey,
+      navigatorObservers: [
+        ...(app.navigatorObservers ?? []),
+        InspectorRouteObserver(),
+      ],
+      initialRoute: app.initialRoute,
+      onGenerateInitialRoutes: app.onGenerateInitialRoutes,
+      onGenerateRoute: app.onGenerateRoute,
+      onUnknownRoute: app.onUnknownRoute,
+      routes: app.routes ?? {},
+      builder: app.builder,
+      title: app.title,
+      onGenerateTitle: app.onGenerateTitle,
+      color: app.color,
+      theme: app.theme,
+      darkTheme: app.darkTheme,
+      themeMode: app.themeMode,
+      locale: app.locale,
+      localizationsDelegates: app.localizationsDelegates,
+      localeListResolutionCallback: app.localeListResolutionCallback,
+      localeResolutionCallback: app.localeResolutionCallback,
+      supportedLocales: app.supportedLocales,
+      debugShowMaterialGrid: app.debugShowMaterialGrid,
+      showPerformanceOverlay: app.showPerformanceOverlay,
+      checkerboardRasterCacheImages: app.checkerboardRasterCacheImages,
+      checkerboardOffscreenLayers: app.checkerboardOffscreenLayers,
+      showSemanticsDebugger: app.showSemanticsDebugger,
+      debugShowCheckedModeBanner: app.debugShowCheckedModeBanner,
+      shortcuts: app.shortcuts,
+      actions: app.actions,
+      restorationScopeId: app.restorationScopeId,
+      scrollBehavior: app.scrollBehavior,
+      home: app.home,
+    );
+  }
+
+  /// 回退包装：新建外层 MaterialApp 包裹 app（注入路由观察者的已知降级行为）。
+  /// Decorated fallback: wrap app with a new outer MaterialApp.
+  Widget _fallbackWrap(Widget app) {
     return MaterialApp(
       navigatorKey: _navigatorKey,
       builder: (context, child) {
@@ -482,4 +546,121 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
       home: Scaffold(body: app),
     );
   }
+}
+
+/// 模拟 build 用的最小 [BuildContext] / Minimal [BuildContext] for build simulation.
+///
+/// 仅在穿透 StatelessWidget 壳时构造一次其子树以定位嵌套的 [MaterialApp]。
+/// 对 InheritedWidget 查询统一返回 null —— 依赖真实树的壳会在 build 时抛错，
+/// 此时由 [_tryInjectRouteObserver] 捕获并回退，不会崩溃。
+class _ShellBuildContext implements BuildContext {
+  const _ShellBuildContext();
+
+  @override
+  Widget get widget => const SizedBox.shrink();
+
+  @override
+  BuildOwner? get owner => null;
+
+  @override
+  RenderObject? findRenderObject() => null;
+
+  @override
+  Size? get size => null;
+
+  @override
+  void visitAncestorElements(ConditionalElementVisitor visitor) {}
+
+  @override
+  void visitChildElements(ElementVisitor visitor) {}
+
+  @override
+  T? dependOnInheritedWidgetOfExactType<T extends InheritedWidget>({
+    Object? aspect,
+  }) => null;
+
+  @override
+  InheritedElement?
+  getElementForInheritedWidgetOfExactType<T extends InheritedWidget>() => null;
+
+  @override
+  T? getInheritedWidgetOfExactType<T extends InheritedWidget>() => null;
+
+  @override
+  InheritedWidget dependOnInheritedElement(
+    InheritedElement ancestor, {
+    Object? aspect,
+  }) => throw UnimplementedError();
+
+  @override
+  T? findAncestorWidgetOfExactType<T extends Widget>() => null;
+
+  @override
+  T? findAncestorStateOfType<T extends State>() => null;
+
+  @override
+  T? findRootAncestorStateOfType<T extends State>() => null;
+
+  @override
+  T? findAncestorRenderObjectOfType<T extends RenderObject>() => null;
+
+  @override
+  bool get debugDoingBuild => false;
+
+  @override
+  bool get mounted => false;
+
+  @override
+  bool dispatchNotification(Notification notification) => false;
+
+  @override
+  DiagnosticsNode describeElement(
+    String name, {
+    DiagnosticsTreeStyle style = DiagnosticsTreeStyle.dense,
+  }) => foundation.ErrorDescription(name);
+
+  @override
+  DiagnosticsNode describeWidget(
+    String name, {
+    DiagnosticsTreeStyle style = DiagnosticsTreeStyle.dense,
+  }) => foundation.ErrorDescription(name);
+
+  @override
+  List<DiagnosticsNode> describeMissingAncestor({
+    required Type expectedAncestorType,
+  }) => [foundation.ErrorDescription(expectedAncestorType.toString())];
+
+  @override
+  DiagnosticsNode describeOwnershipChain(String name) =>
+      foundation.ErrorDescription(name);
+}
+
+/// 用新的 [child] 重建单子 RenderObject 壳；不支持的壳返回原 [widget]
+/// （调用方据此判断穿透是否成功）。/ Rebuild a single-child shell with [child];
+/// returns the original for unsupported shells so the caller can detect failure.
+Widget _rebuildSingleChild(SingleChildRenderObjectWidget widget, Widget child) {
+  if (widget is Padding) return Padding(padding: widget.padding, child: child);
+  if (widget is Align) return Align(alignment: widget.alignment, child: child);
+  if (widget is Center) return Center(child: child);
+  if (widget is SizedBox) {
+    return SizedBox(width: widget.width, height: widget.height, child: child);
+  }
+  if (widget is Opacity) {
+    return Opacity(opacity: widget.opacity, child: child);
+  }
+  if (widget is ColoredBox) {
+    return ColoredBox(color: widget.color, child: child);
+  }
+  if (widget is ConstrainedBox) {
+    return ConstrainedBox(constraints: widget.constraints, child: child);
+  }
+  if (widget is DecoratedBox) {
+    return DecoratedBox(
+      decoration: widget.decoration,
+      position: widget.position,
+      child: child,
+    );
+  }
+  // Unsupported single-child shell: cannot safely reconstruct.
+  return widget;
 }
