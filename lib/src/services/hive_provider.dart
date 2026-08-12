@@ -74,7 +74,9 @@ class HiveProvider implements DatabaseProvider {
     if (desc) keys = keys.reversed.toList();
     if (whereKeyword != null && whereKeyword.isNotEmpty) {
       final kw = whereKeyword.toLowerCase();
-      keys = keys.where((k) => k.toString().toLowerCase().contains(kw)).toList();
+      keys = keys
+          .where((k) => k.toString().toLowerCase().contains(kw))
+          .toList();
     }
     final total = keys.length;
     final windowed = keys.skip(offset).take(limit).map((k) {

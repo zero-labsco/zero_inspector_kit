@@ -71,7 +71,9 @@ class SharedPrefsProvider implements DatabaseProvider {
       DatabaseInfo(
         name: name,
         path: 'prefs://$name',
-        tables: [TableInfo(name: _tableName, rowCount: count, columns: const [])],
+        tables: [
+          TableInfo(name: _tableName, rowCount: count, columns: const []),
+        ],
       ),
     ];
   }

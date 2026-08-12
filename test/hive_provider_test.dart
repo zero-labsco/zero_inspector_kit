@@ -36,8 +36,7 @@ void main() {
       );
     });
 
-    test('getDatabases returns one database for the box / 返回单个库',
-        () async {
+    test('getDatabases returns one database for the box / 返回单个库', () async {
       final dbs = await provider.getDatabases();
       expect(dbs, hasLength(1));
       expect(dbs.first.name, 'settings');
@@ -46,20 +45,22 @@ void main() {
       expect(dbs.first.tables.first.rowCount, 4);
     });
 
-    test('queryTable serializes complex values to JSON / 复杂对象序列化为 JSON',
-        () async {
-      final result = await provider.queryTable('x', 'entries');
-      expect(result.columns, ['key', 'type', 'value']);
-      final userRow = result.rows.firstWhere((r) => r['key'] == 'user');
-      expect(userRow['type'], 'Map');
-      // 值应为合法 JSON 字符串，且内容正确
-      final decoded = jsonDecode(userRow['value'] as String) as Map;
-      expect(decoded['name'], 'Ada');
-      expect(decoded['age'], 36);
-      final flagRow = result.rows.firstWhere((r) => r['key'] == 'flag');
-      expect(flagRow['type'], 'bool');
-      expect(flagRow['value'], 'true');
-    });
+    test(
+      'queryTable serializes complex values to JSON / 复杂对象序列化为 JSON',
+      () async {
+        final result = await provider.queryTable('x', 'entries');
+        expect(result.columns, ['key', 'type', 'value']);
+        final userRow = result.rows.firstWhere((r) => r['key'] == 'user');
+        expect(userRow['type'], 'Map');
+        // 值应为合法 JSON 字符串，且内容正确
+        final decoded = jsonDecode(userRow['value'] as String) as Map;
+        expect(decoded['name'], 'Ada');
+        expect(decoded['age'], 36);
+        final flagRow = result.rows.firstWhere((r) => r['key'] == 'flag');
+        expect(flagRow['type'], 'bool');
+        expect(flagRow['value'], 'true');
+      },
+    );
 
     test('whereKeyword is case-insensitive / 关键词不区分大小写', () async {
       final result = await provider.queryTable(

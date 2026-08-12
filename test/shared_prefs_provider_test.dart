@@ -46,31 +46,35 @@ void main() {
       );
     });
 
-    test('getDatabases returns one database with one table / 返回单个库单表',
-        () async {
-      final dbs = await provider.getDatabases();
-      expect(dbs, hasLength(1));
-      expect(dbs.first.name, 'SharedPreferences');
-      expect(dbs.first.tables, hasLength(1));
-      expect(dbs.first.tables.first.name, 'preferences');
-      expect(dbs.first.tables.first.rowCount, 5);
-    });
+    test(
+      'getDatabases returns one database with one table / 返回单个库单表',
+      () async {
+        final dbs = await provider.getDatabases();
+        expect(dbs, hasLength(1));
+        expect(dbs.first.name, 'SharedPreferences');
+        expect(dbs.first.tables, hasLength(1));
+        expect(dbs.first.tables.first.name, 'preferences');
+        expect(dbs.first.tables.first.rowCount, 5);
+      },
+    );
 
-    test('queryTable maps entries to key/type/value columns / 映射为键值列',
-        () async {
-      final result = await provider.queryTable('x', 'preferences');
-      expect(result.columns, ['key', 'type', 'value']);
-      expect(result.totalRows, 5);
-      final map = {
-        for (final row in result.rows)
-          row['key'] as String: (row['type'], row['value']),
-      };
-      expect(map['theme'], ('String', 'dark'));
-      expect(map['count'], ('int', '42'));
-      expect(map['enabled'], ('bool', 'true'));
-      expect(map['ratio'], ('double', '1.5'));
-      expect(map['tags'], ('List<String>', 'a, b'));
-    });
+    test(
+      'queryTable maps entries to key/type/value columns / 映射为键值列',
+      () async {
+        final result = await provider.queryTable('x', 'preferences');
+        expect(result.columns, ['key', 'type', 'value']);
+        expect(result.totalRows, 5);
+        final map = {
+          for (final row in result.rows)
+            row['key'] as String: (row['type'], row['value']),
+        };
+        expect(map['theme'], ('String', 'dark'));
+        expect(map['count'], ('int', '42'));
+        expect(map['enabled'], ('bool', 'true'));
+        expect(map['ratio'], ('double', '1.5'));
+        expect(map['tags'], ('List<String>', 'a, b'));
+      },
+    );
 
     test('queryTable is sorted by key / 按 key 排序', () async {
       final result = await provider.queryTable('x', 'preferences');

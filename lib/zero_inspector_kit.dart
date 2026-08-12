@@ -143,7 +143,9 @@ class ZeroInspectorKit {
   /// 适配器 [SharedPreferencesAdapter] 随本包导出，零插件依赖 / The
   /// [SharedPreferencesAdapter] adapter ships with this package (zero plugin dep).
   static void registerSharedPrefs(SharedPrefsLike prefs) {
-    DatabaseRegistry.instance.registerProvider(SharedPrefsProvider(prefs: prefs));
+    DatabaseRegistry.instance.registerProvider(
+      SharedPrefsProvider(prefs: prefs),
+    );
   }
 
   /// 注册一个或多个 Hive Box 作为可查看的"数据库"源 / Register one or more Hive boxes as viewable DB sources.
@@ -166,7 +168,6 @@ class ZeroInspectorKit {
       );
     }
   }
-
 
   /// 包装应用并显示悬浮检查器按钮 / Wrap app and show floating inspector button
   /// [app] 应用根组件 / App root widget

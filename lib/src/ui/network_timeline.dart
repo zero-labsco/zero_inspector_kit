@@ -132,15 +132,18 @@ class _LegendDot extends StatelessWidget {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
         const SizedBox(width: 4),
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: InspectorColors.textHint,
-                fontSize: 10,
-              ),
+            color: InspectorColors.textHint,
+            fontSize: 10,
+          ),
         ),
       ],
     );
@@ -199,9 +202,14 @@ class _TimelineRow extends StatelessWidget {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
-                        color: _methodColor(request.method).withValues(alpha: 0.2),
+                        color: _methodColor(
+                          request.method,
+                        ).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -218,9 +226,9 @@ class _TimelineRow extends StatelessWidget {
                       child: Text(
                         _shortUrl(request.url),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: InspectorColors.textPrimary,
-                              fontSize: 11,
-                            ),
+                          color: InspectorColors.textPrimary,
+                          fontSize: 11,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

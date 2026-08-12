@@ -513,9 +513,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: InspectorColors.card,
-            borderRadius: BorderRadius.circular(
-              InspectorDimensions.cardRadius,
-            ),
+            borderRadius: BorderRadius.circular(InspectorDimensions.cardRadius),
             border: Border.all(
               color: _getStatusColor(request.status).withValues(alpha: 0.35),
               width: 0.5,
@@ -778,19 +776,22 @@ class _NetworkViewerState extends State<NetworkViewer> {
   /// send → wait (TTFB) → response.
   Widget _buildTimelineCard(NetworkRequest request) {
     final respTime = request.responseTime;
-    final waitMs =
-        respTime != null ? (respTime - request.requestTime) : null;
+    final waitMs = respTime != null ? (respTime - request.requestTime) : null;
     final totalMs = request.duration ?? waitMs;
 
     String waitText;
     String totalText;
     if (waitMs != null) {
-      waitText = waitMs < 1000 ? '${waitMs}ms' : '${(waitMs / 1000).toStringAsFixed(2)}s';
+      waitText = waitMs < 1000
+          ? '${waitMs}ms'
+          : '${(waitMs / 1000).toStringAsFixed(2)}s';
     } else {
       waitText = '—';
     }
     if (totalMs != null) {
-      totalText = totalMs < 1000 ? '${totalMs}ms' : '${(totalMs / 1000).toStringAsFixed(2)}s';
+      totalText = totalMs < 1000
+          ? '${totalMs}ms'
+          : '${(totalMs / 1000).toStringAsFixed(2)}s';
     } else {
       totalText = 'pending';
     }
@@ -813,7 +814,9 @@ class _NetworkViewerState extends State<NetworkViewer> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: InspectorColors.card,
-            borderRadius: BorderRadius.circular(InspectorDimensions.smallRadius),
+            borderRadius: BorderRadius.circular(
+              InspectorDimensions.smallRadius,
+            ),
           ),
           child: Column(
             children: [
@@ -884,15 +887,15 @@ class _NetworkViewerState extends State<NetworkViewer> {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
         const SizedBox(width: 6),
         Text(
           '$label: ',
-          style: TextStyle(
-            color: InspectorColors.textSecondary,
-            fontSize: 11,
-          ),
+          style: TextStyle(color: InspectorColors.textSecondary, fontSize: 11),
         ),
         Text(
           value,

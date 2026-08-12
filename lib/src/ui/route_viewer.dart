@@ -232,7 +232,12 @@ Color _getActionColor(RouteAction action) {
 }
 
 /// 详情分段（可复用顶层函数）/ Reusable detail section.
-Widget _detailSection(String title, String content, IconData icon, Color color) {
+Widget _detailSection(
+  String title,
+  String content,
+  IconData icon,
+  Color color,
+) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 14),
     child: Column(
