@@ -8,7 +8,7 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.4.1
+  zero_inspector_kit: ^__ZIK_VERSION__
 ```
 
 Then run:
@@ -30,7 +30,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: main
+      ref: release/v__ZIK_VERSION__
 ```
 
 ## Platform Setup / 平台配置

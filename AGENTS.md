@@ -107,9 +107,10 @@ Notes / 说明:
      - [ ] the "🔔 Upgrade recommended" callout — the leading version token `vX.Y.Z` that anchors the current release's summary MUST be bumped to the new version (e.g. `v1.3.4 cleans up ...`); also update its trailing "upgrade to `^X.Y.Z`" advice.
      - NOTE: historical prose like "on top of vX.(Y-1)'s ..." refers to the PREVIOUS version and must NOT be bumped — only literal version references above change. The leading version in the upgrade callout is NOT historical prose; it describes the new release and must be bumped.
    - [ ] `README_zh.md`: same spots as `README.md` (`^X.Y.Z`, `` `X.Y.Z` `` placeholder, `ref: vX.Y.Z`, and the leading `vX.Y.Z` in the "🔔 推荐升级：" callout). Historical prose stays.
-   - [ ] `docs/Installation.md`: the `^X.Y.Z` dependency constraint.
+   - [ ] `website/pages/*.md`: the install snippet uses the `__ZIK_VERSION__` placeholder; it is auto-filled from `pubspec.yaml` by `website/scripts/sync-docs.mjs`, so bumping `pubspec.yaml` alone is enough (do NOT hardcode a version there).
    - [ ] `CHANGELOG.md`: add a new `## X.Y.Z` section at the top describing the changes.
-   - Grep sanity check before committing: `grep -rn "old_version" README.md README_zh.md docs/Installation.md` must return NOTHING (only legitimate historical prose may remain).
+   - Grep sanity check before committing: `grep -rn "old_version" README.md README_zh.md website/pages` must return NOTHING (only legitimate historical prose may remain; the `__ZIK_VERSION__` placeholder is expected and is not a real version).
+   **Website (Nextra docs site):** `website/` is built and synced to `docs/` automatically by the `pre-commit` hook (`website/scripts/sync-docs.mjs`). Version references in `website/pages/*.md` use the `__ZIK_VERSION__` placeholder, which is filled from `pubspec.yaml` at build time — bumping `pubspec.yaml` propagates to the site automatically. Never edit `docs/` by hand; it is regenerated on every commit that touches `website/`.
 2. Update `README.md` / `CHANGELOG.md` as needed.
 3. Locally verify before pushing:
    - `flutter analyze` — must pass with no errors.
@@ -147,5 +148,5 @@ When re-tagging after a fix, force-update both the `vX.Y.Z` tag and the `release
 - [ ] Run `flutter analyze` and `flutter test` locally before pushing.
 - [ ] Use a typed branch (`feat/...`) and a Conventional Commits PR title.
 - [ ] Ensure the 3 required status checks pass before requesting review/merge.
-- [ ] For user-facing changes, update `README.md` and the `docs/` site.
-- [ ] For releases, bump `version` AND follow the **Mandatory version-bump checklist** under "Release and publish" above (pubspec, iOS podspec, README.md, README_zh.md, docs/Installation.md, CHANGELOG.md — grep for the old version string to confirm nothing is left). Tag `vX.Y.Z` (triggers publish), and optionally push a `release/vX.Y.Z` archive branch via explicit refspec.
+- [ ] For user-facing changes, update `README.md` and the `website/` source (the `docs/` site is built and synced automatically by the pre-commit hook).
+- [ ] For releases, bump `version` AND follow the **Mandatory version-bump checklist** under "Release and publish" above (pubspec, iOS podspec, README.md, README_zh.md, `website/pages/*.md` via the `__ZIK_VERSION__` placeholder, CHANGELOG.md — grep for the old version string to confirm nothing is left). Tag `vX.Y.Z` (triggers publish), and optionally push a `release/vX.Y.Z` archive branch via explicit refspec.
