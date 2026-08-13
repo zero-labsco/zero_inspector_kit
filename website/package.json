@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "export": "next build"
+    "export": "next build",
+    "setup-hook": "node scripts/install-hook.mjs"
   },
   "dependencies": {
     "next": "14.2.15",
