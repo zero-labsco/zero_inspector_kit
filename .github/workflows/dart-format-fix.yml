@@ -24,7 +24,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Disable autocrlf on runner
-        run: git config --global core.autocrlf false
+        # Force LF everywhere for this job so committed blobs are LF, not CRLF.
+        # A CRLF blob makes `dart format` re-emit LF on the next CI run, looping.
+        # 在 job 级别强制 LF，确保提交的 blob 是 LF 而非 CRLF，避免格式循环。
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.safecrlf false
 
       - name: Checkout PR head
         uses: actions/checkout@v7
@@ -36,20 +42,18 @@ jobs:
           # 拉取完整历史，便于在需要时重新规范化 blob。
           fetch-depth: 0
 
-      - name: Force LF on disk (dos2unix)
-        # Byte-level convert every tracked text file to LF, bypassing git's
-        # attribute/filter logic entirely. This guarantees `dart format` reads
-        # LF regardless of how checkout wrote the files. A CRLF working tree
-        # makes `dart format` re-emit LF and push it back forever (the loop we
-        # keep hitting).
-        # 用 dos2unix 把磁盘文本文件强制转成 LF（字节级，绕过 git 属性/过滤器），
-        # 保证 dart format 读到的一定是 LF，彻底打断格式循环。
+      - name: Force LF on disk (pure git, no external tools)
+        # `git add --renormalize` writes LF into the index per .gitattributes,
+        # then `git checkout -f -- .` materializes that LF index onto disk.
+        # This guarantees `dart format` reads LF regardless of how checkout
+        # wrote the files. No dos2unix dependency (apt may be unavailable).
+        # 用纯 git 强制 LF：renormalize 写入 LF 索引，再 checkout -f 落盘。
+        # 不依赖 dos2unix（CI 上 apt 可能不可用）。
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y dos2unix
           git config core.autocrlf false
           git config core.eol lf
-          git ls-files -z | xargs -0 -r dos2unix 2>/dev/null || true
           git add --renormalize .
+          git checkout -f -- .
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -61,13 +65,16 @@ jobs:
         run: dart format .
 
       - name: Commit and push fixes
-        # Only commit if dart format actually changed something.
-        # 仅当 dart format 确实产生了改动时才提交。
+        # Stage with --renormalize (forces LF into the index) and commit WITHOUT
+        # -a, so only the LF index is committed — never the raw working tree.
+        # 用 --renormalize 暂存（强制 LF 入索引），且 commit 不用 -a，
+        # 只提交 LF 索引，绝不提交原始工作树。
         run: |
+          git add --renormalize .
           if [[ -n "$(git status --porcelain)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -am "style: auto-format with dart format"
+            git commit -m "style: auto-format with dart format"
             git push
           else
             echo "No formatting changes needed."
