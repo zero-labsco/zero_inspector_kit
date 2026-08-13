@@ -152,6 +152,16 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Normalize working tree to LF
+        # Re-write checkout files as LF per .gitattributes so `dart format`
+        # (which runs below) sees the same bytes locally and on CI. Without
+        # this, CRLF blobs in git history make the format check fail.
+        # 按 .gitattributes 把工作区重写为 LF，保证 dart format 在两端一致。
+        run: |
+          git config core.autocrlf false
+          git config core.eol lf
+          git checkout-index --force --all
+
       - name: Cache pub dependencies
         uses: actions/cache@v6
         with:

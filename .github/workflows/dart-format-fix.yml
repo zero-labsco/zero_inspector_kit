@@ -29,6 +29,27 @@ jobs:
           # Use the PR's head ref so we can push fixes back to the same branch.
           # 使用 PR 的 head ref，以便把修复推回同一分支。
           ref: ${{ github.head_ref }}
+          # Fetch full history so renormalization can rewrite blobs if needed.
+          # 拉取完整历史，便于在需要时重新规范化 blob。
+          fetch-depth: 0
+
+      - name: Normalize line endings to LF
+        # Ensure every checked-out file is LF so `dart format` produces the same
+        # result locally and on CI (Windows CRLF in history causes the format
+        # job to loop forever). `.gitattributes` already requests `eol=lf`; this
+        # step makes checkout honor it retroactively for existing blobs.
+        # 强制所有文件为 LF，避免 Windows CRLF 历史导致 dart format 反复改动。
+        run: |
+          git config core.autocrlf false
+          git config core.eol lf
+          git add --renormalize .
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "style: normalize line endings to LF" && git push
+          else
+            echo "Line endings already normalized."
+          fi
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
