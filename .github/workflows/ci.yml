@@ -156,11 +156,17 @@ jobs:
         # Re-write checkout files as LF per .gitattributes so `dart format`
         # (which runs below) sees the same bytes locally and on CI. Without
         # this, CRLF blobs in git history make the format check fail.
+        # `.gitattributes` already requests `eol=lf`; renormalize the index
+        # first (rewrites CRLF blobs as LF) then force-checkout the working
+        # tree, which is more reliable than `checkout-index` alone.
         # 按 .gitattributes 把工作区重写为 LF，保证 dart format 在两端一致。
+        # 先 renormalize 索引（把 CRLF blob 重写为 LF），再强制 checkout 工作区，
+        # 比单独用 checkout-index 更可靠。
         run: |
           git config core.autocrlf false
           git config core.eol lf
-          git checkout-index --force --all
+          git add --renormalize .
+          git checkout -f -- .
 
       - name: Cache pub dependencies
         uses: actions/cache@v6

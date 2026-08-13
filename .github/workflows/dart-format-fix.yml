@@ -42,11 +42,22 @@ jobs:
         run: |
           git config core.autocrlf false
           git config core.eol lf
+          # `git add --renormalize .` updates the index, but the working tree on
+          # disk may still hold CRLF (from a CRLF historical blob). Force the LF
+          # version out to disk, otherwise the later `dart format` reads CRLF and
+          # re-emits LF, looping forever. Only commit if the on-disk content of a
+          # tracked file actually differs from the committed blob.
+          # 只更新 index 不够，磁盘上可能仍是 CRLF；必须强制落盘为 LF，
+          # 否则后续 dart format 读 CRLF 又写成 LF，陷入死循环。
           git add --renormalize .
-          if [[ -n "$(git status --porcelain)" ]]; then
+          git checkout -f -- .
+          # Compare what would actually be committed (LF on disk) against the
+          # committed blob; commit only when they differ.
+          # 对比磁盘 LF 内容与实际 blob，仅在不一致时提交。
+          if ! git diff --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -m "style: normalize line endings to LF" && git push
+            git commit -am "style: normalize line endings to LF" && git push
           else
             echo "Line endings already normalized."
           fi
