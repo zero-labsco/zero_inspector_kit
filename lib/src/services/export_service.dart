@@ -156,9 +156,9 @@ class ExportService {
       final startedMs = r.requestTime;
       final time = r.duration ?? 0;
       return {
-        'startedDateTime': DateTime.fromMillisecondsSinceEpoch(
-          startedMs,
-        ).toUtc().toIso8601String(),
+        'startedDateTime': DateTime.fromMillisecondsSinceEpoch(startedMs)
+            .toUtc()
+            .toIso8601String(),
         'time': time,
         'request': {
           'method': r.method,
