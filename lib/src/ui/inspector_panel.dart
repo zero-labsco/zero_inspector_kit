@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'theme/inspector_theme.dart';
 import '../services/fps_service.dart';
 import '../services/memory_inspector_service.dart';

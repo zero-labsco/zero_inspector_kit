@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/log_entry.dart';
 import '../services/inspector_service.dart';
 import '../services/export_service.dart';

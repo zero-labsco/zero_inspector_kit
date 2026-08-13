@@ -16,35 +16,32 @@ void main() {
       InspectorService.instance.clearNetworkRequests();
     });
 
-    test(
-      'updateNetworkRequest should capture empty request body after rule modification',
-      () {
-        // 这是一个回归测试,修复了一个缺陷:
-        // Regression test for a defect fix:
-        // 当拦截规则将请求体修改为空字符串时,updateNetworkRequest 应该被调用
-        // When interceptor rule modifies request body to empty string,
-        // updateNetworkRequest should still be called
+    test('updateNetworkRequest should capture empty request body after rule modification', () {
+      // 这是一个回归测试,修复了一个缺陷:
+      // Regression test for a defect fix:
+      // 当拦截规则将请求体修改为空字符串时,updateNetworkRequest 应该被调用
+      // When interceptor rule modifies request body to empty string,
+      // updateNetworkRequest should still be called
 
-        // 1. 添加一个网络请求记录
-        final requestId = 'test_req_001';
-        InspectorService.instance.addNetworkRequest(
-          NetworkRequest(
-            id: requestId,
-            method: 'POST',
-            url: 'https://api.example.com/data',
-            requestTime: DateTime.now().millisecondsSinceEpoch,
-          ),
-        );
+      // 1. 添加一个网络请求记录
+      final requestId = 'test_req_001';
+      InspectorService.instance.addNetworkRequest(
+        NetworkRequest(
+          id: requestId,
+          method: 'POST',
+          url: 'https://api.example.com/data',
+          requestTime: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
 
-        // 2. 更新请求体为空字符串(模拟拦截规则修改)
-        InspectorService.instance.updateNetworkRequest(requestId, body: '');
+      // 2. 更新请求体为空字符串(模拟拦截规则修改)
+      InspectorService.instance.updateNetworkRequest(requestId, body: '');
 
-        // 3. 验证请求体被正确更新
-        final request = InspectorService.instance.findNetworkRequest(requestId);
-        expect(request, isNotNull);
-        expect(request!.body, equals(''));
-      },
-    );
+      // 3. 验证请求体被正确更新
+      final request = InspectorService.instance.findNetworkRequest(requestId);
+      expect(request, isNotNull);
+      expect(request!.body, equals(''));
+    });
 
     test('updateNetworkRequest should capture non-empty request body', () {
       // 验证正常的非空请求体更新

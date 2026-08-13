@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+
 import '../services/alert_service.dart';
 import 'theme/inspector_theme.dart';
 import 'inspector_panel.dart';

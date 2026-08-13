@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_inspector_kit/src/models/leak_record.dart';
 import 'package:zero_inspector_kit/src/services/memory_inspector_service.dart';
@@ -36,29 +37,23 @@ void main() {
     /// 获取服务单例的简写 / Shortcut for service singleton
     final svc = MemoryInspectorService.instance;
 
-    test(
-      'trackObject 返回 identityHashCode 作为 ID / trackObject returns identityHashCode as ID',
-      () {
-        final obj = Object();
-        final id = svc.trackObject(obj);
-        expect(id, equals(identityHashCode(obj)));
-      },
-    );
+    test('trackObject 返回 identityHashCode 作为 ID / trackObject returns identityHashCode as ID', () {
+      final obj = Object();
+      final id = svc.trackObject(obj);
+      expect(id, equals(identityHashCode(obj)));
+    });
 
-    test(
-      'trackObject 创建正确的 objectType 和 tag / trackObject creates correct objectType and tag',
-      () {
-        // WeakReference 不支持 String/int 等基本类型，使用 Object
-        // WeakReference doesn't support String/int etc., use Object
-        final obj = Object();
-        svc.trackObject(obj, tag: 'MyTag');
-        final records = svc.leakRecords;
-        expect(records.length, equals(1));
-        expect(records[0].objectType, equals('Object'));
-        expect(records[0].tag, equals('MyTag'));
-        expect(records[0].status, equals(LeakStatus.tracking));
-      },
-    );
+    test('trackObject 创建正确的 objectType 和 tag / trackObject creates correct objectType and tag', () {
+      // WeakReference 不支持 String/int 等基本类型，使用 Object
+      // WeakReference doesn't support String/int etc., use Object
+      final obj = Object();
+      svc.trackObject(obj, tag: 'MyTag');
+      final records = svc.leakRecords;
+      expect(records.length, equals(1));
+      expect(records[0].objectType, equals('Object'));
+      expect(records[0].tag, equals('MyTag'));
+      expect(records[0].status, equals(LeakStatus.tracking));
+    });
 
     test(
       'trackObject 无 tag 时 tag 为 null / trackObject without tag has null tag',
@@ -69,39 +64,33 @@ void main() {
       },
     );
 
-    test(
-      'trackObject 默认 expectedReleaseAfter 为 30 秒 / trackObject default expectedReleaseAfter is 30 seconds',
-      () {
-        final obj = Object();
-        final before = DateTime.now();
-        svc.trackObject(obj);
-        final record = svc.leakRecords[0];
-        final after = DateTime.now();
+    test('trackObject 默认 expectedReleaseAfter 为 30 秒 / trackObject default expectedReleaseAfter is 30 seconds', () {
+      final obj = Object();
+      final before = DateTime.now();
+      svc.trackObject(obj);
+      final record = svc.leakRecords[0];
+      final after = DateTime.now();
 
-        // expectedReleaseAt 应在 now+30s 附近 / expectedReleaseAt should be around now+30s
-        final minExpect = before.add(const Duration(seconds: 29));
-        final maxExpect = after.add(const Duration(seconds: 31));
-        expect(record.expectedReleaseAt.isAfter(minExpect), isTrue);
-        expect(record.expectedReleaseAt.isBefore(maxExpect), isTrue);
-        // 未过期 / Not expired
-        expect(record.isExpired, isFalse);
-      },
-    );
+      // expectedReleaseAt 应在 now+30s 附近 / expectedReleaseAt should be around now+30s
+      final minExpect = before.add(const Duration(seconds: 29));
+      final maxExpect = after.add(const Duration(seconds: 31));
+      expect(record.expectedReleaseAt.isAfter(minExpect), isTrue);
+      expect(record.expectedReleaseAt.isBefore(maxExpect), isTrue);
+      // 未过期 / Not expired
+      expect(record.isExpired, isFalse);
+    });
 
-    test(
-      'trackObject 自定义 expectedReleaseAfter / trackObject with custom expectedReleaseAfter',
-      () {
-        final obj = Object();
-        svc.trackObject(obj, expectedReleaseAfter: const Duration(seconds: 5));
-        final record = svc.leakRecords[0];
-        // 5 秒后过期 / Expires after 5 seconds
-        expect(record.isExpired, isFalse);
-        expect(
-          record.expectedReleaseAt.difference(record.trackedAt).inSeconds,
-          equals(5),
-        );
-      },
-    );
+    test('trackObject 自定义 expectedReleaseAfter / trackObject with custom expectedReleaseAfter', () {
+      final obj = Object();
+      svc.trackObject(obj, expectedReleaseAfter: const Duration(seconds: 5));
+      final record = svc.leakRecords[0];
+      // 5 秒后过期 / Expires after 5 seconds
+      expect(record.isExpired, isFalse);
+      expect(
+        record.expectedReleaseAt.difference(record.trackedAt).inSeconds,
+        equals(5),
+      );
+    });
 
     test(
       'trackObject 相同对象覆盖旧记录 / trackObject same object overwrites old record',
@@ -182,48 +171,42 @@ void main() {
       throw TimeoutException('Condition not met within $timeout');
     }
 
-    test(
-      'tracking → verifying（已过期对象立即进入验证阶段）/ tracking → verifying (expired object enters verification immediately)',
-      () async {
-        final svc = MemoryInspectorService.instance;
-        // 持有引用，防止对象被 GC / Hold reference to prevent GC
-        final obj = Object();
-        // expectedReleaseAfter=0 表示已过期 / expectedReleaseAfter=0 means already expired
-        svc.trackObject(obj, expectedReleaseAfter: Duration.zero);
-        await svc.startMonitoring();
+    test('tracking → verifying（已过期对象立即进入验证阶段）/ tracking → verifying (expired object enters verification immediately)', () async {
+      final svc = MemoryInspectorService.instance;
+      // 持有引用，防止对象被 GC / Hold reference to prevent GC
+      final obj = Object();
+      // expectedReleaseAfter=0 表示已过期 / expectedReleaseAfter=0 means already expired
+      svc.trackObject(obj, expectedReleaseAfter: Duration.zero);
+      await svc.startMonitoring();
 
-        // _checkLeakRecords 立即执行一次，过期对象应进入 verifying
-        // _checkLeakRecords runs immediately, expired object should enter verifying
-        await waitFor(() => svc.leakRecords[0].status == LeakStatus.verifying);
-        expect(svc.leakRecords[0].status, equals(LeakStatus.verifying));
-        // gcTriggeredAt 应被设置 / gcTriggeredAt should be set
-        expect(svc.leakRecords[0].gcTriggeredAt, isNotNull);
-      },
-    );
+      // _checkLeakRecords 立即执行一次，过期对象应进入 verifying
+      // _checkLeakRecords runs immediately, expired object should enter verifying
+      await waitFor(() => svc.leakRecords[0].status == LeakStatus.verifying);
+      expect(svc.leakRecords[0].status, equals(LeakStatus.verifying));
+      // gcTriggeredAt 应被设置 / gcTriggeredAt should be set
+      expect(svc.leakRecords[0].gcTriggeredAt, isNotNull);
+    });
 
-    test(
-      'verifying → leaked（验证等待后仍未释放则判定泄漏）/ verifying → leaked (not released after verify wait)',
-      () async {
-        final svc = MemoryInspectorService.instance;
-        // 持有强引用，确保对象不会被 GC / Hold strong reference to prevent GC
-        final obj = Object();
-        svc.trackObject(obj, expectedReleaseAfter: Duration.zero);
-        await svc.startMonitoring();
+    test('verifying → leaked（验证等待后仍未释放则判定泄漏）/ verifying → leaked (not released after verify wait)', () async {
+      final svc = MemoryInspectorService.instance;
+      // 持有强引用，确保对象不会被 GC / Hold strong reference to prevent GC
+      final obj = Object();
+      svc.trackObject(obj, expectedReleaseAfter: Duration.zero);
+      await svc.startMonitoring();
 
-        // 等待进入 verifying / Wait for verifying
-        await waitFor(() => svc.leakRecords[0].status == LeakStatus.verifying);
+      // 等待进入 verifying / Wait for verifying
+      await waitFor(() => svc.leakRecords[0].status == LeakStatus.verifying);
 
-        // 等待验证超时后进入 leaked（_leakVerifyWaitMs=3000ms + 定时器间隔 2000ms）
-        // Wait for verify timeout then enter leaked
-        await waitFor(
-          () => svc.leakRecords[0].status == LeakStatus.leaked,
-          timeout: const Duration(seconds: 8),
-        );
-        expect(svc.leakRecords[0].status, equals(LeakStatus.leaked));
-        expect(svc.leakRecords[0].leakedAt, isNotNull);
-        expect(svc.leakedCount, equals(1));
-      },
-    );
+      // 等待验证超时后进入 leaked（_leakVerifyWaitMs=3000ms + 定时器间隔 2000ms）
+      // Wait for verify timeout then enter leaked
+      await waitFor(
+        () => svc.leakRecords[0].status == LeakStatus.leaked,
+        timeout: const Duration(seconds: 8),
+      );
+      expect(svc.leakRecords[0].status, equals(LeakStatus.leaked));
+      expect(svc.leakRecords[0].leakedAt, isNotNull);
+      expect(svc.leakedCount, equals(1));
+    });
   });
 
   /// =======================================================================
@@ -234,22 +217,16 @@ void main() {
       expect(MemoryInspectorService.instance.isMonitoring, isFalse);
     });
 
-    test(
-      'startMonitoring 后 isMonitoring=true / After startMonitoring isMonitoring=true',
-      () async {
-        await MemoryInspectorService.instance.startMonitoring();
-        expect(MemoryInspectorService.instance.isMonitoring, isTrue);
-      },
-    );
+    test('startMonitoring 后 isMonitoring=true / After startMonitoring isMonitoring=true', () async {
+      await MemoryInspectorService.instance.startMonitoring();
+      expect(MemoryInspectorService.instance.isMonitoring, isTrue);
+    });
 
-    test(
-      'stopMonitoring 后 isMonitoring=false / After stopMonitoring isMonitoring=false',
-      () async {
-        await MemoryInspectorService.instance.startMonitoring();
-        MemoryInspectorService.instance.stopMonitoring();
-        expect(MemoryInspectorService.instance.isMonitoring, isFalse);
-      },
-    );
+    test('stopMonitoring 后 isMonitoring=false / After stopMonitoring isMonitoring=false', () async {
+      await MemoryInspectorService.instance.startMonitoring();
+      MemoryInspectorService.instance.stopMonitoring();
+      expect(MemoryInspectorService.instance.isMonitoring, isFalse);
+    });
 
     test('startMonitoring 幂等（重复调用安全）/ startMonitoring is idempotent', () async {
       await MemoryInspectorService.instance.startMonitoring();
@@ -258,35 +235,26 @@ void main() {
       expect(MemoryInspectorService.instance.isMonitoring, isTrue);
     });
 
-    test(
-      'isEnabled=true 触发 startMonitoring / isEnabled=true triggers startMonitoring',
-      () async {
-        MemoryInspectorService.instance.isEnabled = true;
-        // startMonitoring 是异步的，等待事件队列 / startMonitoring is async, wait for event queue
-        await Future.delayed(const Duration(milliseconds: 50));
-        expect(MemoryInspectorService.instance.isMonitoring, isTrue);
-        expect(MemoryInspectorService.instance.isEnabled, isTrue);
-      },
-    );
+    test('isEnabled=true 触发 startMonitoring / isEnabled=true triggers startMonitoring', () async {
+      MemoryInspectorService.instance.isEnabled = true;
+      // startMonitoring 是异步的，等待事件队列 / startMonitoring is async, wait for event queue
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(MemoryInspectorService.instance.isMonitoring, isTrue);
+      expect(MemoryInspectorService.instance.isEnabled, isTrue);
+    });
 
-    test(
-      'isEnabled=false 触发 stopMonitoring / isEnabled=false triggers stopMonitoring',
-      () async {
-        await MemoryInspectorService.instance.startMonitoring();
-        MemoryInspectorService.instance.isEnabled = false;
-        expect(MemoryInspectorService.instance.isMonitoring, isFalse);
-        expect(MemoryInspectorService.instance.isEnabled, isFalse);
-      },
-    );
+    test('isEnabled=false 触发 stopMonitoring / isEnabled=false triggers stopMonitoring', () async {
+      await MemoryInspectorService.instance.startMonitoring();
+      MemoryInspectorService.instance.isEnabled = false;
+      expect(MemoryInspectorService.instance.isMonitoring, isFalse);
+      expect(MemoryInspectorService.instance.isEnabled, isFalse);
+    });
 
-    test(
-      'stopMonitoring 清理 VM Service 状态 / stopMonitoring cleans VM Service state',
-      () async {
-        await MemoryInspectorService.instance.startMonitoring();
-        MemoryInspectorService.instance.stopMonitoring();
-        expect(MemoryInspectorService.instance.vmServiceAvailable, isFalse);
-      },
-    );
+    test('stopMonitoring 清理 VM Service 状态 / stopMonitoring cleans VM Service state', () async {
+      await MemoryInspectorService.instance.startMonitoring();
+      MemoryInspectorService.instance.stopMonitoring();
+      expect(MemoryInspectorService.instance.vmServiceAvailable, isFalse);
+    });
 
     test(
       'stopMonitoring 清理 Dart Heap 缓存 / stopMonitoring clears Dart Heap cache',
@@ -367,17 +335,14 @@ void main() {
       },
     );
 
-    test(
-      '监控启动但 VM Service 不可用时返回 false / Returns false when monitoring but VM Service unavailable',
-      () async {
-        await MemoryInspectorService.instance.startMonitoring();
-        // 等待 VM Service 连接尝试完成（会失败）/ Wait for VM Service connection attempt (will fail)
-        await Future.delayed(const Duration(seconds: 2));
-        expect(MemoryInspectorService.instance.vmServiceAvailable, isFalse);
-        final result = await MemoryInspectorService.instance.triggerGc();
-        expect(result, isFalse);
-      },
-    );
+    test('监控启动但 VM Service 不可用时返回 false / Returns false when monitoring but VM Service unavailable', () async {
+      await MemoryInspectorService.instance.startMonitoring();
+      // 等待 VM Service 连接尝试完成（会失败）/ Wait for VM Service connection attempt (will fail)
+      await Future.delayed(const Duration(seconds: 2));
+      expect(MemoryInspectorService.instance.vmServiceAvailable, isFalse);
+      final result = await MemoryInspectorService.instance.triggerGc();
+      expect(result, isFalse);
+    });
   });
 
   /// =======================================================================
@@ -406,17 +371,14 @@ void main() {
       },
     );
 
-    test(
-      'imageCacheMaximumSizeBytes setter 正确设置 / imageCacheMaximumSizeBytes setter works',
-      () {
-        MemoryInspectorService.instance.imageCacheMaximumSizeBytes =
-            100 * 1024 * 1024;
-        expect(
-          MemoryInspectorService.instance.imageCacheMaximumSizeBytes,
-          equals(100 * 1024 * 1024),
-        );
-      },
-    );
+    test('imageCacheMaximumSizeBytes setter 正确设置 / imageCacheMaximumSizeBytes setter works', () {
+      MemoryInspectorService.instance.imageCacheMaximumSizeBytes =
+          100 * 1024 * 1024;
+      expect(
+        MemoryInspectorService.instance.imageCacheMaximumSizeBytes,
+        equals(100 * 1024 * 1024),
+      );
+    });
 
     test('clearImageCache 不抛出异常 / clearImageCache does not throw', () {
       // 仅验证不抛异常 / Just verify no exception
@@ -432,14 +394,11 @@ void main() {
   /// Native 支持检测 / Native Support Detection
   /// =======================================================================
   group('Native Support Detection', () {
-    test(
-      '桌面测试环境下 isNativeSupported=false / isNativeSupported=false on desktop test',
-      () {
-        // 测试运行在桌面环境，不支持 Native 采集
-        // Test runs on desktop environment, Native collection not supported
-        // 注意：仅在桌面平台成立 / Note: only true on desktop platforms
-        expect(MemoryInspectorService.instance.isNativeSupported, isFalse);
-      },
-    );
+    test('桌面测试环境下 isNativeSupported=false / isNativeSupported=false on desktop test', () {
+      // 测试运行在桌面环境，不支持 Native 采集
+      // Test runs on desktop environment, Native collection not supported
+      // 注意：仅在桌面平台成立 / Note: only true on desktop platforms
+      expect(MemoryInspectorService.instance.isNativeSupported, isFalse);
+    });
   });
 }

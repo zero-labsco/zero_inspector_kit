@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/memory_snapshot.dart';
 import 'theme/inspector_theme.dart';
 

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
+
 import '../models/network_request.dart';
 import '../models/log_entry.dart';
 import '../models/route_entry.dart';
