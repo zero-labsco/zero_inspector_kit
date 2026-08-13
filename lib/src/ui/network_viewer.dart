@@ -762,8 +762,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: _getMethodColor(request.method)
-                          .withValues(alpha: 0.2),
+                      color: _chipMethodColor(request.method),
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(
@@ -829,8 +828,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(request.status)
-                            .withValues(alpha: 0.15),
+                        color: _chipStatusColor(request.status),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -1212,6 +1210,16 @@ class _NetworkViewerState extends State<NetworkViewer> {
         return InspectorColors.textSecondary;
     }
   }
+
+  // 抽出辅助方法，避免 `_getXxxColor(...).withValues(...)` 链式写法触发
+  // Dart 3.11 `dart format` 的非幂等死循环（导致 CI format 检查反复失败）。
+  // Extracted helpers avoid the non-idempotent `dart format` loop on chained
+  // `.withValues()` calls under Dart 3.11 (which broke the CI format check).
+  Color _chipMethodColor(String method) =>
+      _getMethodColor(method).withValues(alpha: 0.2);
+
+  Color _chipStatusColor(int status) =>
+      _getStatusColor(status).withValues(alpha: 0.15);
 
   String _formatJson(dynamic data) => InspectorFormatters.formatJson(data);
 }
