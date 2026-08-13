@@ -41,19 +41,19 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.4.0
+  zero_inspector_kit: ^1.4.1
 ```
 
 ### GitHub
 
-Alternatively, you can install from GitHub (replace `1.4.0` with the version you need):
+Alternatively, you can install from GitHub (replace `1.4.1` with the version you need):
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.4.0
+      ref: release/v1.4.1
 ```
 
 ## Usage

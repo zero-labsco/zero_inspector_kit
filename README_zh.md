@@ -40,19 +40,19 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.4.0
+  zero_inspector_kit: ^1.4.1
 ```
 
 ### GitHub
 
-或者，你也可以从 GitHub 安装（将 `1.4.0` 替换为你需要的版本号）：
+或者，你也可以从 GitHub 安装（将 `1.4.1` 替换为你需要的版本号）：
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.4.0
+      ref: release/v1.4.1
 ```
 
 ## 使用方法
