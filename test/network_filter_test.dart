@@ -30,16 +30,19 @@ void main() {
       expect(StatusGroup.s4xx.contains(500), isFalse);
     });
 
-    test('unknown 命中 200-599 之外的码与 null / unknown matches outside 200-599 and null', () {
-      expect(StatusGroup.unknown.contains(100), isTrue);
-      expect(StatusGroup.unknown.contains(599), isFalse);
-      expect(StatusGroup.unknown.contains(600), isTrue);
-      expect(StatusGroup.unknown.contains(999), isTrue);
-      // 无状态码的请求归入 Other / a request without status belongs to Other
-      expect(StatusGroup.unknown.contains(null), isTrue);
-      // 其他分组不命中 null / other groups reject null
-      expect(StatusGroup.s2xx.contains(null), isFalse);
-    });
+    test(
+      'unknown 命中 200-599 之外的码与 null / unknown matches outside 200-599 and null',
+      () {
+        expect(StatusGroup.unknown.contains(100), isTrue);
+        expect(StatusGroup.unknown.contains(599), isFalse);
+        expect(StatusGroup.unknown.contains(600), isTrue);
+        expect(StatusGroup.unknown.contains(999), isTrue);
+        // 无状态码的请求归入 Other / a request without status belongs to Other
+        expect(StatusGroup.unknown.contains(null), isTrue);
+        // 其他分组不命中 null / other groups reject null
+        expect(StatusGroup.s2xx.contains(null), isFalse);
+      },
+    );
 
     test('枚举标签正确 / enum labels are correct', () {
       expect(StatusGroup.s2xx.label, equals('2xx'));

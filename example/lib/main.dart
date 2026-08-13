@@ -502,8 +502,9 @@ class _RouteCaptureIndicator extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               'Routes captured by inspector: $count',
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(color: color),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: color),
             ),
           ],
         );

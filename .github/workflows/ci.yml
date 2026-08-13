@@ -136,7 +136,10 @@ jobs:
     needs: path-filter
     steps:
       - name: Disable autocrlf on runner
-        run: git config --global core.autocrlf false
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.safecrlf false
 
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -153,21 +156,27 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          # Pin the exact Flutter/Dart version so `dart format` output is identical
+          # across CI, publish, and the local dev environment. Unpinned `stable`
+          # advances over time and the formatter rules change, which makes HEAD's
+          # formatted files look "unformatted" on CI and loops forever.
+          # 固定 Flutter/Dart 版本，保证 CI、发布、本地三处的 dart format 输出一致。
+          # 否则 stable 漂移会导致 format 规则变化、HEAD 文件被判定为未格式化而无限循环。
+          flutter-version: '3.41.7'
           cache: true
 
       - name: Normalize working tree to LF
-        # Force every tracked text file on disk to LF with dos2unix (byte-level,
-        # bypasses git attribute/filter logic) so `dart format` (below) reads LF
-        # regardless of how checkout wrote the files. A CRLF working tree makes
-        # `dart format` re-emit LF and fail `--set-exit-if-changed`.
-        # 用 dos2unix 把磁盘文本文件强制转 LF（字节级，绕过 git 属性/过滤器），
-        # 保证 dart format 读到的一定是 LF，避免 --set-exit-if-changed 反复失败。
+        # `git add --renormalize` writes LF into the index per .gitattributes,
+        # then `git checkout -f -- .` materializes that LF index onto disk.
+        # Guarantees `dart format` (below) reads LF, so --set-exit-if-changed
+        # is idempotent and does not fail. No external tool dependency.
+        # 用纯 git 强制 LF：renormalize 写入 LF 索引，再 checkout -f 落盘，
+        # 保证 dart format 读 LF、--set-exit-if-changed 幂等。无外部工具依赖。
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y dos2unix
           git config core.autocrlf false
           git config core.eol lf
-          git ls-files -z | xargs -0 -r dos2unix 2>/dev/null || true
           git add --renormalize .
+          git checkout -f -- .
 
       - name: Cache pub dependencies
         uses: actions/cache@v6
@@ -216,6 +225,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [analyze-and-test, path-filter]
     steps:
+      - name: Disable autocrlf on runner
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.safecrlf false
+
       - name: Checkout repository
         uses: actions/checkout@v7
 
@@ -231,6 +246,9 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          # Keep in sync with the analyze-and-test job (flutter-version: '3.41.7').
+          # 与 analyze-and-test 保持一致（flutter-version: '3.41.7'）。
+          flutter-version: '3.41.7'
           cache: true
 
       - name: Cache pub dependencies
