@@ -163,8 +163,9 @@ class _WidgetTreeInspectorState extends State<WidgetTreeInspector> {
           Expanded(
             child: Text(
               'Snapshot only · not live · tap a node to drill in',
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: InspectorColors.textHint),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: InspectorColors.textHint),
             ),
           ),
           if (_path.isNotEmpty)
@@ -172,8 +173,9 @@ class _WidgetTreeInspectorState extends State<WidgetTreeInspector> {
               onPressed: () => _jumpTo(0),
               child: Text(
                 'Up to root',
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: InspectorColors.accent),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: InspectorColors.accent),
               ),
             ),
         ],
@@ -246,8 +248,9 @@ class _CrumbChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: InspectorColors.accent),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: InspectorColors.accent),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -296,8 +299,9 @@ class _LevelRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   node.name,
-                  style: Theme.of(context).textTheme.bodyMedium
-                      ?.copyWith(color: InspectorColors.textPrimary),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: InspectorColors.textPrimary,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -317,8 +321,10 @@ class _LevelRow extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 8),
                 child: Text(
                   hasChildren ? '${node.childCount}' : 'leaf',
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(fontSize: 10, color: InspectorColors.textHint),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 10,
+                    color: InspectorColors.textHint,
+                  ),
                 ),
               ),
               const SizedBox(width: 4),
@@ -372,8 +378,9 @@ class _DetailSheet extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               'Widget details',
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(color: InspectorColors.textPrimary),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: InspectorColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 14),
             ...fields.map((f) {
@@ -384,13 +391,15 @@ class _DetailSheet extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: '${f.$1}:  ',
-                        style: Theme.of(context).textTheme.labelSmall
-                            ?.copyWith(color: InspectorColors.textHint),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: InspectorColors.textHint,
+                        ),
                       ),
                       TextSpan(
                         text: f.$2,
-                        style: Theme.of(context).textTheme.bodyMedium
-                            ?.copyWith(color: InspectorColors.textPrimary),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: InspectorColors.textPrimary,
+                        ),
                       ),
                     ],
                   ),
