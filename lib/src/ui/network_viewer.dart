@@ -8,25 +8,10 @@ import '../utils/formatters.dart';
 import 'theme/inspector_theme.dart';
 import 'widgets/widgets.dart';
 
-/// 状态码分组（用于筛选维度）/ Status-code groups (for the filter dimension)
-enum _StatusGroup {
-  s2xx(200, 299, '2xx'),
-  s3xx(300, 399, '3xx'),
-  s4xx(400, 499, '4xx'),
-  s5xx(500, 599, '5xx'),
-  unknown(-1, -1, 'Other');
-
-  const _StatusGroup(this.min, this.max, this.label);
-  final int min;
-  final int max;
-  final String label;
-
-  bool contains(int? code) {
-    if (code == null) return this == unknown;
-    if (this == unknown) return code < 200 || code > 599;
-    return code >= min && code <= max;
-  }
-}
+/// 状态码分组（用于筛选维度，公开以便单测）/ Status-code groups (for the
+/// filter dimension; exposed publicly so it can be unit-tested).
+/// 定义在 [network_request.dart] 的 [StatusGroup]。
+/// Defined as [StatusGroup] in network_request.dart.
 
 /// 常见 HTTP Method（用于筛选维度）/ Common HTTP methods (for the filter dimension)
 const List<String> _kFilterMethods = [
@@ -81,7 +66,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
 
   /// 选中的状态码分组（空 = 不按状态码筛选）/ Selected status-code groups
   /// (empty = no status filter)
-  final Set<_StatusGroup> _statusFilters = {};
+  final Set<StatusGroup> _statusFilters = {};
 
   /// 拦截状态筛选（null = 全部；true = 已修改；false = 未修改）。
   /// Interception-status filter (null = all; true = modified; false = unmodified).
@@ -202,165 +187,175 @@ class _NetworkViewerState extends State<NetworkViewer> {
             color: InspectorColors.surface,
             border: Border(bottom: BorderSide(color: InspectorColors.border)),
           ),
-          child: Row(
-            children: [
-              if (_selectedRequest != null)
-                InspectorIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  tooltip: 'Back',
-                  onTap: () {
-                    setState(() {
-                      _selectedRequestId = null;
-                      _showInterceptorPanel = false;
-                    });
-                  },
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              // 在横向滚动视图（unbounded 宽度）内必须用 min，否则 Flexible
+              // 与 shrink-wrap 冲突导致整条布局链崩溃。
+              // Inside a horizontal scroll view (unbounded width) we must use
+              // min, otherwise Flexible conflicts with shrink-wrap and crashes
+              // the whole layout chain.
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_selectedRequest != null)
+                  InspectorIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'Back',
+                    onTap: () {
+                      setState(() {
+                        _selectedRequestId = null;
+                        _showInterceptorPanel = false;
+                      });
+                    },
+                  ),
+                InspectorCountBadge(
+                  '${InspectorService.instance.networkRequests.length}',
                 ),
-              InspectorCountBadge(
-                '${InspectorService.instance.networkRequests.length}',
-              ),
-              const SizedBox(width: 6),
-              Text(
-                _selectedRequest != null ? 'Request Detail' : 'Requests',
-                style: TextStyle(
-                  color: InspectorColors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(width: 6),
+                Text(
+                  _selectedRequest != null ? 'Request Detail' : 'Requests',
+                  style: TextStyle(
+                    color: InspectorColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const Spacer(),
-              // 列表页：敏感字段遮蔽开关 + 批量选择入口
-              // List page: sensitive-field mask toggle + batch-select entry
-              if (_selectedRequest == null) ...[
+                const SizedBox(width: 6),
+                // 列表页：敏感字段遮蔽开关 + 批量选择入口
+                // List page: sensitive-field mask toggle + batch-select entry
+                if (_selectedRequest == null) ...[
+                  InspectorIconButton(
+                    icon: _maskSensitive
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    tooltip: _maskSensitive
+                        ? 'Sensitive hidden'
+                        : 'Sensitive visible',
+                    color: _maskSensitive ? InspectorColors.accent : null,
+                    onTap: () =>
+                        setState(() => _maskSensitive = !_maskSensitive),
+                  ),
+                  InspectorIconButton(
+                    icon: Icons.checklist_rounded,
+                    tooltip: _selectionMode ? 'Exit selection' : 'Select',
+                    color: _selectionMode ? InspectorColors.accent : null,
+                    onTap: () => setState(() {
+                      _selectionMode = !_selectionMode;
+                      if (!_selectionMode) _selectedIds.clear();
+                    }),
+                  ),
+                ],
+                // 拦截总开关 / Interceptor master switch（仅列表页显示）
+                if (_selectedRequest == null)
+                  _buildInterceptorSwitch(interceptorOn),
+                if (_selectedRequest != null &&
+                    interceptorOn &&
+                    _selectedRequest!.method.toUpperCase() != 'GET')
+                  InspectorIconButton(
+                    icon: Icons.edit_note_rounded,
+                    tooltip: 'Interceptor',
+                    onTap: () => _showInterceptorEditor(),
+                    color: InspectorColors.accent,
+                  ),
+                if (_selectedRequest != null)
+                  InspectorIconButton(
+                    icon: Icons.terminal_rounded,
+                    tooltip: 'Copy as cURL',
+                    onTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      await ExportService.instance.copy(
+                        ExportService.instance.toCurl(
+                          _selectedRequest!,
+                          maskSensitive: _maskSensitive,
+                        ),
+                      );
+                      if (mounted) {
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              _maskSensitive
+                                  ? 'Copied as cURL (sensitive hidden)'
+                                  : 'Copied as cURL',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
                 InspectorIconButton(
-                  icon: _maskSensitive
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
-                  tooltip: _maskSensitive
-                      ? 'Sensitive hidden'
-                      : 'Sensitive visible',
-                  color: _maskSensitive ? InspectorColors.accent : null,
-                  onTap: () => setState(() => _maskSensitive = !_maskSensitive),
-                ),
-                InspectorIconButton(
-                  icon: Icons.checklist_rounded,
-                  tooltip: _selectionMode ? 'Exit selection' : 'Select',
-                  color: _selectionMode ? InspectorColors.accent : null,
-                  onTap: () => setState(() {
-                    _selectionMode = !_selectionMode;
-                    if (!_selectionMode) _selectedIds.clear();
-                  }),
-                ),
-              ],
-              // 拦截总开关 / Interceptor master switch（仅列表页显示）
-              if (_selectedRequest == null)
-                _buildInterceptorSwitch(interceptorOn),
-              if (_selectedRequest != null &&
-                  interceptorOn &&
-                  _selectedRequest!.method.toUpperCase() != 'GET')
-                InspectorIconButton(
-                  icon: Icons.edit_note_rounded,
-                  tooltip: 'Interceptor',
-                  onTap: () => _showInterceptorEditor(),
-                  color: InspectorColors.accent,
-                ),
-              if (_selectedRequest != null)
-                InspectorIconButton(
-                  icon: Icons.terminal_rounded,
-                  tooltip: 'Copy as cURL',
+                  icon: Icons.content_copy_rounded,
+                  tooltip: 'Copy as JSON',
                   onTap: () async {
+                    final requests = InspectorService.instance.networkRequests;
+                    if (requests.isEmpty) return;
                     final messenger = ScaffoldMessenger.of(context);
-                    await ExportService.instance.copy(
-                      ExportService.instance.toCurl(
-                        _selectedRequest!,
-                        maskSensitive: _maskSensitive,
-                      ),
+                    await ExportService.instance.copyNet(
+                      requests,
+                      maskSensitive: _maskSensitive,
                     );
                     if (mounted) {
                       messenger.showSnackBar(
                         SnackBar(
                           content: Text(
-                            _maskSensitive
-                                ? 'Copied as cURL (sensitive hidden)'
-                                : 'Copied as cURL',
+                            'Copied ${requests.length} requests as JSON'
+                            '${_maskSensitive ? ' (sensitive hidden)' : ''}',
                           ),
                         ),
                       );
                     }
                   },
                 ),
-              InspectorIconButton(
-                icon: Icons.content_copy_rounded,
-                tooltip: 'Copy as JSON',
-                onTap: () async {
-                  final requests = InspectorService.instance.networkRequests;
-                  if (requests.isEmpty) return;
-                  final messenger = ScaffoldMessenger.of(context);
-                  await ExportService.instance.copyNet(
-                    requests,
-                    maskSensitive: _maskSensitive,
-                  );
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Copied ${requests.length} requests as JSON'
-                          '${_maskSensitive ? ' (sensitive hidden)' : ''}',
-                        ),
-                      ),
-                    );
-                  }
-                },
-              ),
-              InspectorIconButton(
-                icon: Icons.share_rounded,
-                tooltip: 'Share as JSON',
-                onTap: () async {
-                  final requests = InspectorService.instance.networkRequests;
-                  if (requests.isEmpty) return;
-                  final messenger = ScaffoldMessenger.of(context);
-                  await ExportService.instance.exportNetAndShare(
-                    requests,
-                    maskSensitive: _maskSensitive,
-                  );
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Sharing ${requests.length} requests as JSON'
-                          '${_maskSensitive ? ' (sensitive hidden)' : ''}',
-                        ),
-                      ),
-                    );
-                  }
-                },
-              ),
-              if (_selectionMode)
                 InspectorIconButton(
-                  icon: Icons.copy_all_rounded,
-                  tooltip: 'Copy selected as cURL',
-                  onTap: () => _copySelectedCurl(context),
+                  icon: Icons.share_rounded,
+                  tooltip: 'Share as JSON',
+                  onTap: () async {
+                    final requests = InspectorService.instance.networkRequests;
+                    if (requests.isEmpty) return;
+                    final messenger = ScaffoldMessenger.of(context);
+                    await ExportService.instance.exportNetAndShare(
+                      requests,
+                      maskSensitive: _maskSensitive,
+                    );
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Sharing ${requests.length} requests as JSON'
+                            '${_maskSensitive ? ' (sensitive hidden)' : ''}',
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 ),
-              InspectorIconButton(
-                icon: Icons.delete_outline_rounded,
-                tooltip: _selectionMode ? 'Delete selected' : 'Clear all',
-                onTap: () {
-                  if (_selectionMode) {
-                    _deleteSelected();
-                  } else {
-                    InspectorService.instance.clearNetworkRequests();
-                  }
-                },
-              ),
-              // 筛选漏斗（仅列表页显示）/ Filter funnel (list page only)
-              if (_selectedRequest == null)
+                if (_selectionMode)
+                  InspectorIconButton(
+                    icon: Icons.copy_all_rounded,
+                    tooltip: 'Copy selected as cURL',
+                    onTap: () => _copySelectedCurl(context),
+                  ),
                 InspectorIconButton(
-                  icon: Icons.filter_alt_rounded,
-                  tooltip: 'Filter',
-                  color: _hasActiveFilter ? InspectorColors.accent : null,
-                  onTap: () =>
-                      setState(() => _filterExpanded = !_filterExpanded),
+                  icon: Icons.delete_outline_rounded,
+                  tooltip: _selectionMode ? 'Delete selected' : 'Clear all',
+                  onTap: () {
+                    if (_selectionMode) {
+                      _deleteSelected();
+                    } else {
+                      InspectorService.instance.clearNetworkRequests();
+                    }
+                  },
                 ),
-            ],
+                // 筛选漏斗（仅列表页显示）/ Filter funnel (list page only)
+                if (_selectedRequest == null)
+                  InspectorIconButton(
+                    icon: Icons.filter_alt_rounded,
+                    tooltip: 'Filter',
+                    color: _hasActiveFilter ? InspectorColors.accent : null,
+                    onTap: () =>
+                        setState(() => _filterExpanded = !_filterExpanded),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -446,7 +441,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 12, bottom: 4),
+            padding: const EdgeInsets.only(bottom: 4),
             child: Text(
               label,
               style: TextStyle(
@@ -462,7 +457,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
         color: InspectorColors.surface,
         border: Border(bottom: BorderSide(color: InspectorColors.border)),
@@ -483,7 +478,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
               ),
           ]),
           wrap('Status', [
-            for (final g in _StatusGroup.values)
+            for (final g in StatusGroup.values)
               _filterChip(
                 label: g.label,
                 selected: _statusFilters.contains(g),

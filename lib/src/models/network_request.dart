@@ -1,3 +1,34 @@
+/// 状态码分组（用于「按状态码区间筛选」维度）。
+/// Status-code groups (for the "filter by status-code range" dimension).
+enum StatusGroup {
+  s2xx(200, 299, '2xx'),
+  s3xx(300, 399, '3xx'),
+  s4xx(400, 499, '4xx'),
+  s5xx(500, 599, '5xx'),
+  unknown(-1, -1, 'Other');
+
+  const StatusGroup(this.min, this.max, this.label);
+
+  /// 区间下界（含）/ Inclusive lower bound.
+  final int min;
+
+  /// 区间上界（含）/ Inclusive upper bound.
+  final int max;
+
+  /// 展示标签 / Display label.
+  final String label;
+
+  /// 判断 [code] 是否落入本分组。
+  /// [code] 为 null 时仅 [unknown] 命中；[unknown] 命中所有 200-599 之外的码。
+  /// Returns true when [code] belongs to this group. A null [code] only matches
+  /// [unknown]; [unknown] matches any code outside 200-599.
+  bool contains(int? code) {
+    if (code == null) return this == unknown;
+    if (this == unknown) return code < 200 || code > 599;
+    return code >= min && code <= max;
+  }
+}
+
 /// 网络请求模型 / Network request model
 class NetworkRequest {
   /// 请求唯一ID / Request unique ID
