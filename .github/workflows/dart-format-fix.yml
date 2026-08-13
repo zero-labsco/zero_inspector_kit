@@ -23,6 +23,9 @@ jobs:
     name: Auto-format Dart code
     runs-on: ubuntu-latest
     steps:
+      - name: Disable autocrlf on runner
+        run: git config --global core.autocrlf false
+
       - name: Checkout PR head
         uses: actions/checkout@v7
         with:
@@ -33,23 +36,20 @@ jobs:
           # 拉取完整历史，便于在需要时重新规范化 blob。
           fetch-depth: 0
 
-      - name: Normalize line endings to LF
-        # Ensure every checked-out file is LF so `dart format` produces the same
-        # result locally and on CI (Windows CRLF in history causes the format
-        # job to loop forever). `.gitattributes` already requests `eol=lf`; this
-        # step makes checkout honor it retroactively for existing blobs.
-        # 强制所有文件为 LF，避免 Windows CRLF 历史导致 dart format 反复改动。
+      - name: Force LF on disk (dos2unix)
+        # Byte-level convert every tracked text file to LF, bypassing git's
+        # attribute/filter logic entirely. This guarantees `dart format` reads
+        # LF regardless of how checkout wrote the files. A CRLF working tree
+        # makes `dart format` re-emit LF and push it back forever (the loop we
+        # keep hitting).
+        # 用 dos2unix 把磁盘文本文件强制转成 LF（字节级，绕过 git 属性/过滤器），
+        # 保证 dart format 读到的一定是 LF，彻底打断格式循环。
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y dos2unix
           git config core.autocrlf false
           git config core.eol lf
+          git ls-files -z | xargs -0 -r dos2unix 2>/dev/null || true
           git add --renormalize .
-          if [[ -n "$(git status --porcelain)" ]]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -m "style: normalize line endings to LF" && git push
-          else
-            echo "Line endings already normalized."
-          fi
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2

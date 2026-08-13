@@ -135,6 +135,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: path-filter
     steps:
+      - name: Disable autocrlf on runner
+        run: git config --global core.autocrlf false
+
       - name: Checkout repository
         uses: actions/checkout@v7
 
@@ -153,14 +156,18 @@ jobs:
           cache: true
 
       - name: Normalize working tree to LF
-        # Re-write checkout files as LF per .gitattributes so `dart format`
-        # (which runs below) sees the same bytes locally and on CI. Without
-        # this, CRLF blobs in git history make the format check fail.
-        # 按 .gitattributes 把工作区重写为 LF，保证 dart format 在两端一致。
+        # Force every tracked text file on disk to LF with dos2unix (byte-level,
+        # bypasses git attribute/filter logic) so `dart format` (below) reads LF
+        # regardless of how checkout wrote the files. A CRLF working tree makes
+        # `dart format` re-emit LF and fail `--set-exit-if-changed`.
+        # 用 dos2unix 把磁盘文本文件强制转 LF（字节级，绕过 git 属性/过滤器），
+        # 保证 dart format 读到的一定是 LF，避免 --set-exit-if-changed 反复失败。
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y dos2unix
           git config core.autocrlf false
           git config core.eol lf
-          git checkout-index --force --all
+          git ls-files -z | xargs -0 -r dos2unix 2>/dev/null || true
+          git add --renormalize .
 
       - name: Cache pub dependencies
         uses: actions/cache@v6
