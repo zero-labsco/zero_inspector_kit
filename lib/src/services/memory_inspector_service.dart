@@ -1244,7 +1244,8 @@ class MemoryInspectorService extends ChangeNotifier {
   Future<int> getDocumentsDirSize() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      return _calculateDirSize(dir);
+      final size = await _calculateDirSize(dir);
+      return size;
     } catch (_) {
       return 0;
     }
@@ -1254,7 +1255,8 @@ class MemoryInspectorService extends ChangeNotifier {
   Future<int> getCacheDirSize() async {
     try {
       final dir = await getTemporaryDirectory();
-      return _calculateDirSize(dir);
+      final size = await _calculateDirSize(dir);
+      return size;
     } catch (_) {
       return 0;
     }

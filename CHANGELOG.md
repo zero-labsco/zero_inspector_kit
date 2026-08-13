@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.1
+
+> **🛠 Fixes / 修复:** 修复 `MemoryInspectorService.getDocumentsDirSize` 与 `getCacheDirSize` 中 `return _calculateDirSize(dir)` 未 `await` 导致的 `unawaited_return_in_try_block` 分析告警。改用 `final size = await _calculateDirSize(dir); return size;`,使 `try` 块的异常捕获能正确覆盖目录大小计算中的异步错误。无新增公共 API,向后兼容。
+> Fixes the `unawaited_return_in_try_block` analysis warning in `MemoryInspectorService.getDocumentsDirSize` and `getCacheDirSize`, where `return _calculateDirSize(dir)` was not awaited. Now `final size = await _calculateDirSize(dir); return size;`, so the `try` block's exception handling correctly covers async errors during directory-size calculation. No new public API; backward compatible.
+
+- 修复 / Fix
+  - `getDocumentsDirSize` / `getCacheDirSize` 先 `await` 计算结果再 `return`,消除 `unawaited_return_in_try_block` 告警
+  - `getDocumentsDirSize` / `getCacheDirSize` now `await` the result before `return`, removing the `unawaited_return_in_try_block` warning
+
 ## 1.4.0
 
 > **🧭 路由追踪穿透 / Route-observer penetration:** `ZeroInspectorKit.runAppWithInspector` 现在能穿透包裹根组件的轻量壳（如 `StatelessWidget` / `Container` / `Builder` / `Padding` / `Center` / `SizedBox` 等），找到内部的 `MaterialApp` 并自动注入 `InspectorRouteObserver`，无需把 `MaterialApp` 直接作为根传入即可启用路由追踪。遇到不可穿透的组件（如 `StatefulWidget` 壳）时安全回退到外层包裹模式。无新增公共 API。
