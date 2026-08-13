@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
 import '../services/fps_service.dart';
 import 'theme/inspector_theme.dart';
 

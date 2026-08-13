@@ -15,31 +15,46 @@ import 'package:zero_inspector_kit/zero_inspector_kit.dart';
 // One-line launcher: the binding and all plugin initialization happen inside
 // runAppWithInspector's zone (the first ensureInitialized is triggered by
 // runApp), so nothing is initialized in the outer zone → no "Zone mismatch".
-// 注意：runAppWithInspector 仅在传入的 app 是 MaterialApp 时才会自动注入
-// InspectorRouteObserver（见 zero_inspector_kit.dart 的 _wrapAppWithRouteObserver）。
-// 因此这里直接传入 MaterialApp（而非包了一层的 StatelessWidget），route 演示
-// 才可被 Route tracking 捕获。
-// NOTE: runAppWithInspector injects InspectorRouteObserver only when the passed
-// app is a MaterialApp (see _wrapAppWithRouteObserver). So we pass a MaterialApp
-// directly here (not a wrapping StatelessWidget) so the route demo is captured.
+//
+// 本示例故意把根组件写成一个 StatelessWidget 壳 ExampleAppShell，内部才是
+// MaterialApp —— 这正是「路由追踪穿透」要验证的场景：runAppWithInspector 传入的
+// app 不是 MaterialApp 本身，而是被一层壳包着。检查器会穿透该壳、找到真正的
+// MaterialApp 并注入 InspectorRouteObserver，无需用户手动接线。
+// NOTE: The root here is a StatelessWidget shell (ExampleAppShell) wrapping the
+// real MaterialApp. This exercises the route-observer *penetration* path:
+// _wrapAppWithRouteObserver drills through the shell, finds the inner MaterialApp
+// and injects InspectorRouteObserver automatically.
 void main() {
-  ZeroInspectorKit.runAppWithInspector(
-    MaterialApp(
+  ZeroInspectorKit.runAppWithInspector(const ExampleAppShell());
+}
+
+/// 根壳：一个普通的 StatelessWidget，内部返回 MaterialApp。
+/// 用来演示「穿透」—— 检查器不会把它当成 MaterialApp，而是 build 它、
+/// 穿透到内部的 MaterialApp 注入路由观察者。
+/// A plain StatelessWidget shell wrapping the real MaterialApp. Demonstrates
+/// penetration: the inspector builds this shell, finds the inner MaterialApp
+/// and injects the route observer.
+class ExampleAppShell extends StatelessWidget {
+  const ExampleAppShell({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
       title: 'Zero Inspector Kit Example',
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      // 路由演示：命名路由。InspectorRouteObserver 会在 runAppWithInspector
-      // 内部自动挂到 navigatorObservers，所有 push/pop 都会被 Route tracking
-      // 捕获，无需手动接线。
-      // Route demo: named routes. InspectorRouteObserver is auto-attached inside
-      // runAppWithInspector, so every push/pop is captured by Route tracking with
-      // no manual wiring.
+      // 路由演示：命名路由。InspectorRouteObserver 由检查器穿透壳后自动挂到
+      // 内部 MaterialApp 的 navigatorObservers，所有 push/pop 都会被 Route
+      // tracking 捕获，无需手动接线。
+      // Route demo: named routes. InspectorRouteObserver is auto-attached by the
+      // inspector after penetrating the shell, so every push/pop is captured by
+      // Route tracking with no manual wiring.
       initialRoute: '/',
       routes: {
-        '/': (context) => const MyApp(),
+        '/': (context) => const ExampleHomePage(),
         '/detail': (context) => const ExampleDetailPage(),
       },
-    ),
-  );
+    );
+  }
 }
 
 Future<void> _seedExampleDatabases() async {
@@ -71,15 +86,6 @@ Future<void> _seedExampleDatabases() async {
   }
   // 注册 SQLite 提供者（示例中展示数据库查看器用法）。
   DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const ExampleHomePage();
-  }
 }
 
 /// 路由演示用的二级页面 / A second-level page for the route demo.
@@ -356,9 +362,10 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'Open the inspector panel from the floating button, then try the '
-            'buttons below. Open the Widget Inspector to snapshot the nested '
-            'widget tree, or Route tracking to watch navigation.',
+            'The root here is a StatelessWidget shell (ExampleAppShell) wrapping '
+            'the real MaterialApp — this exercises the route-observer '
+            'penetration path. Navigate below and watch the captured-route '
+            'counter (it proves the observer was injected through the shell).',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -367,6 +374,13 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
             style: Theme.of(context).textTheme.titleMedium,
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 8),
+          // 实时显示「检查器已捕获的路由数」。若穿透成功，进入 /detail 再返回
+          // 后计数会增加；若始终为 0，说明穿透回退、路由追踪未生效。
+          // Live count of routes captured by the inspector. If penetration
+          // succeeded, this grows after navigating; if it stays 0, the fallback
+          // path was taken and route tracking did not engage.
+          const _RouteCaptureIndicator(),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: _sendAllDemoRequests,
@@ -461,6 +475,39 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 实时显示「检查器已捕获的路由数」的小部件。
+/// 监听 [InspectorService]（ChangeNotifier），每次路由 push/pop 都会触发重建，
+/// 让用户无需打开面板也能直观确认穿透注入是否成功。
+/// A small live widget showing how many routes the inspector has captured.
+/// Listens to [InspectorService] (a ChangeNotifier) so it rebuilds on every
+/// route push/pop, letting the user verify penetration without opening the panel.
+class _RouteCaptureIndicator extends StatelessWidget {
+  const _RouteCaptureIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: InspectorService.instance,
+      builder: (context, _) {
+        final count = InspectorService.instance.routeEntryCount;
+        final color = count > 0 ? Colors.green : Colors.grey;
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.route_outlined, color: color, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Routes captured by inspector: $count',
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(color: color),
+            ),
+          ],
+        );
+      },
     );
   }
 }

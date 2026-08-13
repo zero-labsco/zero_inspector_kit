@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'theme/inspector_theme.dart';
 import '../models/leak_record.dart';
 import '../services/memory_inspector_service.dart';

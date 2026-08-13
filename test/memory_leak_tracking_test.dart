@@ -23,35 +23,29 @@ void main() {
   /// 顶层函数 / Top-level functions
   /// ========================================================================
   group('trackMemoryLeak() top-level function', () {
-    test(
-      'trackMemoryLeak 注册对象并返回 identityHashCode / trackMemoryLeak registers object and returns identityHashCode',
-      () {
-        final obj = Object();
-        final id = trackMemoryLeak(obj, tag: 'TopLevel');
-        expect(id, equals(identityHashCode(obj)));
-        final records = MemoryInspectorService.instance.leakRecords;
-        expect(records.length, equals(1));
-        expect(records[0].tag, equals('TopLevel'));
-        expect(records[0].status.toString(), contains('tracking'));
-      },
-    );
+    test('trackMemoryLeak 注册对象并返回 identityHashCode / trackMemoryLeak registers object and returns identityHashCode', () {
+      final obj = Object();
+      final id = trackMemoryLeak(obj, tag: 'TopLevel');
+      expect(id, equals(identityHashCode(obj)));
+      final records = MemoryInspectorService.instance.leakRecords;
+      expect(records.length, equals(1));
+      expect(records[0].tag, equals('TopLevel'));
+      expect(records[0].status.toString(), contains('tracking'));
+    });
 
-    test(
-      'trackMemoryLeak 支持 expectedReleaseAfter / trackMemoryLeak supports expectedReleaseAfter',
-      () {
-        final obj = Object();
-        trackMemoryLeak(
-          obj,
-          tag: 'Short',
-          expectedReleaseAfter: const Duration(seconds: 5),
-        );
-        final record = MemoryInspectorService.instance.leakRecords[0];
-        expect(
-          record.expectedReleaseAt.difference(record.trackedAt).inSeconds,
-          equals(5),
-        );
-      },
-    );
+    test('trackMemoryLeak 支持 expectedReleaseAfter / trackMemoryLeak supports expectedReleaseAfter', () {
+      final obj = Object();
+      trackMemoryLeak(
+        obj,
+        tag: 'Short',
+        expectedReleaseAfter: const Duration(seconds: 5),
+      );
+      final record = MemoryInspectorService.instance.leakRecords[0];
+      expect(
+        record.expectedReleaseAt.difference(record.trackedAt).inSeconds,
+        equals(5),
+      );
+    });
 
     test('untrackMemoryLeak 通过对象移除 / untrackMemoryLeak removes by object', () {
       final obj = Object();
@@ -73,17 +67,14 @@ void main() {
   /// Object 扩展方法 / Object extension methods
   /// ========================================================================
   group('Object.trackMemoryLeak() extension', () {
-    test(
-      '扩展方法注册对象并返回 identityHashCode / Extension registers object and returns identityHashCode',
-      () {
-        final obj = Object();
-        final id = obj.trackMemoryLeak(tag: 'Extension');
-        expect(id, equals(identityHashCode(obj)));
-        final records = MemoryInspectorService.instance.leakRecords;
-        expect(records.length, equals(1));
-        expect(records[0].tag, equals('Extension'));
-      },
-    );
+    test('扩展方法注册对象并返回 identityHashCode / Extension registers object and returns identityHashCode', () {
+      final obj = Object();
+      final id = obj.trackMemoryLeak(tag: 'Extension');
+      expect(id, equals(identityHashCode(obj)));
+      final records = MemoryInspectorService.instance.leakRecords;
+      expect(records.length, equals(1));
+      expect(records[0].tag, equals('Extension'));
+    });
 
     test(
       '扩展方法支持 expectedReleaseAfter / Extension supports expectedReleaseAfter',
@@ -101,42 +92,33 @@ void main() {
       },
     );
 
-    test(
-      '扩展方法 untrackMemoryLeak 移除当前对象 / Extension untrackMemoryLeak removes current object',
-      () {
-        final obj = Object();
-        obj.trackMemoryLeak();
-        expect(MemoryInspectorService.instance.leakRecords.length, equals(1));
-        obj.untrackMemoryLeak();
-        expect(MemoryInspectorService.instance.leakRecords, isEmpty);
-      },
-    );
+    test('扩展方法 untrackMemoryLeak 移除当前对象 / Extension untrackMemoryLeak removes current object', () {
+      final obj = Object();
+      obj.trackMemoryLeak();
+      expect(MemoryInspectorService.instance.leakRecords.length, equals(1));
+      obj.untrackMemoryLeak();
+      expect(MemoryInspectorService.instance.leakRecords, isEmpty);
+    });
   });
 
   /// ========================================================================
   /// 顶层函数与扩展方法一致性 / Consistency between top-level and extension
   /// ========================================================================
   group('Consistency', () {
-    test(
-      '同一对象通过顶层函数和扩展方法返回相同 ID / Same object returns same ID via top-level and extension',
-      () {
-        final obj = Object();
-        final id1 = trackMemoryLeak(obj);
-        final id2 = obj.trackMemoryLeak();
-        expect(id1, equals(id2));
-        // 因为同一 objectId 被覆盖，所以只有一条记录 / Same objectId overwritten, only one record
-        expect(MemoryInspectorService.instance.leakRecords.length, equals(1));
-      },
-    );
+    test('同一对象通过顶层函数和扩展方法返回相同 ID / Same object returns same ID via top-level and extension', () {
+      final obj = Object();
+      final id1 = trackMemoryLeak(obj);
+      final id2 = obj.trackMemoryLeak();
+      expect(id1, equals(id2));
+      // 因为同一 objectId 被覆盖，所以只有一条记录 / Same objectId overwritten, only one record
+      expect(MemoryInspectorService.instance.leakRecords.length, equals(1));
+    });
 
-    test(
-      '顶层函数 untrack 后扩展方法查询不到 / Top-level untrack removes record from extension perspective',
-      () {
-        final obj = Object();
-        obj.trackMemoryLeak(tag: 'Mix');
-        untrackMemoryLeak(obj);
-        expect(MemoryInspectorService.instance.leakRecords, isEmpty);
-      },
-    );
+    test('顶层函数 untrack 后扩展方法查询不到 / Top-level untrack removes record from extension perspective', () {
+      final obj = Object();
+      obj.trackMemoryLeak(tag: 'Mix');
+      untrackMemoryLeak(obj);
+      expect(MemoryInspectorService.instance.leakRecords, isEmpty);
+    });
   });
 }

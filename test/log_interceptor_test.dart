@@ -120,32 +120,26 @@ void main() {
   /// captureLog — 日志捕获逻辑测试 / captureLog capture logic tests
   /// =======================================================================
   group('InspectorLogInterceptor.captureLog()', () {
-    test(
-      '未 start() 时 captureLog 不产生记录 / Not started: captureLog produces no records',
-      () {
-        // 默认状态下 _isStarted=false / Default state _isStarted=false
-        InspectorLogInterceptor.instance.captureLog('msg', LogLevel.info);
-        expect(InspectorService.instance.logEntries, isEmpty);
-      },
-    );
+    test('未 start() 时 captureLog 不产生记录 / Not started: captureLog produces no records', () {
+      // 默认状态下 _isStarted=false / Default state _isStarted=false
+      InspectorLogInterceptor.instance.captureLog('msg', LogLevel.info);
+      expect(InspectorService.instance.logEntries, isEmpty);
+    });
 
-    test(
-      'start() 后 captureLog 成功记录到 InspectorService / After start: logs recorded in InspectorService',
-      () {
-        InspectorLogInterceptor.instance.start();
-        InspectorLogInterceptor.instance.captureLog('hello', LogLevel.warning);
-        final logs = InspectorService.instance.logEntries;
-        expect(logs.length, equals(1));
-        expect(logs[0].message, equals('hello'));
-        expect(logs[0].level, equals(LogLevel.warning));
-        expect(logs[0].id, startsWith('log_'));
-        // 时间戳接近当前 / Timestamp near now
-        expect(
-          DateTime.now().difference(logs[0].timestamp).inSeconds.abs(),
-          lessThan(2),
-        );
-      },
-    );
+    test('start() 后 captureLog 成功记录到 InspectorService / After start: logs recorded in InspectorService', () {
+      InspectorLogInterceptor.instance.start();
+      InspectorLogInterceptor.instance.captureLog('hello', LogLevel.warning);
+      final logs = InspectorService.instance.logEntries;
+      expect(logs.length, equals(1));
+      expect(logs[0].message, equals('hello'));
+      expect(logs[0].level, equals(LogLevel.warning));
+      expect(logs[0].id, startsWith('log_'));
+      // 时间戳接近当前 / Timestamp near now
+      expect(
+        DateTime.now().difference(logs[0].timestamp).inSeconds.abs(),
+        lessThan(2),
+      );
+    });
 
     test('新记录插入到列表头部（倒序）/ New entries inserted at head (reverse order)', () {
       InspectorLogInterceptor.instance.start();
@@ -172,21 +166,18 @@ void main() {
       expect(logs[0].tag, isNull);
     });
 
-    test(
-      'onLogCaptured 回调被触发且顺序正确 / onLogCaptured callback fires with correct order',
-      () {
-        final captured = <LogEntry>[];
-        InspectorLogInterceptor.instance.onLogCaptured = captured.add;
-        InspectorLogInterceptor.instance.start();
-        InspectorLogInterceptor.instance.captureLog('cb1', LogLevel.debug);
-        InspectorLogInterceptor.instance.captureLog('cb2', LogLevel.error);
-        expect(captured.length, equals(2));
-        expect(captured[0].message, equals('cb1'));
-        expect(captured[0].level, equals(LogLevel.debug));
-        expect(captured[1].message, equals('cb2'));
-        expect(captured[1].level, equals(LogLevel.error));
-      },
-    );
+    test('onLogCaptured 回调被触发且顺序正确 / onLogCaptured callback fires with correct order', () {
+      final captured = <LogEntry>[];
+      InspectorLogInterceptor.instance.onLogCaptured = captured.add;
+      InspectorLogInterceptor.instance.start();
+      InspectorLogInterceptor.instance.captureLog('cb1', LogLevel.debug);
+      InspectorLogInterceptor.instance.captureLog('cb2', LogLevel.error);
+      expect(captured.length, equals(2));
+      expect(captured[0].message, equals('cb1'));
+      expect(captured[0].level, equals(LogLevel.debug));
+      expect(captured[1].message, equals('cb2'));
+      expect(captured[1].level, equals(LogLevel.error));
+    });
 
     test(
       'stop() 后 captureLog 不再产生记录 / After stop: captureLog produces no records',
@@ -202,34 +193,28 @@ void main() {
       },
     );
 
-    test(
-      '重入保护：onLogCaptured 回调内部调用 captureLog 被忽略 / Reentrance guard: captureLog inside onLogCaptured is ignored',
-      () {
-        int callbackCount = 0;
-        InspectorLogInterceptor.instance.onLogCaptured = (entry) {
-          callbackCount++;
-          // 模拟用户在回调中再次调用日志方法（会导致无限递归的常见 bug）
-          // Simulate user calling logging methods inside callback (a common infinite-recursion bug)
-          InspectorLogInterceptor.instance.captureLog(
-            'inner-${entry.message}',
-            LogLevel.info,
-          );
-        };
-        InspectorLogInterceptor.instance.start();
-        InspectorLogInterceptor.instance.captureLog('outer', LogLevel.info);
-
-        // 回调只触发一次（最外层），内部的 captureLog 被 _isCapturing 标志拒绝
-        // Callback fires only once (outermost), inner captureLog rejected by _isCapturing flag
-        expect(callbackCount, equals(1));
-        // 最终日志也只应该有 1 条（最外层）
-        // Final log count should also be 1 (outermost only)
-        expect(InspectorService.instance.logEntries.length, equals(1));
-        expect(
-          InspectorService.instance.logEntries[0].message,
-          equals('outer'),
+    test('重入保护：onLogCaptured 回调内部调用 captureLog 被忽略 / Reentrance guard: captureLog inside onLogCaptured is ignored', () {
+      int callbackCount = 0;
+      InspectorLogInterceptor.instance.onLogCaptured = (entry) {
+        callbackCount++;
+        // 模拟用户在回调中再次调用日志方法（会导致无限递归的常见 bug）
+        // Simulate user calling logging methods inside callback (a common infinite-recursion bug)
+        InspectorLogInterceptor.instance.captureLog(
+          'inner-${entry.message}',
+          LogLevel.info,
         );
-      },
-    );
+      };
+      InspectorLogInterceptor.instance.start();
+      InspectorLogInterceptor.instance.captureLog('outer', LogLevel.info);
+
+      // 回调只触发一次（最外层），内部的 captureLog 被 _isCapturing 标志拒绝
+      // Callback fires only once (outermost), inner captureLog rejected by _isCapturing flag
+      expect(callbackCount, equals(1));
+      // 最终日志也只应该有 1 条（最外层）
+      // Final log count should also be 1 (outermost only)
+      expect(InspectorService.instance.logEntries.length, equals(1));
+      expect(InspectorService.instance.logEntries[0].message, equals('outer'));
+    });
   });
 
   /// =======================================================================
@@ -270,32 +255,29 @@ void main() {
   /// 便捷方法（verbose/debug/info/warning/error）/ Convenience methods
   /// =======================================================================
   group('InspectorLogInterceptor convenience methods', () {
-    test(
-      'verbose/debug/info/warning/error 使用正确的级别 / Convenience methods use correct levels',
-      () {
-        InspectorLogInterceptor.instance.start();
-        final inst = InspectorLogInterceptor.instance;
-        inst.verbose('vmsg');
-        inst.debug('dmsg');
-        inst.info('imsg');
-        inst.warning('wmsg');
-        inst.error('emsg');
-        final logs = InspectorService.instance.logEntries;
-        expect(logs.length, equals(5));
-        // 顺序从新到旧：error, warning, info, debug, verbose
-        // Newest to oldest: error, warning, info, debug, verbose
-        expect(logs[0].level, equals(LogLevel.error));
-        expect(logs[0].message, equals('emsg'));
-        expect(logs[1].level, equals(LogLevel.warning));
-        expect(logs[1].message, equals('wmsg'));
-        expect(logs[2].level, equals(LogLevel.info));
-        expect(logs[2].message, equals('imsg'));
-        expect(logs[3].level, equals(LogLevel.debug));
-        expect(logs[3].message, equals('dmsg'));
-        expect(logs[4].level, equals(LogLevel.verbose));
-        expect(logs[4].message, equals('vmsg'));
-      },
-    );
+    test('verbose/debug/info/warning/error 使用正确的级别 / Convenience methods use correct levels', () {
+      InspectorLogInterceptor.instance.start();
+      final inst = InspectorLogInterceptor.instance;
+      inst.verbose('vmsg');
+      inst.debug('dmsg');
+      inst.info('imsg');
+      inst.warning('wmsg');
+      inst.error('emsg');
+      final logs = InspectorService.instance.logEntries;
+      expect(logs.length, equals(5));
+      // 顺序从新到旧：error, warning, info, debug, verbose
+      // Newest to oldest: error, warning, info, debug, verbose
+      expect(logs[0].level, equals(LogLevel.error));
+      expect(logs[0].message, equals('emsg'));
+      expect(logs[1].level, equals(LogLevel.warning));
+      expect(logs[1].message, equals('wmsg'));
+      expect(logs[2].level, equals(LogLevel.info));
+      expect(logs[2].message, equals('imsg'));
+      expect(logs[3].level, equals(LogLevel.debug));
+      expect(logs[3].message, equals('dmsg'));
+      expect(logs[4].level, equals(LogLevel.verbose));
+      expect(logs[4].message, equals('vmsg'));
+    });
 
     test('便捷方法 tag 参数正确传递 / Convenience method tag passed correctly', () {
       InspectorLogInterceptor.instance.start();
@@ -325,80 +307,74 @@ void main() {
   /// FlutterError.onError 保留与恢复测试 / FlutterError.onError preservation tests
   /// =======================================================================
   group('InspectorLogInterceptor FlutterError.onError preservation', () {
-    test(
-      'stop() 恢复原始 FlutterError.onError / stop() restores original FlutterError.onError',
-      () {
-        // 保存原始值 / Save original value
-        final originalOnError = FlutterError.onError;
+    test('stop() 恢复原始 FlutterError.onError / stop() restores original FlutterError.onError', () {
+      // 保存原始值 / Save original value
+      final originalOnError = FlutterError.onError;
 
-        // 设置一个模拟的第三方错误处理回调（如 Crashlytics）
-        // Set a mock third-party error handler (e.g. Crashlytics)
-        FlutterErrorDetails? mockHandlerCalled;
-        void mockHandler(FlutterErrorDetails details) {
-          mockHandlerCalled = details;
-        }
+      // 设置一个模拟的第三方错误处理回调（如 Crashlytics）
+      // Set a mock third-party error handler (e.g. Crashlytics)
+      FlutterErrorDetails? mockHandlerCalled;
+      void mockHandler(FlutterErrorDetails details) {
+        mockHandlerCalled = details;
+      }
 
-        FlutterError.onError = mockHandler;
+      FlutterError.onError = mockHandler;
 
-        // 启动日志拦截器 / Start log interceptor
-        InspectorLogInterceptor.instance.start();
+      // 启动日志拦截器 / Start log interceptor
+      InspectorLogInterceptor.instance.start();
 
-        // 触发 FlutterError / Trigger FlutterError
-        FlutterError.onError!(
-          FlutterErrorDetails(
-            exception: Exception('test'),
-            stack: StackTrace.current,
-          ),
-        );
+      // 触发 FlutterError / Trigger FlutterError
+      FlutterError.onError!(
+        FlutterErrorDetails(
+          exception: Exception('test'),
+          stack: StackTrace.current,
+        ),
+      );
 
-        // 原始回调应被调用（Crashlytics 不丢失）/ Original handler should be called
-        expect(mockHandlerCalled, isNotNull);
+      // 原始回调应被调用（Crashlytics 不丢失）/ Original handler should be called
+      expect(mockHandlerCalled, isNotNull);
 
-        // 停止拦截器 / Stop interceptor
-        InspectorLogInterceptor.instance.stop();
+      // 停止拦截器 / Stop interceptor
+      InspectorLogInterceptor.instance.stop();
 
-        // FlutterError.onError 应恢复为 mockHandler / Should restore to mockHandler
-        expect(FlutterError.onError, same(mockHandler));
+      // FlutterError.onError 应恢复为 mockHandler / Should restore to mockHandler
+      expect(FlutterError.onError, same(mockHandler));
 
-        // 重置 / Reset
-        FlutterError.onError = originalOnError;
-      },
-    );
+      // 重置 / Reset
+      FlutterError.onError = originalOnError;
+    });
 
-    test(
-      'start() 时原始 FlutterError.onError 被优先调用 / Original FlutterError.onError called first on start',
-      () {
-        final originalOnError = FlutterError.onError;
+    test('start() 时原始 FlutterError.onError 被优先调用 / Original FlutterError.onError called first on start', () {
+      final originalOnError = FlutterError.onError;
 
-        // 追踪调用顺序 / Track call order
-        final callOrder = <String>[];
-        void mockHandler(FlutterErrorDetails details) {
-          callOrder.add('original');
-        }
+      // 追踪调用顺序 / Track call order
+      final callOrder = <String>[];
+      void mockHandler(FlutterErrorDetails details) {
+        callOrder.add('original');
+      }
 
-        FlutterError.onError = mockHandler;
+      FlutterError.onError = mockHandler;
 
-        InspectorLogInterceptor.instance.start();
+      InspectorLogInterceptor.instance.start();
 
-        FlutterError.onError!(
-          FlutterErrorDetails(
-            exception: Exception('test'),
-            stack: StackTrace.current,
-          ),
-        );
+      FlutterError.onError!(
+        FlutterErrorDetails(
+          exception: Exception('test'),
+          stack: StackTrace.current,
+        ),
+      );
 
-        // 原始回调应先于日志捕获被调用 / Original handler called before log capture
-        expect(callOrder, contains('original'));
-        expect(
-          InspectorService.instance.logEntries.any(
-            (e) => e.level == LogLevel.error,
-          ),
-          isTrue,
-        );
+      // 原始回调应先于日志捕获被调用 / Original handler called before log capture
+      expect(callOrder, contains('original'));
+      expect(
+        InspectorService.instance.logEntries.any(
+          (e) => e.level == LogLevel.error,
+        ),
+        isTrue,
+      );
 
-        InspectorLogInterceptor.instance.stop();
-        FlutterError.onError = originalOnError;
-      },
-    );
+      InspectorLogInterceptor.instance.stop();
+      FlutterError.onError = originalOnError;
+    });
   });
 }

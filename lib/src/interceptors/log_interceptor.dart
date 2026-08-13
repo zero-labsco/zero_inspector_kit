@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+
 import '../models/log_entry.dart';
 import '../services/inspector_service.dart';
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.0
+
+> **🧭 路由追踪穿透 / Route-observer penetration:** `ZeroInspectorKit.runAppWithInspector` 现在能穿透包裹根组件的轻量壳（如 `StatelessWidget` / `Container` / `Builder` / `Padding` / `Center` / `SizedBox` 等），找到内部的 `MaterialApp` 并自动注入 `InspectorRouteObserver`，无需把 `MaterialApp` 直接作为根传入即可启用路由追踪。遇到不可穿透的组件（如 `StatefulWidget` 壳）时安全回退到外层包裹模式。无新增公共 API。
+> `ZeroInspectorKit.runAppWithInspector` now penetrates a lightweight shell wrapping the root (e.g. `StatelessWidget` / `Container` / `Builder` / `Padding` / `Center` / `SizedBox`), finds the inner `MaterialApp`, and auto-injects `InspectorRouteObserver` — so route tracking works even when the `MaterialApp` is not passed as the root directly. Falls back safely to an outer wrapper when the shell is impenetrable (e.g. a `StatefulWidget` shell). No new public API.
+
+- 路由 / Route
+  - `runAppWithInspector` 现在递归穿透中间壳组件以定位 `MaterialApp` 并注入路由观察者；示例 app 根节点改为 `StatelessWidget` 壳以演示该能力
+  - `runAppWithInspector` now recursively penetrates intermediate shell widgets to locate the `MaterialApp` and inject the route observer; the example app's root is now a `StatelessWidget` shell to demonstrate the capability
+  - 新增 `test/route_observer_penetration_test.dart` 覆盖穿透成功与回退路径
+  - Added `test/route_observer_penetration_test.dart` covering both the penetration-success and fallback paths
+
+- 网络 / Network
+  - 网络查看器新增可展开筛选面板（工具栏漏斗图标），支持按 **HTTP Method**（GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS，多选）、**状态码区间**（2xx/3xx/4xx/5xx/Other，多选）、**拦截状态**（全部/已修改/未修改）三维筛选，可与关键词搜索叠加；含一键 Reset
+  - The network viewer gains an expandable filter panel (funnel icon in the toolbar) supporting **HTTP Method** (GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS, multi-select), **status code** (2xx/3xx/4xx/5xx/Other, multi-select), and **interception status** (All/Modified/Unmodified) filters, composable with keyword search; includes a Reset action
+  - `NetworkRequest` 新增 `isModifiedByInterceptor` 字段，命中拦截规则并实际修改请求/响应体或状态码时由拦截层自动置 `true`；请求卡片对「已修改」请求显示标记图标
+  - `NetworkRequest` gains an `isModifiedByInterceptor` field, auto-set to `true` by the interception layer when a rule actually modifies the request/response body or status code; modified requests show a marker icon on the card
+
 ## 1.3.6
 
 > **📊 趋势图交互增强 / Trend chart interaction:** 内存趋势图现在支持触摸交互——点击或拖动折线图区域可高亮最近的数据点，显示十字准线与浮动 Tooltip（精确数值 + 相对"现在"的时间偏移）。未触摸时仍显示 Current / Peak / Min 图例。无新增公共 API，组件沿用原构造签名。

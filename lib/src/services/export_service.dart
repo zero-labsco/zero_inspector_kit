@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
 import '../models/log_entry.dart';
 import '../models/network_request.dart';
 
@@ -155,9 +156,9 @@ class ExportService {
       final startedMs = r.requestTime;
       final time = r.duration ?? 0;
       return {
-        'startedDateTime': DateTime.fromMillisecondsSinceEpoch(
-          startedMs,
-        ).toUtc().toIso8601String(),
+        'startedDateTime': DateTime.fromMillisecondsSinceEpoch(startedMs)
+            .toUtc()
+            .toIso8601String(),
         'time': time,
         'request': {
           'method': r.method,

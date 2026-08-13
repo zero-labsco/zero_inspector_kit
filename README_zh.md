@@ -11,7 +11,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.3.6 扩展了检查器能力 —— 新增内存**趋势图触摸交互**（点击或拖动高亮最近数据点，显示十字准线与浮动 Tooltip 精确数值及时间戳）—— 在 v1.3.5 网络 Timeline 瀑布图、`share_plus` 系统分享、Widget 检查器、SharedPreferences/Hive 数据库支持、v1.3.4 元数据/文档清理、v1.3.3 强化的网络拦截、v1.3.2 修复网络请求耗时、v1.3.1 按来源告警节流、以及 v1.3.0 网络批量操作、导出敏感字段脱敏、一键复制 cURL、带未读角标的告警系统之上。建议所有用户升级到 `^1.3.6`。
+> **🔔 推荐升级：** v1.4.0 为检查器带来两项新增 —— **路由追踪穿透**（当根组件是包裹壳，如 `StatelessWidget` / `Container` / `Builder` / `Padding` / `Center` 包着真正的 `MaterialApp` 时，检查器会穿透壳、定位内部 `MaterialApp` 并自动注入 `InspectorRouteObserver`，无需把 `MaterialApp` 直接作为根传入即可启用路由追踪）与**更丰富的网络筛选**（网络查看器新增可展开筛选面板，可按 HTTP Method、状态码区间、拦截状态筛选）。建议所有用户升级到 `^1.4.0`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
@@ -22,7 +22,7 @@
 ## 功能特性
 
 - **零侵入性**: 仅需一行代码即可集成，无需修改项目任何现有代码。
-- **网络检查器**: 实时捕获和查看所有 HTTP 请求，包括请求/响应头、请求体、状态码和延迟时间。支持通过拦截规则修改请求体和请求头（仅 POST/PUT/PATCH 请求）。支持批量选择（批量「Copy as cURL」与批量删除）和一键复制 cURL。工具栏眼睛开关可在导出时遮蔽敏感请求头（`Authorization`、`Cookie` 等）。
+- **网络检查器**: 实时捕获和查看所有 HTTP 请求，包括请求/响应头、请求体、状态码和延迟时间。支持通过拦截规则修改请求体和请求头（仅 POST/PUT/PATCH 请求）。支持批量选择（批量「Copy as cURL」与批量删除）和一键复制 cURL。工具栏眼睛开关可在导出时遮蔽敏感请求头（`Authorization`、`Cookie` 等）。网络查看器还提供可展开筛选面板 —— 可按 HTTP Method、状态码区间（2xx/3xx/4xx/5xx/Other）、拦截状态（已修改/未修改）筛选，并可与关键词搜索组合使用。
 - **日志系统**: 自动捕获应用中的日志，包括 print() 调用、Flutter 错误和异常。支持多种日志级别（verbose、debug、info、warning、error），并支持第三方日志库集成。
 - **数据库查看器**: 支持 SQLite 和其他数据库的检查，支持自定义数据库提供者。
 - **内存监控**: 实时内存监控，包含趋势图、Dart Heap 详情、Native 内存分项（Android PSS / iOS physicalFootprint）、内存泄漏检测、图片缓存监控和应用存储统计。提供总开关避免性能开销。
@@ -40,19 +40,19 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.3.6
+  zero_inspector_kit: ^1.4.0
 ```
 
 ### GitHub
 
-或者，你也可以从 GitHub 安装（将 `1.3.6` 替换为你需要的版本号）：
+或者，你也可以从 GitHub 安装（将 `1.4.0` 替换为你需要的版本号）：
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.3.6
+      ref: release/v1.4.0
 ```
 
 ## 使用方法

@@ -103,16 +103,13 @@ void main() {
       expect(r.matches('https://api.example.com/anything', 'GET'), isFalse);
     });
 
-    test(
-      '空规则（所有字段默认）行为：URL 必须完全相等才匹配 / Empty rule: URL must be exactly equal',
-      () {
-        final r = buildRule();
-        // method 空（匹配所有方法），但 URL 为空字符串，所以只匹配空 URL
-        // Empty method (matches all) but URL is empty, so only matches empty URL
-        expect(r.matches('', 'GET'), isTrue);
-        expect(r.matches('https://x', 'GET'), isFalse);
-      },
-    );
+    test('空规则（所有字段默认）行为：URL 必须完全相等才匹配 / Empty rule: URL must be exactly equal', () {
+      final r = buildRule();
+      // method 空（匹配所有方法），但 URL 为空字符串，所以只匹配空 URL
+      // Empty method (matches all) but URL is empty, so only matches empty URL
+      expect(r.matches('', 'GET'), isTrue);
+      expect(r.matches('https://x', 'GET'), isFalse);
+    });
   });
 
   /// InterceptorRule.copyWith — 副本构造测试 / copyWith tests
@@ -367,6 +364,40 @@ void main() {
         expect(r2.responseBody, isA<Map>());
       },
     );
+
+    test('isModifiedByInterceptor 默认 false / isModifiedByInterceptor defaults to false', () {
+      final r = NetworkRequest(
+        id: '1',
+        method: 'GET',
+        url: 'https://a.com',
+        requestTime: 0,
+      );
+      expect(r.isModifiedByInterceptor, isFalse);
+    });
+
+    test('copyWith 可覆盖 isModifiedByInterceptor / copyWith overrides isModifiedByInterceptor', () {
+      final r = NetworkRequest(
+        id: '1',
+        method: 'GET',
+        url: 'https://a.com',
+        requestTime: 0,
+      );
+      final modified = r.copyWith(isModifiedByInterceptor: true);
+      expect(modified.isModifiedByInterceptor, isTrue);
+      // 不传该参数时应保留原值 / omitting keeps the original value
+      expect(modified.copyWith().isModifiedByInterceptor, isTrue);
+    });
+
+    test('toJson 包含 isModifiedByInterceptor / toJson includes isModifiedByInterceptor', () {
+      final r = NetworkRequest(
+        id: '1',
+        method: 'GET',
+        url: 'https://a.com',
+        requestTime: 0,
+        isModifiedByInterceptor: true,
+      );
+      expect(r.toJson()['isModifiedByInterceptor'], isTrue);
+    });
   });
 
   /// =======================================================================
@@ -477,48 +508,42 @@ void main() {
   /// MemorySnapshot — 内存快照模型测试 / MemorySnapshot model tests
   /// =======================================================================
   group('MemorySnapshot', () {
-    test(
-      'processOnly 工厂构造正确 process 快照 / processOnly factory builds process-only snapshot',
-      () {
-        final snap = MemorySnapshot.processOnly(50 * 1024 * 1024);
-        expect(snap.processRss, equals(50 * 1024 * 1024));
-        expect(snap.isHeapDataAvailable, isFalse);
-        expect(snap.isNativeDataAvailable, isFalse);
-        // Dart Heap 和 Native 字段默认 0 / All Dart / Native fields default to 0
-        expect(snap.heapUsage, equals(0));
-        expect(snap.totalPss, equals(0));
-        expect(snap.physicalFootprint, equals(0));
-        // timestamp 自动生成 / auto-generated timestamp
-        expect(
-          DateTime.now().difference(snap.timestamp).inSeconds.abs(),
-          lessThan(2),
-        );
-      },
-    );
+    test('processOnly 工厂构造正确 process 快照 / processOnly factory builds process-only snapshot', () {
+      final snap = MemorySnapshot.processOnly(50 * 1024 * 1024);
+      expect(snap.processRss, equals(50 * 1024 * 1024));
+      expect(snap.isHeapDataAvailable, isFalse);
+      expect(snap.isNativeDataAvailable, isFalse);
+      // Dart Heap 和 Native 字段默认 0 / All Dart / Native fields default to 0
+      expect(snap.heapUsage, equals(0));
+      expect(snap.totalPss, equals(0));
+      expect(snap.physicalFootprint, equals(0));
+      // timestamp 自动生成 / auto-generated timestamp
+      expect(
+        DateTime.now().difference(snap.timestamp).inSeconds.abs(),
+        lessThan(2),
+      );
+    });
 
-    test(
-      'withHeapData 工厂构造包含 Dart Heap 数据 / withHeapData factory includes heap data',
-      () {
-        final snap = MemorySnapshot.withHeapData(
-          processRss: 100 * 1024 * 1024,
-          heapUsage: 30 * 1024 * 1024,
-          heapCapacity: 60 * 1024 * 1024,
-          externalUsage: 5 * 1024 * 1024,
-          newSpaceUsage: 2 * 1024 * 1024,
-          newSpaceCapacity: 8 * 1024 * 1024,
-          newSpaceExternalUsage: 0,
-          oldSpaceUsage: 28 * 1024 * 1024,
-          oldSpaceCapacity: 52 * 1024 * 1024,
-          oldSpaceExternalUsage: 5 * 1024 * 1024,
-        );
-        expect(snap.isHeapDataAvailable, isTrue);
-        expect(snap.processRss, equals(100 * 1024 * 1024));
-        expect(snap.heapUsage, equals(30 * 1024 * 1024));
-        expect(snap.heapCapacity, equals(60 * 1024 * 1024));
-        expect(snap.newSpaceUsage, equals(2 * 1024 * 1024));
-        expect(snap.oldSpaceCapacity, equals(52 * 1024 * 1024));
-      },
-    );
+    test('withHeapData 工厂构造包含 Dart Heap 数据 / withHeapData factory includes heap data', () {
+      final snap = MemorySnapshot.withHeapData(
+        processRss: 100 * 1024 * 1024,
+        heapUsage: 30 * 1024 * 1024,
+        heapCapacity: 60 * 1024 * 1024,
+        externalUsage: 5 * 1024 * 1024,
+        newSpaceUsage: 2 * 1024 * 1024,
+        newSpaceCapacity: 8 * 1024 * 1024,
+        newSpaceExternalUsage: 0,
+        oldSpaceUsage: 28 * 1024 * 1024,
+        oldSpaceCapacity: 52 * 1024 * 1024,
+        oldSpaceExternalUsage: 5 * 1024 * 1024,
+      );
+      expect(snap.isHeapDataAvailable, isTrue);
+      expect(snap.processRss, equals(100 * 1024 * 1024));
+      expect(snap.heapUsage, equals(30 * 1024 * 1024));
+      expect(snap.heapCapacity, equals(60 * 1024 * 1024));
+      expect(snap.newSpaceUsage, equals(2 * 1024 * 1024));
+      expect(snap.oldSpaceCapacity, equals(52 * 1024 * 1024));
+    });
 
     test(
       'fromNativeMap 正确读取 Android/通用字段 / fromNativeMap reads all native fields',
@@ -581,60 +606,54 @@ void main() {
       },
     );
 
-    test(
-      'fromNativeMap 读取 isHeapDataAvailable 参数 / fromNativeMap respects isHeapDataAvailable param',
-      () {
-        final snap = MemorySnapshot.fromNativeMap(
-          processRss: 1,
-          map: <String, dynamic>{},
-          isHeapDataAvailable: true,
-        );
-        expect(snap.isHeapDataAvailable, isTrue);
-      },
-    );
+    test('fromNativeMap 读取 isHeapDataAvailable 参数 / fromNativeMap respects isHeapDataAvailable param', () {
+      final snap = MemorySnapshot.fromNativeMap(
+        processRss: 1,
+        map: <String, dynamic>{},
+        isHeapDataAvailable: true,
+      );
+      expect(snap.isHeapDataAvailable, isTrue);
+    });
 
-    test(
-      'copyWithHeapData 保留 Native 数据并覆盖 Dart Heap / copyWithHeapData preserves Native, overrides Dart Heap',
-      () {
-        final native = MemorySnapshot.fromNativeMap(
-          processRss: 10000,
-          map: <String, dynamic>{
-            'totalPss': 8000,
-            'nativePss': 4000,
-            'lowMemory': true,
-            'totalMem': 1024,
-            'availMem': 128,
-          },
-        );
-        final merged = native.copyWithHeapData(
-          heapUsage: 100,
-          heapCapacity: 200,
-          externalUsage: 10,
-          newSpaceUsage: 20,
-          newSpaceCapacity: 50,
-          newSpaceExternalUsage: 1,
-          oldSpaceUsage: 80,
-          oldSpaceCapacity: 150,
-          oldSpaceExternalUsage: 9,
-          isHeapDataAvailable: true,
-        );
-        // Native 字段保留 / Native fields preserved
-        expect(merged.processRss, equals(10000));
-        expect(merged.totalPss, equals(8000));
-        expect(merged.nativePss, equals(4000));
-        expect(merged.isLowMemory, isTrue);
-        expect(merged.deviceTotalMem, equals(1024));
-        expect(merged.deviceAvailMem, equals(128));
-        expect(merged.isNativeDataAvailable, isTrue);
-        // Dart Heap 字段已覆盖 / Dart Heap fields set
-        expect(merged.heapUsage, equals(100));
-        expect(merged.heapCapacity, equals(200));
-        expect(merged.externalUsage, equals(10));
-        expect(merged.newSpaceUsage, equals(20));
-        expect(merged.oldSpaceCapacity, equals(150));
-        expect(merged.isHeapDataAvailable, isTrue);
-      },
-    );
+    test('copyWithHeapData 保留 Native 数据并覆盖 Dart Heap / copyWithHeapData preserves Native, overrides Dart Heap', () {
+      final native = MemorySnapshot.fromNativeMap(
+        processRss: 10000,
+        map: <String, dynamic>{
+          'totalPss': 8000,
+          'nativePss': 4000,
+          'lowMemory': true,
+          'totalMem': 1024,
+          'availMem': 128,
+        },
+      );
+      final merged = native.copyWithHeapData(
+        heapUsage: 100,
+        heapCapacity: 200,
+        externalUsage: 10,
+        newSpaceUsage: 20,
+        newSpaceCapacity: 50,
+        newSpaceExternalUsage: 1,
+        oldSpaceUsage: 80,
+        oldSpaceCapacity: 150,
+        oldSpaceExternalUsage: 9,
+        isHeapDataAvailable: true,
+      );
+      // Native 字段保留 / Native fields preserved
+      expect(merged.processRss, equals(10000));
+      expect(merged.totalPss, equals(8000));
+      expect(merged.nativePss, equals(4000));
+      expect(merged.isLowMemory, isTrue);
+      expect(merged.deviceTotalMem, equals(1024));
+      expect(merged.deviceAvailMem, equals(128));
+      expect(merged.isNativeDataAvailable, isTrue);
+      // Dart Heap 字段已覆盖 / Dart Heap fields set
+      expect(merged.heapUsage, equals(100));
+      expect(merged.heapCapacity, equals(200));
+      expect(merged.externalUsage, equals(10));
+      expect(merged.newSpaceUsage, equals(20));
+      expect(merged.oldSpaceCapacity, equals(150));
+      expect(merged.isHeapDataAvailable, isTrue);
+    });
 
     test('toJson 返回完整字段 / toJson returns all fields', () {
       final snap = MemorySnapshot.withHeapData(
@@ -708,14 +727,11 @@ void main() {
       },
     );
 
-    test(
-      '未过期时 isExpired=false, overdue=Duration.zero / Not expired: isExpired=false, overdue=Duration.zero',
-      () {
-        final r = build(expectedReleaseAfter: const Duration(days: 1));
-        expect(r.isExpired, isFalse);
-        expect(r.overdue, equals(Duration.zero));
-      },
-    );
+    test('未过期时 isExpired=false, overdue=Duration.zero / Not expired: isExpired=false, overdue=Duration.zero', () {
+      final r = build(expectedReleaseAfter: const Duration(days: 1));
+      expect(r.isExpired, isFalse);
+      expect(r.overdue, equals(Duration.zero));
+    });
 
     test(
       '已过期时 isExpired=true, overdue>0 / Expired: isExpired=true, overdue>0',
@@ -741,30 +757,25 @@ void main() {
       expect(r.weakRef.target, same(obj));
     });
 
-    test(
-      '设置 status 为 leaked 时写入 leakedAt 时间戳 / Setting status=leaked writes leakedAt timestamp',
-      () {
-        final r = build(status: LeakStatus.tracking);
-        expect(r.leakedAt, isNull);
-        final before = DateTime.now();
-        r.status = LeakStatus.leaked;
-        final after = DateTime.now();
-        expect(r.status, equals(LeakStatus.leaked));
-        expect(r.leakedAt, isNotNull);
-        expect(
-          r.leakedAt!.isBefore(after) ||
-              r.leakedAt!.millisecondsSinceEpoch ==
-                  after.millisecondsSinceEpoch,
-          isTrue,
-        );
-        expect(
-          r.leakedAt!.isAfter(before) ||
-              r.leakedAt!.millisecondsSinceEpoch ==
-                  before.millisecondsSinceEpoch,
-          isTrue,
-        );
-      },
-    );
+    test('设置 status 为 leaked 时写入 leakedAt 时间戳 / Setting status=leaked writes leakedAt timestamp', () {
+      final r = build(status: LeakStatus.tracking);
+      expect(r.leakedAt, isNull);
+      final before = DateTime.now();
+      r.status = LeakStatus.leaked;
+      final after = DateTime.now();
+      expect(r.status, equals(LeakStatus.leaked));
+      expect(r.leakedAt, isNotNull);
+      expect(
+        r.leakedAt!.isBefore(after) ||
+            r.leakedAt!.millisecondsSinceEpoch == after.millisecondsSinceEpoch,
+        isTrue,
+      );
+      expect(
+        r.leakedAt!.isAfter(before) ||
+            r.leakedAt!.millisecondsSinceEpoch == before.millisecondsSinceEpoch,
+        isTrue,
+      );
+    });
 
     test('leakedAt 只写一次 / leakedAt is written only once', () {
       final r = build();
@@ -823,54 +834,51 @@ void main() {
       InspectorService.instance.clearNetworkRequests();
     });
 
-    test(
-      'onResponse 通过 request ID 精确匹配而非 URL / onResponse matches by request ID, not URL',
-      () {
-        final interceptor = InspectorDioInterceptor();
+    test('onResponse 通过 request ID 精确匹配而非 URL / onResponse matches by request ID, not URL', () {
+      final interceptor = InspectorDioInterceptor();
 
-        // 模拟两个并发请求到同一 URL / Simulate two concurrent requests to same URL
-        interceptor.onRequest({
+      // 模拟两个并发请求到同一 URL / Simulate two concurrent requests to same URL
+      interceptor.onRequest({
+        'method': 'GET',
+        'url': 'https://api.example.com/user',
+        'headers': <String, dynamic>{},
+        'data': null,
+      });
+      interceptor.onRequest({
+        'method': 'GET',
+        'url': 'https://api.example.com/user',
+        'headers': <String, dynamic>{},
+        'data': null,
+      });
+
+      final requests = InspectorService.instance.networkRequests;
+      expect(requests.length, equals(2));
+
+      // 获取第一个请求的 ID / Get first request's ID
+      final firstRequestId = requests
+          .where((r) => r.responseTime == null)
+          .last
+          .id;
+
+      // 模拟第二个请求先返回（携带同一 URL 但带上 request ID header）
+      // Simulate second request responding first (same URL but with request ID header)
+      interceptor.onResponse({
+        'statusCode': 200,
+        'data': 'second response',
+        'requestOptions': {
+          'uri': 'https://api.example.com/user',
           'method': 'GET',
-          'url': 'https://api.example.com/user',
-          'headers': <String, dynamic>{},
-          'data': null,
-        });
-        interceptor.onRequest({
-          'method': 'GET',
-          'url': 'https://api.example.com/user',
-          'headers': <String, dynamic>{},
-          'data': null,
-        });
+          'headers': {'x-inspector-request-id': firstRequestId},
+        },
+      });
 
-        final requests = InspectorService.instance.networkRequests;
-        expect(requests.length, equals(2));
-
-        // 获取第一个请求的 ID / Get first request's ID
-        final firstRequestId = requests
-            .where((r) => r.responseTime == null)
-            .last
-            .id;
-
-        // 模拟第二个请求先返回（携带同一 URL 但带上 request ID header）
-        // Simulate second request responding first (same URL but with request ID header)
-        interceptor.onResponse({
-          'statusCode': 200,
-          'data': 'second response',
-          'requestOptions': {
-            'uri': 'https://api.example.com/user',
-            'method': 'GET',
-            'headers': {'x-inspector-request-id': firstRequestId},
-          },
-        });
-
-        // 应更新正确的请求 / Should update the correct request
-        final updated = InspectorService.instance.networkRequests.firstWhere(
-          (r) => r.id == firstRequestId,
-        );
-        expect(updated.responseBody, equals('second response'));
-        expect(updated.statusCode, equals(200));
-      },
-    );
+      // 应更新正确的请求 / Should update the correct request
+      final updated = InspectorService.instance.networkRequests.firstWhere(
+        (r) => r.id == firstRequestId,
+      );
+      expect(updated.responseBody, equals('second response'));
+      expect(updated.statusCode, equals(200));
+    });
 
     test('onError 通过 request ID 匹配 / onError matches by request ID', () {
       final interceptor = InspectorDioInterceptor();
@@ -917,86 +925,80 @@ void main() {
       InspectorService.instance.clearNetworkRequests();
     });
 
-    test(
-      '仅更新 body 时不应设置 responseTime / Updating only body must not set responseTime',
-      () {
-        final service = InspectorService.instance;
-        final requestTime = DateTime.now().millisecondsSinceEpoch;
+    test('仅更新 body 时不应设置 responseTime / Updating only body must not set responseTime', () {
+      final service = InspectorService.instance;
+      final requestTime = DateTime.now().millisecondsSinceEpoch;
 
-        // 添加请求 / Add request
-        service.addNetworkRequest(
-          NetworkRequest(
-            id: 'test-1',
-            method: 'POST',
-            url: 'https://api.example.com/data',
-            requestTime: requestTime,
-          ),
-        );
+      // 添加请求 / Add request
+      service.addNetworkRequest(
+        NetworkRequest(
+          id: 'test-1',
+          method: 'POST',
+          url: 'https://api.example.com/data',
+          requestTime: requestTime,
+        ),
+      );
 
-        // 仅更新请求体（无 statusCode）— 模拟拦截器捕获请求体
-        // Update only request body (no statusCode) — simulates interceptor
-        // capturing request body
-        service.updateNetworkRequest('test-1', body: '{"key":"value"}');
+      // 仅更新请求体（无 statusCode）— 模拟拦截器捕获请求体
+      // Update only request body (no statusCode) — simulates interceptor
+      // capturing request body
+      service.updateNetworkRequest('test-1', body: '{"key":"value"}');
 
-        final request = service.networkRequests.firstWhere(
-          (r) => r.id == 'test-1',
-        );
-        expect(request.body, equals('{"key":"value"}'));
-        // 关键断言：responseTime 和 duration 不应被设置
-        // Key assertion: responseTime and duration must NOT be set
-        expect(
-          request.responseTime,
-          isNull,
-          reason: 'responseTime should not be set when only body is updated',
-        );
-        expect(
-          request.duration,
-          isNull,
-          reason: 'duration should not be set when only body is updated',
-        );
-      },
-    );
+      final request = service.networkRequests.firstWhere(
+        (r) => r.id == 'test-1',
+      );
+      expect(request.body, equals('{"key":"value"}'));
+      // 关键断言：responseTime 和 duration 不应被设置
+      // Key assertion: responseTime and duration must NOT be set
+      expect(
+        request.responseTime,
+        isNull,
+        reason: 'responseTime should not be set when only body is updated',
+      );
+      expect(
+        request.duration,
+        isNull,
+        reason: 'duration should not be set when only body is updated',
+      );
+    });
 
-    test(
-      '提供 statusCode 时应设置 responseTime / Providing statusCode should set responseTime',
-      () {
-        final service = InspectorService.instance;
-        final requestTime = DateTime.now().millisecondsSinceEpoch;
+    test('提供 statusCode 时应设置 responseTime / Providing statusCode should set responseTime', () {
+      final service = InspectorService.instance;
+      final requestTime = DateTime.now().millisecondsSinceEpoch;
 
-        service.addNetworkRequest(
-          NetworkRequest(
-            id: 'test-2',
-            method: 'GET',
-            url: 'https://api.example.com/data',
-            requestTime: requestTime,
-          ),
-        );
+      service.addNetworkRequest(
+        NetworkRequest(
+          id: 'test-2',
+          method: 'GET',
+          url: 'https://api.example.com/data',
+          requestTime: requestTime,
+        ),
+      );
 
-        // 更新响应（含 statusCode）— 模拟响应到达
-        // Update response (with statusCode) — simulates response arrival
-        service.updateNetworkRequest(
-          'test-2',
-          statusCode: 200,
-          responseBody: 'ok',
-        );
+      // 更新响应（含 statusCode）— 模拟响应到达
+      // Update response (with statusCode) — simulates response arrival
+      service.updateNetworkRequest(
+        'test-2',
+        statusCode: 200,
+        responseBody: 'ok',
+      );
 
-        final request = service.networkRequests.firstWhere(
-          (r) => r.id == 'test-2',
-        );
-        expect(request.statusCode, equals(200));
-        expect(request.responseBody, equals('ok'));
-        expect(
-          request.responseTime,
-          isNotNull,
-          reason: 'responseTime must be set when statusCode is provided',
-        );
-        expect(
-          request.duration,
-          isNotNull,
-          reason: 'duration must be set when statusCode is provided',
-        );
-      },
-    );
+      final request = service.networkRequests.firstWhere(
+        (r) => r.id == 'test-2',
+      );
+      expect(request.statusCode, equals(200));
+      expect(request.responseBody, equals('ok'));
+      expect(
+        request.responseTime,
+        isNotNull,
+        reason: 'responseTime must be set when statusCode is provided',
+      );
+      expect(
+        request.duration,
+        isNotNull,
+        reason: 'duration must be set when statusCode is provided',
+      );
+    });
 
     test(
       '先更新 body 再更新响应：responseTime 应为响应到达时间 / '
@@ -1072,36 +1074,33 @@ void main() {
       InspectorService.instance.clearNetworkRequests();
     });
 
-    test(
-      '同一毫秒内并发请求应生成不同 ID / Concurrent requests in the same millisecond should generate unique IDs',
-      () {
-        final interceptor = InspectorDioInterceptor();
+    test('同一毫秒内并发请求应生成不同 ID / Concurrent requests in the same millisecond should generate unique IDs', () {
+      final interceptor = InspectorDioInterceptor();
 
-        // 快速连续发起多个请求到同一 URL（模拟并发场景）
-        // Fire multiple requests to the same URL in rapid succession (concurrent scenario)
-        for (var i = 0; i < 20; i++) {
-          interceptor.onRequest({
-            'method': 'GET',
-            'url': 'https://api.example.com/concurrent',
-            'headers': <String, dynamic>{},
-            'data': null,
-          });
-        }
+      // 快速连续发起多个请求到同一 URL（模拟并发场景）
+      // Fire multiple requests to the same URL in rapid succession (concurrent scenario)
+      for (var i = 0; i < 20; i++) {
+        interceptor.onRequest({
+          'method': 'GET',
+          'url': 'https://api.example.com/concurrent',
+          'headers': <String, dynamic>{},
+          'data': null,
+        });
+      }
 
-        final requests = InspectorService.instance.networkRequests;
-        final ids = requests.map((r) => r.id).toList();
-        final uniqueIds = ids.toSet();
+      final requests = InspectorService.instance.networkRequests;
+      final ids = requests.map((r) => r.id).toList();
+      final uniqueIds = ids.toSet();
 
-        // 所有请求 ID 必须唯一 / All request IDs must be unique
-        expect(
-          uniqueIds.length,
-          equals(ids.length),
-          reason:
-              'Concurrent requests must have unique IDs. '
-              'Got ${ids.length} requests but only ${uniqueIds.length} unique IDs. '
-              'Duplicate IDs would cause response data to be associated with the wrong request.',
-        );
-      },
-    );
+      // 所有请求 ID 必须唯一 / All request IDs must be unique
+      expect(
+        uniqueIds.length,
+        equals(ids.length),
+        reason:
+            'Concurrent requests must have unique IDs. '
+            'Got ${ids.length} requests but only ${uniqueIds.length} unique IDs. '
+            'Duplicate IDs would cause response data to be associated with the wrong request.',
+      );
+    });
   });
 }

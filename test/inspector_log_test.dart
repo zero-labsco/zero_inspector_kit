@@ -134,17 +134,14 @@ void main() {
       expect(InspectorService.instance.logEntries, isEmpty);
     });
 
-    test(
-      'InspectorLog 与直接调用底层产生相同级别 / InspectorLog produces same level as direct interceptor call',
-      () {
-        InspectorLog.start();
-        InspectorLog.w('shortcut');
-        InspectorLogInterceptor.instance.warning('direct');
-        final logs = InspectorService.instance.logEntries;
-        expect(logs.length, equals(2));
-        expect(logs[0].level, equals(LogLevel.warning));
-        expect(logs[1].level, equals(LogLevel.warning));
-      },
-    );
+    test('InspectorLog 与直接调用底层产生相同级别 / InspectorLog produces same level as direct interceptor call', () {
+      InspectorLog.start();
+      InspectorLog.w('shortcut');
+      InspectorLogInterceptor.instance.warning('direct');
+      final logs = InspectorService.instance.logEntries;
+      expect(logs.length, equals(2));
+      expect(logs[0].level, equals(LogLevel.warning));
+      expect(logs[1].level, equals(LogLevel.warning));
+    });
   });
 }

@@ -195,8 +195,8 @@
     - `lib/zero_inspector_kit.dart`（注册导出 / registered for export）
     - `lib/src/services/inspector_service.dart`（引用 / referenced）
 
-- [ ] **网络请求更多筛选维度 / More network request filters**
-  - **状态**: 待实现 / To be implemented
+- [x] **网络请求更多筛选维度 / More network request filters**
+  - **状态**: 已实现（v1.4.0）/ Implemented (v1.4.0)
   - **实现方案 / Implementation**:
     - 按 HTTP Method 筛选（GET/POST/PUT/DELETE...）
     - Filter by HTTP Method (GET/POST/PUT/DELETE...)
@@ -205,7 +205,10 @@
     - 按拦截状态筛选（已修改/未修改）
     - Filter by interception status (modified/not modified)
   - **涉及文件 / Related files**:
-    - `lib/src/ui/network_viewer.dart`（扩展 / extended）
+    - `lib/src/ui/network_viewer.dart`（扩展：新增漏斗图标 + 可展开筛选面板，含 Method / 状态码 / 拦截状态三维筛选 / extended）
+    - `lib/src/models/network_request.dart`（新增 `isModifiedByInterceptor` 字段 / new field）
+    - `lib/src/services/inspector_service.dart`（`updateNetworkRequest` 增加 `modified` 参数 / new `modified` param）
+    - `lib/src/interceptors/inspector_http_client.dart`、`lib/src/interceptors/inspector_response_proxy.dart`（命中规则时回写 `modified` / write back on rule match）
 
 - [ ] **拦截规则增强 / Interceptor rule enhancements**
   - **状态**: 待实现 / To be implemented

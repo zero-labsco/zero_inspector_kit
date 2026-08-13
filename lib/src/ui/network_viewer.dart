@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+
 import '../models/network_request.dart';
 import '../models/interceptor_rule.dart';
 import '../services/inspector_service.dart';
@@ -7,6 +9,22 @@ import '../services/export_service.dart';
 import '../utils/formatters.dart';
 import 'theme/inspector_theme.dart';
 import 'widgets/widgets.dart';
+
+/// 状态码分组（用于筛选维度，公开以便单测）/ Status-code groups (for the
+/// filter dimension; exposed publicly so it can be unit-tested).
+/// 定义在 [network_request.dart] 的 [StatusGroup]。
+/// Defined as [StatusGroup] in network_request.dart.
+
+/// 常见 HTTP Method（用于筛选维度）/ Common HTTP methods (for the filter dimension)
+const List<String> _kFilterMethods = [
+  'GET',
+  'POST',
+  'PUT',
+  'DELETE',
+  'PATCH',
+  'HEAD',
+  'OPTIONS',
+];
 
 /// 网络请求查看器 / Network request viewer
 /// 显示所有捕获的网络请求，支持搜索和查看详细信息 / Display all captured network requests, support search and viewing details
@@ -40,6 +58,21 @@ class _NetworkViewerState extends State<NetworkViewer> {
 
   /// 已选中的请求 id 集合 / Selected request ids
   final Set<String> _selectedIds = {};
+
+  /// 筛选面板是否展开 / Whether the filter panel is expanded
+  bool _filterExpanded = false;
+
+  /// 选中的 HTTP Method 集合（空 = 不按 method 筛选）/ Selected HTTP methods
+  /// (empty = no method filter)
+  final Set<String> _methodFilters = {};
+
+  /// 选中的状态码分组（空 = 不按状态码筛选）/ Selected status-code groups
+  /// (empty = no status filter)
+  final Set<StatusGroup> _statusFilters = {};
+
+  /// 拦截状态筛选（null = 全部；true = 已修改；false = 未修改）。
+  /// Interception-status filter (null = all; true = modified; false = unmodified).
+  bool? _modifiedFilter;
 
   @override
   void initState() {
@@ -115,6 +148,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
       children: [
         _buildToolbar(),
         _buildSearchBar(),
+        if (_filterExpanded && _selectedRequest == null) _buildFilterPanel(),
         Expanded(
           child: Stack(
             children: [
@@ -155,156 +189,175 @@ class _NetworkViewerState extends State<NetworkViewer> {
             color: InspectorColors.surface,
             border: Border(bottom: BorderSide(color: InspectorColors.border)),
           ),
-          child: Row(
-            children: [
-              if (_selectedRequest != null)
-                InspectorIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  tooltip: 'Back',
-                  onTap: () {
-                    setState(() {
-                      _selectedRequestId = null;
-                      _showInterceptorPanel = false;
-                    });
-                  },
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              // 在横向滚动视图（unbounded 宽度）内必须用 min，否则 Flexible
+              // 与 shrink-wrap 冲突导致整条布局链崩溃。
+              // Inside a horizontal scroll view (unbounded width) we must use
+              // min, otherwise Flexible conflicts with shrink-wrap and crashes
+              // the whole layout chain.
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_selectedRequest != null)
+                  InspectorIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'Back',
+                    onTap: () {
+                      setState(() {
+                        _selectedRequestId = null;
+                        _showInterceptorPanel = false;
+                      });
+                    },
+                  ),
+                InspectorCountBadge(
+                  '${InspectorService.instance.networkRequests.length}',
                 ),
-              InspectorCountBadge(
-                '${InspectorService.instance.networkRequests.length}',
-              ),
-              const SizedBox(width: 6),
-              Text(
-                _selectedRequest != null ? 'Request Detail' : 'Requests',
-                style: TextStyle(
-                  color: InspectorColors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(width: 6),
+                Text(
+                  _selectedRequest != null ? 'Request Detail' : 'Requests',
+                  style: TextStyle(
+                    color: InspectorColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const Spacer(),
-              // 列表页：敏感字段遮蔽开关 + 批量选择入口
-              // List page: sensitive-field mask toggle + batch-select entry
-              if (_selectedRequest == null) ...[
+                const SizedBox(width: 6),
+                // 列表页：敏感字段遮蔽开关 + 批量选择入口
+                // List page: sensitive-field mask toggle + batch-select entry
+                if (_selectedRequest == null) ...[
+                  InspectorIconButton(
+                    icon: _maskSensitive
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    tooltip: _maskSensitive
+                        ? 'Sensitive hidden'
+                        : 'Sensitive visible',
+                    color: _maskSensitive ? InspectorColors.accent : null,
+                    onTap: () =>
+                        setState(() => _maskSensitive = !_maskSensitive),
+                  ),
+                  InspectorIconButton(
+                    icon: Icons.checklist_rounded,
+                    tooltip: _selectionMode ? 'Exit selection' : 'Select',
+                    color: _selectionMode ? InspectorColors.accent : null,
+                    onTap: () => setState(() {
+                      _selectionMode = !_selectionMode;
+                      if (!_selectionMode) _selectedIds.clear();
+                    }),
+                  ),
+                ],
+                // 拦截总开关 / Interceptor master switch（仅列表页显示）
+                if (_selectedRequest == null)
+                  _buildInterceptorSwitch(interceptorOn),
+                if (_selectedRequest != null &&
+                    interceptorOn &&
+                    _selectedRequest!.method.toUpperCase() != 'GET')
+                  InspectorIconButton(
+                    icon: Icons.edit_note_rounded,
+                    tooltip: 'Interceptor',
+                    onTap: () => _showInterceptorEditor(),
+                    color: InspectorColors.accent,
+                  ),
+                if (_selectedRequest != null)
+                  InspectorIconButton(
+                    icon: Icons.terminal_rounded,
+                    tooltip: 'Copy as cURL',
+                    onTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      await ExportService.instance.copy(
+                        ExportService.instance.toCurl(
+                          _selectedRequest!,
+                          maskSensitive: _maskSensitive,
+                        ),
+                      );
+                      if (mounted) {
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              _maskSensitive
+                                  ? 'Copied as cURL (sensitive hidden)'
+                                  : 'Copied as cURL',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
                 InspectorIconButton(
-                  icon: _maskSensitive
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
-                  tooltip: _maskSensitive
-                      ? 'Sensitive hidden'
-                      : 'Sensitive visible',
-                  color: _maskSensitive ? InspectorColors.accent : null,
-                  onTap: () => setState(() => _maskSensitive = !_maskSensitive),
-                ),
-                InspectorIconButton(
-                  icon: Icons.checklist_rounded,
-                  tooltip: _selectionMode ? 'Exit selection' : 'Select',
-                  color: _selectionMode ? InspectorColors.accent : null,
-                  onTap: () => setState(() {
-                    _selectionMode = !_selectionMode;
-                    if (!_selectionMode) _selectedIds.clear();
-                  }),
-                ),
-              ],
-              // 拦截总开关 / Interceptor master switch（仅列表页显示）
-              if (_selectedRequest == null)
-                _buildInterceptorSwitch(interceptorOn),
-              if (_selectedRequest != null &&
-                  interceptorOn &&
-                  _selectedRequest!.method.toUpperCase() != 'GET')
-                InspectorIconButton(
-                  icon: Icons.edit_note_rounded,
-                  tooltip: 'Interceptor',
-                  onTap: () => _showInterceptorEditor(),
-                  color: InspectorColors.accent,
-                ),
-              if (_selectedRequest != null)
-                InspectorIconButton(
-                  icon: Icons.terminal_rounded,
-                  tooltip: 'Copy as cURL',
+                  icon: Icons.content_copy_rounded,
+                  tooltip: 'Copy as JSON',
                   onTap: () async {
+                    final requests = InspectorService.instance.networkRequests;
+                    if (requests.isEmpty) return;
                     final messenger = ScaffoldMessenger.of(context);
-                    await ExportService.instance.copy(
-                      ExportService.instance.toCurl(
-                        _selectedRequest!,
-                        maskSensitive: _maskSensitive,
-                      ),
+                    await ExportService.instance.copyNet(
+                      requests,
+                      maskSensitive: _maskSensitive,
                     );
                     if (mounted) {
                       messenger.showSnackBar(
                         SnackBar(
                           content: Text(
-                            _maskSensitive
-                                ? 'Copied as cURL (sensitive hidden)'
-                                : 'Copied as cURL',
+                            'Copied ${requests.length} requests as JSON'
+                            '${_maskSensitive ? ' (sensitive hidden)' : ''}',
                           ),
                         ),
                       );
                     }
                   },
                 ),
-              InspectorIconButton(
-                icon: Icons.content_copy_rounded,
-                tooltip: 'Copy as JSON',
-                onTap: () async {
-                  final requests = InspectorService.instance.networkRequests;
-                  if (requests.isEmpty) return;
-                  final messenger = ScaffoldMessenger.of(context);
-                  await ExportService.instance.copyNet(
-                    requests,
-                    maskSensitive: _maskSensitive,
-                  );
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Copied ${requests.length} requests as JSON'
-                          '${_maskSensitive ? ' (sensitive hidden)' : ''}',
-                        ),
-                      ),
-                    );
-                  }
-                },
-              ),
-              InspectorIconButton(
-                icon: Icons.share_rounded,
-                tooltip: 'Share as JSON',
-                onTap: () async {
-                  final requests = InspectorService.instance.networkRequests;
-                  if (requests.isEmpty) return;
-                  final messenger = ScaffoldMessenger.of(context);
-                  await ExportService.instance.exportNetAndShare(
-                    requests,
-                    maskSensitive: _maskSensitive,
-                  );
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Sharing ${requests.length} requests as JSON'
-                          '${_maskSensitive ? ' (sensitive hidden)' : ''}',
-                        ),
-                      ),
-                    );
-                  }
-                },
-              ),
-              if (_selectionMode)
                 InspectorIconButton(
-                  icon: Icons.copy_all_rounded,
-                  tooltip: 'Copy selected as cURL',
-                  onTap: () => _copySelectedCurl(context),
+                  icon: Icons.share_rounded,
+                  tooltip: 'Share as JSON',
+                  onTap: () async {
+                    final requests = InspectorService.instance.networkRequests;
+                    if (requests.isEmpty) return;
+                    final messenger = ScaffoldMessenger.of(context);
+                    await ExportService.instance.exportNetAndShare(
+                      requests,
+                      maskSensitive: _maskSensitive,
+                    );
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Sharing ${requests.length} requests as JSON'
+                            '${_maskSensitive ? ' (sensitive hidden)' : ''}',
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 ),
-              InspectorIconButton(
-                icon: Icons.delete_outline_rounded,
-                tooltip: _selectionMode ? 'Delete selected' : 'Clear all',
-                onTap: () {
-                  if (_selectionMode) {
-                    _deleteSelected();
-                  } else {
-                    InspectorService.instance.clearNetworkRequests();
-                  }
-                },
-              ),
-            ],
+                if (_selectionMode)
+                  InspectorIconButton(
+                    icon: Icons.copy_all_rounded,
+                    tooltip: 'Copy selected as cURL',
+                    onTap: () => _copySelectedCurl(context),
+                  ),
+                InspectorIconButton(
+                  icon: Icons.delete_outline_rounded,
+                  tooltip: _selectionMode ? 'Delete selected' : 'Clear all',
+                  onTap: () {
+                    if (_selectionMode) {
+                      _deleteSelected();
+                    } else {
+                      InspectorService.instance.clearNetworkRequests();
+                    }
+                  },
+                ),
+                // 筛选漏斗（仅列表页显示）/ Filter funnel (list page only)
+                if (_selectedRequest == null)
+                  InspectorIconButton(
+                    icon: Icons.filter_alt_rounded,
+                    tooltip: 'Filter',
+                    color: _hasActiveFilter ? InspectorColors.accent : null,
+                    onTap: () =>
+                        setState(() => _filterExpanded = !_filterExpanded),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -376,13 +429,172 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
   }
 
+  /// 是否存在生效的筛选条件（用于漏斗图标高亮）/ Whether any filter is active
+  bool get _hasActiveFilter =>
+      _methodFilters.isNotEmpty ||
+      _statusFilters.isNotEmpty ||
+      _modifiedFilter != null;
+
+  /// 可展开的筛选面板 / Expandable filter panel
+  Widget _buildFilterPanel() {
+    Widget wrap(String label, List<Widget> chips) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: InspectorColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Wrap(spacing: 6, runSpacing: 6, children: chips),
+        ],
+      ),
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      decoration: BoxDecoration(
+        color: InspectorColors.surface,
+        border: Border(bottom: BorderSide(color: InspectorColors.border)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          wrap('Method', [
+            for (final m in _kFilterMethods)
+              _filterChip(
+                label: m,
+                selected: _methodFilters.contains(m),
+                onTap: () => setState(() {
+                  _methodFilters.contains(m)
+                      ? _methodFilters.remove(m)
+                      : _methodFilters.add(m);
+                }),
+              ),
+          ]),
+          wrap('Status', [
+            for (final g in StatusGroup.values)
+              _filterChip(
+                label: g.label,
+                selected: _statusFilters.contains(g),
+                onTap: () => setState(() {
+                  _statusFilters.contains(g)
+                      ? _statusFilters.remove(g)
+                      : _statusFilters.add(g);
+                }),
+              ),
+          ]),
+          wrap('Interception', [
+            _filterChip(
+              label: 'All',
+              selected: _modifiedFilter == null,
+              onTap: () => setState(() => _modifiedFilter = null),
+            ),
+            _filterChip(
+              label: 'Modified',
+              selected: _modifiedFilter == true,
+              onTap: () => setState(() => _modifiedFilter = true),
+            ),
+            _filterChip(
+              label: 'Unmodified',
+              selected: _modifiedFilter == false,
+              onTap: () => setState(() => _modifiedFilter = false),
+            ),
+          ]),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => setState(() {
+                _methodFilters.clear();
+                _statusFilters.clear();
+                _modifiedFilter = null;
+              }),
+              child: Text(
+                'Reset',
+                style: TextStyle(color: InspectorColors.accent, fontSize: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 筛选 chip / Filter chip
+  Widget _filterChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected
+              ? InspectorColors.accent.withValues(alpha: 0.15)
+              : InspectorColors.card,
+          border: Border.all(
+            color: selected ? InspectorColors.accent : InspectorColors.border,
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected
+                ? InspectorColors.accent
+                : InspectorColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
   List<NetworkRequest> _filterRequests(List<NetworkRequest> requests) {
-    if (_searchKeyword.isEmpty) return requests;
-    final keyword = _searchKeyword.toLowerCase();
-    return requests.where((req) {
-      return req.url.toLowerCase().contains(keyword) ||
-          req.method.toLowerCase().contains(keyword);
-    }).toList();
+    var result = requests;
+
+    // 关键词搜索（URL / method）/ Keyword search (URL / method)
+    if (_searchKeyword.isNotEmpty) {
+      final keyword = _searchKeyword.toLowerCase();
+      result = result.where((req) {
+        return req.url.toLowerCase().contains(keyword) ||
+            req.method.toLowerCase().contains(keyword);
+      }).toList();
+    }
+
+    // 按 Method 筛选（多选，空集合 = 不过滤）/ Filter by method (multi-select)
+    if (_methodFilters.isNotEmpty) {
+      result = result
+          .where((req) => _methodFilters.contains(req.method.toUpperCase()))
+          .toList();
+    }
+
+    // 按状态码分组筛选（多选，空集合 = 不过滤）/ Filter by status group
+    if (_statusFilters.isNotEmpty) {
+      result = result.where((req) {
+        return _statusFilters.any((g) => g.contains(req.statusCode));
+      }).toList();
+    }
+
+    // 按拦截状态筛选 / Filter by interception status
+    if (_modifiedFilter != null) {
+      result = result
+          .where((req) => req.isModifiedByInterceptor == _modifiedFilter)
+          .toList();
+    }
+
+    return result;
   }
 
   Widget _buildRequestList() {
@@ -550,9 +762,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: _getMethodColor(
-                        request.method,
-                      ).withValues(alpha: 0.2),
+                      color: _chipMethodColor(request.method),
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(
@@ -586,6 +796,18 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         color: InspectorColors.accent,
                       ),
                     ),
+                  if (request.isModifiedByInterceptor)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Tooltip(
+                        message: 'Modified by interceptor',
+                        child: Icon(
+                          Icons.auto_fix_high_rounded,
+                          size: 14,
+                          color: InspectorColors.accent,
+                        ),
+                      ),
+                    ),
                   const SizedBox(width: 8),
                   Text(
                     request.durationText,
@@ -606,9 +828,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(
-                          request.status,
-                        ).withValues(alpha: 0.15),
+                        color: _chipStatusColor(request.status),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -990,6 +1210,16 @@ class _NetworkViewerState extends State<NetworkViewer> {
         return InspectorColors.textSecondary;
     }
   }
+
+  // 抽出辅助方法，避免 `_getXxxColor(...).withValues(...)` 链式写法触发
+  // Dart 3.11 `dart format` 的非幂等死循环（导致 CI format 检查反复失败）。
+  // Extracted helpers avoid the non-idempotent `dart format` loop on chained
+  // `.withValues()` calls under Dart 3.11 (which broke the CI format check).
+  Color _chipMethodColor(String method) =>
+      _getMethodColor(method).withValues(alpha: 0.2);
+
+  Color _chipStatusColor(int status) =>
+      _getStatusColor(status).withValues(alpha: 0.15);
 
   String _formatJson(dynamic data) => InspectorFormatters.formatJson(data);
 }
