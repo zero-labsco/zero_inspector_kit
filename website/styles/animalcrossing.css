@@ -1,0 +1,503 @@
+/* =========================================================
+   Zero Inspector Kit — Animal Crossing (动森) style theme
+   Hand-written. No third-party UI library dependency.
+   ========================================================= */
+
+:root {
+  --ac-cream: #fff7e8;
+  --ac-cream-2: #fbeed2;
+  --ac-card: #fffdf6;
+  --ac-leaf: #73b84b;
+  --ac-leaf-dark: #5a9233;
+  --ac-leaf-light: #a8d88a;
+  --ac-wood: #b98a4b;
+  --ac-wood-dark: #8a5a2b;
+  --ac-sky: #8fd3e8;
+  --ac-coral: #f08c7a;
+  --ac-coral-dark: #e06a55;
+  --ac-text: #4a3626;
+  --ac-text-soft: #5e4a36;
+  --ac-border: #c9a06a;
+  --ac-shadow: rgba(138, 90, 43, 0.18);
+  --ac-radius: 18px;
+  --ac-radius-sm: 12px;
+  --font-display: 'Baloo 2', 'ZCOOL KuaiLe', 'Noto Sans SC', cursive;
+  --font-body: 'Baloo 2', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Baloo 2', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body) !important;
+  color: var(--ac-text) !important;
+  background-color: var(--ac-cream) !important;
+  background-image:
+    radial-gradient(circle, rgba(115, 184, 75, 0.12) 2px, transparent 2px),
+    radial-gradient(circle, rgba(185, 138, 75, 0.1) 2px, transparent 2px);
+  background-size: 26px 26px, 26px 26px;
+  background-position: 0 0, 13px 13px;
+  line-height: 1.7;
+}
+
+/* Force light mode look even if .dark is toggled */
+html.dark,
+.dark body {
+  background-color: var(--ac-cream) !important;
+  color: var(--ac-text) !important;
+}
+
+/* ---------------- Top navigation ---------------- */
+.nextra-nav,
+header.nextra-nav,
+.nextra-nav-container header {
+  background: linear-gradient(180deg, #8bd06a 0%, var(--ac-leaf) 100%) !important;
+  border-bottom: 3px solid var(--ac-wood-dark) !important;
+  box-shadow: 0 4px 0 var(--ac-shadow) !important;
+}
+
+.nextra-nav a,
+.nextra-nav button,
+.nextra-nav [aria-label] {
+  color: #ffffff !important;
+}
+
+.ac-logo {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.25rem;
+  color: #fff !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-shadow: 1px 1px 0 var(--ac-wood-dark);
+}
+.ac-logo-leaf {
+  font-size: 1.5rem;
+  filter: drop-shadow(1px 1px 0 var(--ac-wood-dark));
+}
+
+/* Search box (top bar, next to logo) */
+.nextra-search input,
+.nextra-nav input[type='search'],
+input[type='search'] {
+  background: var(--ac-card) !important;
+  border: 2px solid var(--ac-border) !important;
+  border-radius: 999px !important;
+  color: var(--ac-text) !important;
+  font-family: var(--font-body);
+}
+.nextra-search input::placeholder,
+.nextra-nav input[type='search']::placeholder,
+input[type='search']::placeholder {
+  color: var(--ac-text-soft) !important;
+  opacity: 0.85 !important;
+}
+
+/* Keyboard shortcut badge shown inside the search input (Ctrl+K / ESC) */
+body .nextra-search kbd,
+body .nextra-nav .nextra-search kbd,
+.nextra-search kbd,
+.nextra-search button kbd,
+.nextra-nav input[type='search'] + * kbd,
+.nextra-search [class*='_kbd_'] {
+  background: var(--ac-card) !important;
+  color: var(--ac-text) !important;
+  border: 1.5px solid var(--ac-border) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  padding: 0.15rem 0.45rem !important;
+}
+
+/* ---------------- Ctrl+K search modal ---------------- */
+/* Force ALL text inside the modal to dark island-brown, overriding Nextra's
+   _text-* Tailwind utilities. `body` prefix gives 0,1,1 specificity,
+   which beats the _text-* utilities (0,1,0) and the blue selection tint. */
+body .nextra-search-results,
+body .nextra-search-results *,
+body [class*='nextra-search'],
+body [class*='nextra-search'] *,
+body [role='dialog'],
+body [role='dialog'] * {
+  color: var(--ac-text) !important;
+}
+/* Search result titles get a touch more weight for hierarchy */
+body .nextra-search-results a > div:first-child,
+body .nextra-search-results a {
+  font-weight: 600 !important;
+}
+/* Full-screen dim backdrop behind the result panel (island-brown tint) */
+body .nextra-search {
+  background: rgba(74, 54, 38, 0.30) !important;
+}
+/* The floating result panel (solid cream card for readability) */
+body .nextra-search-results {
+  background: var(--ac-card) !important;
+  border: 3px solid var(--ac-border) !important;
+  border-radius: var(--ac-radius-sm) !important;
+  box-shadow: 0 8px 0 var(--ac-shadow) !important;
+}
+body .nextra-search ul,
+body .nextra-search li {
+  background: transparent !important;
+}
+/* Each result row — soft leaf tint instead of Nextra's blue (_bg-primary-500/10) */
+body .nextra-search-results a {
+  background: rgba(115, 184, 75, 0.14) !important;
+}
+/* Selected / hovered result row — deeper leaf tint + wood outline */
+body .nextra-search-results a[aria-selected='true'],
+body .nextra-search-results a:hover {
+  background: rgba(115, 184, 75, 0.32) !important;
+  color: var(--ac-wood-dark) !important;
+  box-shadow: inset 0 0 0 1.5px var(--ac-leaf) !important;
+}
+/* Keyword highlight */
+body .nextra-search mark,
+body .nextra-search b {
+  background: rgba(115, 184, 75, 0.30) !important;
+  color: var(--ac-wood-dark) !important;
+}
+
+/* ---------------- Sidebar ---------------- */
+.nextra-sidebar,
+aside.nextra-sidebar,
+.nextra-sidebar-container,
+aside.nextra-sidebar-container {
+  background: var(--ac-cream-2) !important;
+  border-right: 3px solid var(--ac-border) !important;
+}
+
+.nextra-sidebar a,
+.nextra-sidebar-container a,
+aside.nextra-sidebar-container a,
+.nextra-menu-desktop a,
+.nextra-menu-mobile a {
+  color: var(--ac-text) !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  text-shadow: none !important;
+}
+.nextra-sidebar a:hover,
+.nextra-sidebar-container a:hover,
+.nextra-menu-desktop a:hover,
+.nextra-menu-mobile a:hover {
+  background: var(--ac-leaf-light) !important;
+  color: var(--ac-wood-dark) !important;
+}
+.nextra-sidebar [aria-current='page'],
+.nextra-sidebar .active,
+.nextra-sidebar a[aria-current='page'],
+.nextra-sidebar-container [aria-current='page'],
+.nextra-sidebar-container a[aria-current='page'],
+.nextra-menu-desktop [aria-current='page'] {
+  background: rgba(115, 184, 75, 0.18) !important;
+  color: var(--ac-wood-dark) !important;
+  font-weight: 700 !important;
+  box-shadow: inset 0 0 0 1.5px var(--ac-leaf) !important;
+}
+
+/* Sidebar section headers (emoji headings) */
+.nextra-sidebar li > p,
+.nextra-sidebar .nextra-sidebar-tree > ul > li > p,
+.nextra-sidebar-container li > p {
+  font-family: var(--font-display) !important;
+  color: var(--ac-wood-dark) !important;
+  font-weight: 700;
+}
+
+/* Sidebar footer (bottom-left collapse / settings area) */
+.nextra-sidebar-footer {
+  background: transparent !important;
+  border-top: none !important;
+  box-shadow: none !important;
+}
+.nextra-sidebar-footer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, var(--ac-cream-2), rgba(255, 247, 232, 0));
+  pointer-events: none;
+}
+.nextra-sidebar-footer button {
+  color: var(--ac-text-soft) !important;
+  border-radius: 8px !important;
+  background: var(--ac-cream) !important;
+  border: 1.5px solid var(--ac-border) !important;
+}
+.nextra-sidebar-footer button:hover {
+  background: var(--ac-leaf-light) !important;
+  color: var(--ac-wood-dark) !important;
+}
+
+/* ---------------- Main content card ---------------- */
+main,
+.nextra-content,
+article {
+  background: transparent !important;
+}
+
+.nextra-container,
+.nextra-content .nextra-content-container {
+  background: var(--ac-card) !important;
+  border: 3px solid var(--ac-border) !important;
+  border-radius: var(--ac-radius) !important;
+  box-shadow: 0 8px 0 var(--ac-shadow) !important;
+  padding: 2rem 2.4rem !important;
+  margin-top: 1.2rem;
+}
+
+/* Headings */
+h1,
+h2,
+h3,
+h4,
+h5 {
+  font-family: var(--font-display) !important;
+  color: var(--ac-wood-dark) !important;
+  font-weight: 800;
+}
+h1 {
+  font-size: 2.4rem;
+  border-bottom: 4px dashed var(--ac-leaf-light) !important;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.2rem;
+}
+h2 {
+  font-size: 1.7rem;
+  margin-top: 2rem;
+  border-left: 8px solid var(--ac-leaf) !important;
+  padding-left: 0.7rem;
+}
+h3 {
+  font-size: 1.35rem;
+  color: var(--ac-leaf-dark) !important;
+}
+
+/* Paragraphs, lists, and body text spans */
+p,
+li,
+span,
+.nextra-content p,
+.nextra-content li,
+.nextra-content span {
+  color: var(--ac-text) !important;
+  font-size: 1.02rem;
+}
+
+/* Links */
+a {
+  color: var(--ac-coral-dark) !important;
+  text-decoration: none;
+  font-weight: 600;
+}
+a:hover {
+  color: var(--ac-coral) !important;
+  text-decoration: underline wavy !important;
+  text-underline-offset: 3px;
+}
+
+/* ---------------- Tables (cozy cards) ---------------- */
+table {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0;
+  border: 2px solid var(--ac-border) !important;
+  border-radius: var(--ac-radius-sm) !important;
+  overflow: hidden;
+  margin: 1.2rem 0;
+}
+th {
+  background: var(--ac-leaf) !important;
+  color: #fff !important;
+  font-family: var(--font-display);
+  font-weight: 700;
+  padding: 0.6rem 0.9rem !important;
+  border: none !important;
+}
+td {
+  padding: 0.6rem 0.9rem !important;
+  border-top: 1px solid var(--ac-border) !important;
+  background: var(--ac-card) !important;
+  color: var(--ac-text) !important;
+}
+td * {
+  color: var(--ac-text) !important;
+}
+tbody tr:nth-child(even) td {
+  background: var(--ac-cream) !important;
+}
+
+/* ---------------- Inline code ---------------- */
+:not(pre) > code {
+  font-family: var(--font-mono);
+  background: var(--ac-cream-2) !important;
+  border: 1.5px solid var(--ac-border) !important;
+  border-radius: 8px !important;
+  padding: 0.1rem 0.45rem !important;
+  color: var(--ac-wood-dark) !important;
+  font-size: 0.92em;
+}
+
+/* ---------------- Code blocks ---------------- */
+pre {
+  background: #3d3428 !important;
+  border: 3px solid var(--ac-wood) !important;
+  border-radius: var(--ac-radius-sm) !important;
+  box-shadow: 0 5px 0 var(--ac-shadow) !important;
+  padding: 1.1rem 1.2rem !important;
+  overflow-x: auto;
+}
+pre code {
+  color: #fff7e8 !important;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  background: transparent !important;
+  border: none !important;
+}
+/* Nextra highlights code with Shiki in dual-theme mode: each token's colour
+   is stored in the --shiki-light / --shiki-dark CSS variables (NOT in
+   .token.* classes), so prism-style rules above never match. Our code
+   background is dark, so force the dark palette (designed for dark
+   backgrounds) — this keeps tokens legible and colour-distinct. */
+.nextra-code code span,
+pre code span {
+  color: var(--shiki-dark) !important;
+}
+/* Brighten Shiki's dim grey comments for better contrast on #3d3428 */
+.nextra-code code span[style*='--shiki-dark:#6A737D'],
+pre code span[style*='--shiki-dark:#6A737D'] {
+  color: #9fb89a !important;
+}
+
+/* Copy button */
+.nextra-code-copy-button,
+button[aria-label*='Copy'] {
+  background: var(--ac-leaf) !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  border: 2px solid var(--ac-wood-dark) !important;
+}
+
+/* ---------------- Blockquote ---------------- */
+blockquote {
+  border-left: 6px solid var(--ac-coral) !important;
+  background: #fff3ee !important;
+  border-radius: 0 var(--ac-radius-sm) var(--ac-radius-sm) 0 !important;
+  padding: 0.6rem 1rem !important;
+  color: var(--ac-text) !important;
+}
+
+/* ---------------- Callout / Nextra note ---------------- */
+.nextra-callout,
+[data-callout] {
+  border-radius: var(--ac-radius-sm) !important;
+  border: 2px solid var(--ac-border) !important;
+  background: var(--ac-cream-2) !important;
+}
+
+/* ---------------- Next/Prev footer nav ---------------- */
+.nextra-page-footer,
+.nextra-navigation {
+  border-top: 3px dashed var(--ac-border) !important;
+  margin-top: 2rem;
+}
+.nextra-navigation a {
+  background: var(--ac-card) !important;
+  border: 2px solid var(--ac-border) !important;
+  border-radius: var(--ac-radius-sm) !important;
+  color: var(--ac-wood-dark) !important;
+  font-family: var(--font-display);
+}
+.nextra-navigation a:hover {
+  background: var(--ac-leaf) !important;
+  color: #fff !important;
+}
+
+/* ---------------- Global page footer ---------------- */
+footer._bg-gray-100,
+footer._bg-neutral-900,
+.nextra-footer {
+  background: var(--ac-cream-2) !important;
+  border-top: 3px solid var(--ac-border) !important;
+  color: var(--ac-text) !important;
+}
+footer._bg-gray-100 *,
+footer._bg-neutral-900 *,
+.nextra-footer * {
+  color: var(--ac-text) !important;
+}
+
+/* ---------------- TOC (right side) ---------------- */
+.nextra-toc,
+nav.nextra-toc {
+  border-left: 2px dashed var(--ac-border) !important;
+  background: transparent !important;
+}
+.nextra-toc > div,
+nav.nextra-toc > div {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.nextra-toc h2,
+.nextra-toc .nextra-toc-title,
+.nextra-toc > div:first-child,
+nav.nextra-toc > div:first-child {
+  color: var(--ac-wood-dark) !important;
+  font-family: var(--font-display) !important;
+  font-weight: 800;
+}
+.nextra-toc a,
+nav.nextra-toc a {
+  color: var(--ac-text) !important;
+  border-radius: 8px !important;
+}
+.nextra-toc a:hover,
+.nextra-toc [aria-current='true'],
+nav.nextra-toc a:hover,
+nav.nextra-toc [aria-current='true'] {
+  color: var(--ac-wood-dark) !important;
+  background: rgba(115, 184, 75, 0.14) !important;
+}
+.nextra-toc a._text-xs,
+.nextra-toc a._text-gray-600,
+.nextra-toc a._text-gray-500,
+nav.nextra-toc a._text-xs,
+nav.nextra-toc a._text-gray-600,
+nav.nextra-toc a._text-gray-500 {
+  color: var(--ac-text-soft) !important;
+}
+.nextra-toc a._text-xs:hover,
+.nextra-toc a._text-gray-600:hover,
+.nextra-toc a._text-gray-500:hover,
+nav.nextra-toc a._text-xs:hover,
+nav.nextra-toc a._text-gray-600:hover,
+nav.nextra-toc a._text-gray-500:hover {
+  color: var(--ac-wood-dark) !important;
+}
+
+/* Reduce default Nextra max width a touch for the card look */
+.nextra-content .nextra-content-container {
+  max-width: 56rem !important;
+}
+
+/* ---------------- Responsive ---------------- */
+@media (max-width: 768px) {
+  .nextra-container,
+  .nextra-content .nextra-content-container {
+    padding: 1.2rem 1.1rem !important;
+    border-radius: 14px !important;
+  }
+  h1 {
+    font-size: 1.9rem;
+  }
+}

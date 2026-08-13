@@ -1,0 +1,24 @@
+{
+  "name": "zero-inspector-kit-docs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Animal-Crossing-styled documentation site for Zero Inspector Kit (Nextra + Next.js)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "export": "next build"
+  },
+  "dependencies": {
+    "next": "14.2.15",
+    "nextra": "3.2.4",
+    "nextra-theme-docs": "3.2.4",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "@types/react": "18.3.3",
+    "typescript": "5.5.3"
+  }
+}
