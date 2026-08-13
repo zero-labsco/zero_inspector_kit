@@ -156,6 +156,13 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          # Pin the exact Flutter/Dart version so `dart format` output is identical
+          # across CI, publish, and the local dev environment. Unpinned `stable`
+          # advances over time and the formatter rules change, which makes HEAD's
+          # formatted files look "unformatted" on CI and loops forever.
+          # 固定 Flutter/Dart 版本，保证 CI、发布、本地三处的 dart format 输出一致。
+          # 否则 stable 漂移会导致 format 规则变化、HEAD 文件被判定为未格式化而无限循环。
+          flutter-version: '3.41.7'
           cache: true
 
       - name: Normalize working tree to LF
@@ -239,6 +246,9 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          # Keep in sync with the analyze-and-test job (flutter-version: '3.41.7').
+          # 与 analyze-and-test 保持一致（flutter-version: '3.41.7'）。
+          flutter-version: '3.41.7'
           cache: true
 
       - name: Cache pub dependencies
