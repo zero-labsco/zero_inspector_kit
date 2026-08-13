@@ -121,6 +121,11 @@ function syncOutToDocs() {
     rmSync(join(docsDir, entry), { recursive: true, force: true });
   }
   cpSync(outDir, docsDir, { recursive: true });
+  // GitHub Pages runs Jekyll by default, which silently drops any file or
+  // directory whose name begins with an underscore (e.g. _next, _meta). That
+  // strips all CSS/JS from the static export and leaves the site unstyled.
+  // An empty .nojekyll disables Jekyll so the build is served verbatim.
+  writeFileSync(join(docsDir, '.nojekyll'), '');
 }
 
 function main() {
