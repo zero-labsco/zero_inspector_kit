@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+
 import '../models/log_entry.dart';
 import '../services/inspector_service.dart';
 
@@ -52,7 +54,7 @@ class InspectorLogInterceptor {
   /// 覆盖 debugPrint 函数，实现日志捕获 / Override debugPrint function to capture logs
   void _overrideDebugPrint() {
     _originalDebugPrint = debugPrint;
-    debugPrint = (String? message, {int? wrapWidth}) {
+    debugPrint = (message, {wrapWidth}) {
       // 先调用原始的 debugPrint 确保日志正常输出到控制台 / Call original debugPrint first to ensure normal console output
       if (_originalDebugPrint != null) {
         _originalDebugPrint!(message, wrapWidth: wrapWidth);
@@ -76,7 +78,7 @@ class InspectorLogInterceptor {
     // 保存原始回调，避免覆盖 Crashlytics / Sentry 等第三方错误上报
     // Save original callback to avoid overwriting Crashlytics / Sentry etc.
     _originalFlutterOnError = FlutterError.onError;
-    FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.onError = (details) {
       // 先调用原始回调（如 Crashlytics），确保错误上报不丢失
       // Call original callback first (e.g. Crashlytics) to preserve error reporting
       _originalFlutterOnError?.call(details);

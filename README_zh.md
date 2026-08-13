@@ -11,7 +11,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.3.3 在 v1.3.2 修复网络请求耗时提前计算的基础上，进一步强化了网络拦截的健壮性 —— 采用加密级请求 ID 生成（并发请求下不碰撞）、对请求/响应体设置 512 KB 上限以避免大文件上传时 OOM、并安全处理二进制 / 非 UTF-8 内容。建议所有用户升级到 `^1.3.3`。
+> **🔔 推荐升级：** v1.4.1 修复了 `MemoryInspectorService` 中的 `unawaited_return_in_try_block` 分析告警（无破坏性变更）。它基于 v1.4.0 —— 该版本为检查器带来两项新增 —— **路由追踪穿透**（当根组件是包裹壳，如 `StatelessWidget` / `Container` / `Builder` / `Padding` / `Center` 包着真正的 `MaterialApp` 时，检查器会穿透壳、定位内部 `MaterialApp` 并自动注入 `InspectorRouteObserver`，无需把 `MaterialApp` 直接作为根传入即可启用路由追踪）与**更丰富的网络筛选**（网络查看器新增可展开筛选面板，可按 HTTP Method、状态码区间、拦截状态筛选）。建议所有用户升级到 `^1.4.1`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
@@ -22,7 +22,7 @@
 ## 功能特性
 
 - **零侵入性**: 仅需一行代码即可集成，无需修改项目任何现有代码。
-- **网络检查器**: 实时捕获和查看所有 HTTP 请求，包括请求/响应头、请求体、状态码和延迟时间。支持通过拦截规则修改请求体和请求头（仅 POST/PUT/PATCH 请求）。支持批量选择（批量「Copy as cURL」与批量删除）和一键复制 cURL。工具栏眼睛开关可在导出时遮蔽敏感请求头（`Authorization`、`Cookie` 等）。
+- **网络检查器**: 实时捕获和查看所有 HTTP 请求，包括请求/响应头、请求体、状态码和延迟时间。支持通过拦截规则修改请求体和请求头（仅 POST/PUT/PATCH 请求）。支持批量选择（批量「Copy as cURL」与批量删除）和一键复制 cURL。工具栏眼睛开关可在导出时遮蔽敏感请求头（`Authorization`、`Cookie` 等）。网络查看器还提供可展开筛选面板 —— 可按 HTTP Method、状态码区间（2xx/3xx/4xx/5xx/Other）、拦截状态（已修改/未修改）筛选，并可与关键词搜索组合使用。
 - **日志系统**: 自动捕获应用中的日志，包括 print() 调用、Flutter 错误和异常。支持多种日志级别（verbose、debug、info、warning、error），并支持第三方日志库集成。
 - **数据库查看器**: 支持 SQLite 和其他数据库的检查，支持自定义数据库提供者。
 - **内存监控**: 实时内存监控，包含趋势图、Dart Heap 详情、Native 内存分项（Android PSS / iOS physicalFootprint）、内存泄漏检测、图片缓存监控和应用存储统计。提供总开关避免性能开销。
@@ -40,19 +40,19 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.3.3
+  zero_inspector_kit: ^1.4.1
 ```
 
 ### GitHub
 
-或者，你也可以从 GitHub 安装（将 `1.3.3` 替换为你需要的版本号）：
+或者，你也可以从 GitHub 安装（将 `1.4.1` 替换为你需要的版本号）：
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: v1.3.3
+      ref: release/v1.4.1
 ```
 
 ## 使用方法
@@ -98,16 +98,58 @@ class MyApp extends StatelessWidget {
 
 **生产构建**: 检查器在 release 模式下会自动禁用。你不需要移除任何代码 - Flutter 的 tree-shaking 会从生产构建中移除所有检查器相关代码。
 
-### 替代集成方式（两行代码）
+### 手动集成（更多控制权）
 
-如果你需要更多控制权，可以使用两行代码的方式：
+如果你需要更多控制权（例如要在启动时预开启某些开关，或注册自定义数据源），可以使用手动集成方式：
 
 ```dart
-void main() {
-  ZeroInspectorKit.init();
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive/hive.dart';
+
+void main() async {
+  // 1) 手动初始化（比一行 runAppWithInspector 更可控）
+  ZeroInspectorKit.init(
+    enableWidgetInspector: true,   // 可选：预开启 Widget Inspector
+    enableNetworkTimeline: true,   // 可选：预开启 Network Timeline
+  );
+
+  // 2) 注册自定义数据源（一行 API）
+  //    SharedPreferences / Hive：本包自身不依赖这两个包，
+  //    只要传入的对象暴露对应的读写接口即可（不强制版本）。
+  final prefs = await SharedPreferences.getInstance();
+  ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs));
+
+  final settings = await Hive.openBox('settings');
+  final cache = await Hive.openBox('cache');
+  ZeroInspectorKit.registerHive({
+    'settings': HiveBoxAdapter(settings),
+    'cache': HiveBoxAdapter(cache),
+  });
+
+  // 3) 用 wrapApp 包裹你的应用
   runApp(ZeroInspectorKit.wrapApp(const MyApp()));
 }
 ```
+
+> **关于依赖**：本包自己不需要 `shared_preferences` / `hive` 依赖；但**你的 app 若要查看这些数据，仍需要在自己的 `pubspec.yaml` 中加入对应包**（上面示例已 import），以便拿到 `prefs` / `box` 实例传给检查器。
+
+两者都会作为 **Database** 标签页下的条目出现，并复用与 SQLite 相同的浏览/导出流程。
+
+<details>
+<summary>想用更底层的 API？也可以自行注册提供者。</summary>
+
+```dart
+import 'package:zero_inspector_kit/zero_inspector_kit.dart';
+
+void main() {
+  ZeroInspectorKit.init();
+  DatabaseRegistry.instance.registerProvider(SharedPrefsProvider(prefs: prefs));
+  DatabaseRegistry.instance.registerProvider(HiveProvider(box: box, name: 'settings'));
+  runApp(ZeroInspectorKit.wrapApp(const MyApp()));
+}
+```
+
+</details>
 
 ### 日志记录
 
@@ -360,7 +402,7 @@ final history = FpsService.instance.fpsHistory;       // List<double>，60 条
 final records = FpsService.instance.frameRecords;      // List<FrameRecord>，不可修改
 ```
 
-## 自定义数据库提供者
+### 自定义数据库提供者
 
 要添加对其他数据库的支持，实现 `DatabaseProvider` 接口：
 
@@ -385,6 +427,23 @@ class MyCustomDatabaseProvider implements DatabaseProvider {
 // 注册提供者
 DatabaseRegistry.instance.registerProvider(MyCustomDatabaseProvider());
 ```
+
+### 🌳 Widget 检查器与网络瀑布流（默认关闭）
+
+两项功能默认关闭，避免在不需要时产生额外开销：
+
+- **Widget Inspector**：在面板中开启后，会**拍一次当前组件树的快照**（构建后回调），并以**面包屑导航**方式浏览（类似文件管理器）：主列表只显示当前层；点击含子节点的项即**下钻**到下一层，顶部分层面包屑可一键跳回任意祖先层；点击叶子节点弹出底部抽屉看详情。**它不是实时的**——开启后不会自动跟随 UI 变化；如需更新，点击工具栏的「刷新」按钮（或关闭再打开开关）重新快照。
+- **Network Timeline**：在 Network 面板中开启后，以时间轴瀑布图形式展示请求的发起与响应过程，便于发现并发与长阻塞。**它是实时的**——新请求到达会立即流入时间轴，无需手动刷新。
+
+```dart
+ZeroInspectorKit.runAppWithInspector(
+  const MyApp(),
+  enableWidgetInspector: true,    // 启动时预开启 Widget Inspector
+  enableNetworkTimeline: true,    // 启动时预开启 Network Timeline
+);
+```
+
+即使不预开启，也可以在运行时于面板内手动打开对应开关。
 
 ## API 参考
 

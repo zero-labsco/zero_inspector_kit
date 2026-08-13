@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'theme/inspector_theme.dart';
 import '../services/fps_service.dart';
 import '../services/memory_inspector_service.dart';
@@ -9,9 +10,11 @@ import 'memory_viewer.dart';
 import 'route_viewer.dart';
 import 'fps_viewer.dart';
 import 'alerts_viewer.dart';
+import 'widget_tree_viewer.dart';
 
 /// 检查器面板 / Inspector panel
-/// 包含网络、日志、数据库、内存、FPS、路由六个查看器 / Contains six viewers: network, logs, database, memory, FPS, routes
+/// 包含网络、日志、数据库、内存、FPS、路由、告警、Widget 八个查看器
+/// Contains eight viewers: network, logs, database, memory, FPS, routes, alerts, widgets
 class InspectorPanel extends StatefulWidget {
   /// 关闭面板回调 / Close panel callback
   final VoidCallback onClose;
@@ -40,6 +43,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     FpsViewer(key: ValueKey('fps')),
     RouteViewer(key: ValueKey('routes')),
     AlertsViewer(key: ValueKey('alerts')),
+    WidgetTreeInspector(key: ValueKey('widgets')),
   ];
 
   /// 标签页标题 / Tab titles
@@ -51,6 +55,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     'FPS',
     'Routes',
     'Alerts',
+    'Widgets',
   ];
 
   /// 标签页图标 / Tab icons
@@ -62,6 +67,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     Icons.speed_rounded,
     Icons.route_rounded,
     Icons.notifications_active_rounded,
+    Icons.visibility_rounded,
   ];
 
   @override
@@ -83,7 +89,18 @@ class _InspectorPanelState extends State<InspectorPanel>
   }
 
   /// 监控开关变化 → 刷新头部状态行 / Monitor toggle → refresh header status row
-  void _onMonitorChanged() => setState(() {});
+  /// 仅在"已开启监控集合"真正变化时才重建面板，避免内存监控每 500ms 的数据
+  /// 刷新（enabled 未变）持续重建整个面板、打断趋势图手势。
+  /// Only rebuilds the panel when the set of active monitors actually changes,
+  /// so the per-500ms data ticks (enabled unchanged) don't keep rebuilding the
+  /// whole panel and interrupt trend-chart gestures.
+  String? _lastActiveMonitors;
+  void _onMonitorChanged() {
+    final current = _activeMonitors.join(',');
+    if (current == _lastActiveMonitors) return;
+    _lastActiveMonitors = current;
+    if (mounted) setState(() {});
+  }
 
   /// 当前已开启的实时监控标签 / Currently active real-time monitor labels
   List<String> get _activeMonitors {

@@ -19,6 +19,9 @@ dependencies:
   logger: 2.7.0
   sqflite: ^2.4.0
   path: '1.9.1'
+  shared_preferences: ^2.3.0
+  hive: ^2.2.0
+  path_provider: ^2.1.0
 
 dev_dependencies:
   integration_test:

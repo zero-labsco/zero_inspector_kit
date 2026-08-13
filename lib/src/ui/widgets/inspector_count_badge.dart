@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/inspector_theme.dart';
 
 /// 检查器计数胶囊徽章 / Shared count pill badge

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/inspector_theme.dart';
 
 /// 空状态占位 / Empty-state placeholder
@@ -32,6 +33,155 @@ class InspectorEmptyState extends StatelessWidget {
               color: InspectorColors.textSecondary,
               fontSize: 13,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 功能关闭占位 / Disabled-feature placeholder
+///
+/// 在 viewer 顶部总开关关闭时使用，配合 [InspectorSwitchCard] 告知用户开启后的行为。
+/// Shown when a viewer's master switch is off; pairs with [InspectorSwitchCard].
+class InspectorDisabledState extends StatelessWidget {
+  /// 标题 / Title
+  final String title;
+
+  /// 说明文案 / Hint message
+  final String message;
+
+  /// 图标 / Icon
+  final IconData icon;
+
+  const InspectorDisabledState({
+    super.key,
+    required this.title,
+    required this.message,
+    this.icon = Icons.sensors_off_rounded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+      decoration: BoxDecoration(
+        color: InspectorColors.card,
+        borderRadius: BorderRadius.circular(InspectorDimensions.cardRadius),
+        border: Border.all(color: InspectorColors.border, width: 0.5),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 40, color: InspectorColors.textHint),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: TextStyle(
+              color: InspectorColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: InspectorColors.textHint,
+              fontSize: 11,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 通用顶部总开关卡片 / Generic top master-switch card
+///
+/// 与 Memory 监控一致：功能默认关闭，开启后才采集/渲染数据，避免无谓开销。
+/// Same pattern as Memory monitoring: feature is off by default; enabling turns
+/// on data collection/rendering to avoid needless overhead.
+///
+/// [title] 功能名 / feature name
+/// [subtitleEnabled]/[subtitleDisabled] 开关两侧说明 / on/off captions
+/// [icon] 图标 / icon
+/// [value] 当前开关状态 / current state
+/// [onChanged] 切换回调 / toggle callback
+class InspectorSwitchCard extends StatelessWidget {
+  const InspectorSwitchCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.onChanged,
+    this.subtitleEnabled = 'Enabled',
+    this.subtitleDisabled = 'Disabled',
+    this.icon = Icons.power_settings_new_rounded,
+  });
+
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final String subtitleEnabled;
+  final String subtitleDisabled;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: InspectorColors.card,
+        borderRadius: BorderRadius.circular(InspectorDimensions.cardRadius),
+        border: Border.all(
+          color: value
+              ? InspectorColors.success.withValues(alpha: 0.3)
+              : InspectorColors.border,
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            value ? icon : Icons.power_off_rounded,
+            size: 18,
+            color: value ? InspectorColors.success : InspectorColors.textHint,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: InspectorColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value ? subtitleEnabled : subtitleDisabled,
+                  style: TextStyle(
+                    color: value
+                        ? InspectorColors.success
+                        : InspectorColors.textHint,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            activeThumbColor: InspectorColors.success,
+            activeTrackColor: InspectorColors.success.withValues(alpha: 0.3),
+            inactiveThumbColor: InspectorColors.textHint,
+            inactiveTrackColor: InspectorColors.border,
+            onChanged: onChanged,
           ),
         ],
       ),

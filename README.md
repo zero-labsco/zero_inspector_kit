@@ -11,7 +11,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** v1.3.3 hardens network interception — cryptographic request-ID uniqueness (no collisions under concurrent requests), request/response body capture with a 512 KB cap to prevent OOM on large uploads, and safe handling of binary / non-UTF-8 bodies — on top of v1.3.2's network duration fix, v1.3.1's per-source alert throttling, and v1.3.0's network batch operations, sensitive-field masking on export, one-click cURL copy, and the alert system with an unread badge. All users are advised to upgrade to `^1.3.3`.
+> **🔔 Upgrade recommended:** v1.4.1 fixes the `unawaited_return_in_try_block` analysis warning in `MemoryInspectorService` (no breaking changes). It builds on v1.4.0, which extends the inspector with two additions — **route-observer penetration for wrapped apps** (when your root widget is a shell like `StatelessWidget` / `Container` / `Builder` / `Padding` / `Center` wrapping the real `MaterialApp`, the inspector drills through the shell, finds the inner `MaterialApp`, and auto-injects `InspectorRouteObserver` so route tracking works without manual wiring) and **richer network filters** (an expandable filter panel in the network viewer to filter by HTTP Method, status code, and interception status). All users are advised to upgrade to `^1.4.1`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)**
 
@@ -22,7 +22,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 ## Features
 
 - **Zero Invasion**: Integrate with just **1 line of code**, no need to modify any existing project code.
-- **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency. Supports modifying request body and headers via interceptor rules (for POST/PUT/PATCH requests). Supports batch selection (batch "Copy as cURL" and batch deletion) and one-click cURL copy. A toolbar eye toggle masks sensitive headers (`Authorization`, `Cookie`, etc.) on export.
+- **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency. Supports modifying request body and headers via interceptor rules (for POST/PUT/PATCH requests). Supports batch selection (batch "Copy as cURL" and batch deletion) and one-click cURL copy. A toolbar eye toggle masks sensitive headers (`Authorization`, `Cookie`, etc.) on export. The network viewer also offers an expandable filter panel — filter by HTTP Method, status code (2xx/3xx/4xx/5xx/Other), and interception status (modified/unmodified), composable with keyword search.
 - **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
 - **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
 - **Memory Monitor**: Real-time memory monitoring with trend chart, Dart Heap details, Native memory breakdown (Android PSS / iOS physicalFootprint), memory leak detection, image cache monitoring, and app storage statistics. Master switch to avoid performance overhead.
@@ -41,19 +41,19 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.3.3
+  zero_inspector_kit: ^1.4.1
 ```
 
 ### GitHub
 
-Alternatively, you can install from GitHub (replace `1.3.3` with the version you need):
+Alternatively, you can install from GitHub (replace `1.4.1` with the version you need):
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: v1.3.3
+      ref: release/v1.4.1
 ```
 
 ## Usage
@@ -99,16 +99,58 @@ After integration, the inspector automatically does the following without modify
 
 **Production Build**: The inspector is automatically disabled in release mode. You don't need to remove any code - Flutter's tree-shaking will remove all inspector-related code from production builds.
 
-### Alternative Integration (Two Lines)
+### Manual Integration (More Control)
 
-If you prefer more control, you can use the two-line approach:
+If you need more control (e.g. pre-enable switches at startup or register custom data sources), use the manual integration:
 
 ```dart
-void main() {
-  ZeroInspectorKit.init();
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive/hive.dart';
+
+void main() async {
+  // 1) Manual init (more control than the one-line runAppWithInspector)
+  ZeroInspectorKit.init(
+    enableWidgetInspector: true,   // optional: pre-enable Widget Inspector
+    enableNetworkTimeline: true,   // optional: pre-enable Network Timeline
+  );
+
+  // 2) Register custom data sources (one-line API)
+  //    SharedPreferences / Hive: the plugin itself has NO dependency on these
+  //    packages — any object exposing the right read/write interface works.
+  final prefs = await SharedPreferences.getInstance();
+  ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs));
+
+  final settings = await Hive.openBox('settings');
+  final cache = await Hive.openBox('cache');
+  ZeroInspectorKit.registerHive({
+    'settings': HiveBoxAdapter(settings),
+    'cache': HiveBoxAdapter(cache),
+  });
+
+  // 3) Wrap your app
   runApp(ZeroInspectorKit.wrapApp(const MyApp()));
 }
 ```
+
+> **About dependencies:** the plugin itself doesn't need `shared_preferences` / `hive`, but **your app** still must add them to its own `pubspec.yaml` if it wants to inspect these (the snippet above imports them) so you can obtain the `prefs` / `box` instance to pass in.
+
+Both appear as entries under the **Database** tab and reuse the same browse/export flow as SQLite.
+
+<details>
+<summary>Prefer the raw API? Register the providers yourself.</summary>
+
+```dart
+import 'package:zero_inspector_kit/zero_inspector_kit.dart';
+
+void main() {
+  ZeroInspectorKit.init();
+  DatabaseRegistry.instance.registerProvider(SharedPrefsProvider(prefs: prefs));
+  DatabaseRegistry.instance.registerProvider(HiveProvider(box: box, name: 'settings'));
+  runApp(ZeroInspectorKit.wrapApp(const MyApp()));
+}
+```
+
+</details>
 
 ### Logging
 
@@ -361,7 +403,7 @@ final history = FpsService.instance.fpsHistory;       // List<double>, 60 entrie
 final records = FpsService.instance.frameRecords;      // List<FrameRecord>, unmodifiable
 ```
 
-## Custom Database Provider
+### Custom Database Provider
 
 To add support for other databases, implement the `DatabaseProvider` interface:
 
@@ -385,6 +427,21 @@ class MyCustomDatabaseProvider implements DatabaseProvider {
 
 // Register the provider
 DatabaseRegistry.instance.registerProvider(MyCustomDatabaseProvider());
+```
+
+### Widget inspector & Network Timeline (off by default)
+
+Both features are **off by default** and toggled via a top switch inside the panel — exactly like Memory monitoring, so they incur no overhead until you turn them on. You can also pre-enable them at startup:
+
+- **Widget Inspector** takes a **one-shot snapshot** of the current widget tree (via a post-frame callback) and browses it via **breadcrumb navigation** (file-manager style): the main list shows only the current level; tap an item with children to **drill into** its children, and the breadcrumb bar jumps back to any ancestor. Tapping a leaf opens a bottom-sheet detail. It is **not live** — once enabled it does not auto-follow UI changes; tap the toolbar **Refresh** button (or toggle the switch off/on) to re-snapshot.
+- **Network Timeline** is **live** — new requests stream into the waterfall in real time, no manual refresh needed.
+
+```dart
+ZeroInspectorKit.runAppWithInspector(
+  const MyApp(),
+  enableWidgetInspector: true,   // open the Widget tab with the switch already on
+  enableNetworkTimeline: true,    // open Network with the Timeline switch already on
+);
 ```
 
 ## API Reference

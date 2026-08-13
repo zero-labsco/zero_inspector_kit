@@ -98,5 +98,75 @@ void main() {
       expect(request.responseTime, isNotNull);
       expect(request.duration, isNotNull);
     });
+
+    test(
+      'updateNetworkRequest(modified: true) sets isModifiedByInterceptor',
+      () {
+        // 拦截规则命中并实际修改请求时，应回写拦截标记。
+        // When an interceptor rule actually modifies the request, the flag
+        // should be written back.
+        final requestId = 'test_req_010';
+        final requestTime = DateTime.now().millisecondsSinceEpoch;
+
+        InspectorService.instance.addNetworkRequest(
+          NetworkRequest(
+            id: requestId,
+            method: 'POST',
+            url: 'https://api.example.com/data',
+            requestTime: requestTime,
+          ),
+        );
+
+        // 请求侧命中规则修改头/体
+        InspectorService.instance.updateNetworkRequest(
+          requestId,
+          body: '{"k":"v"}',
+          modified: true,
+        );
+
+        final modified = InspectorService.instance.findNetworkRequest(
+          requestId,
+        );
+        expect(modified!.isModifiedByInterceptor, isTrue);
+
+        // 后续仅更新响应（不带 modified）不应把标记清零（sticky）。
+        // A later update without [modified] must NOT clear the flag (sticky).
+        InspectorService.instance.updateNetworkRequest(
+          requestId,
+          statusCode: 200,
+          responseBody: '{"ok":true}',
+        );
+
+        final afterResponse = InspectorService.instance.findNetworkRequest(
+          requestId,
+        );
+        expect(afterResponse!.isModifiedByInterceptor, isTrue);
+      },
+    );
+
+    test('updateNetworkRequest without modified keeps flag false', () {
+      // 普通流程（无拦截修改）不应误置标记。
+      // A normal flow (no interceptor modification) must not set the flag.
+      final requestId = 'test_req_011';
+      final requestTime = DateTime.now().millisecondsSinceEpoch;
+
+      InspectorService.instance.addNetworkRequest(
+        NetworkRequest(
+          id: requestId,
+          method: 'GET',
+          url: 'https://api.example.com/data',
+          requestTime: requestTime,
+        ),
+      );
+
+      InspectorService.instance.updateNetworkRequest(
+        requestId,
+        statusCode: 200,
+        responseBody: '{"ok":true}',
+      );
+
+      final request = InspectorService.instance.findNetworkRequest(requestId);
+      expect(request!.isModifiedByInterceptor, isFalse);
+    });
   });
 }

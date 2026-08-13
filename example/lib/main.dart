@@ -1,60 +1,181 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
-import 'package:http/http.dart' as http;
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
-import 'package:zero_inspector_kit/zero_inspector_kit.dart';
-import 'package:logger/logger.dart';
+import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:logger/logger.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:zero_inspector_kit/zero_inspector_kit.dart';
+
+// 一行启动检查器：binding 与后续所有插件初始化都在 runAppWithInspector 内部的
+// zone 内进行（首次 ensureInitialized 由 runApp 触发），避免在 zone 外初始化
+// 导致 "Zone mismatch" 断言。
+// One-line launcher: the binding and all plugin initialization happen inside
+// runAppWithInspector's zone (the first ensureInitialized is triggered by
+// runApp), so nothing is initialized in the outer zone → no "Zone mismatch".
+//
+// 本示例故意把根组件写成一个 StatelessWidget 壳 ExampleAppShell，内部才是
+// MaterialApp —— 这正是「路由追踪穿透」要验证的场景：runAppWithInspector 传入的
+// app 不是 MaterialApp 本身，而是被一层壳包着。检查器会穿透该壳、找到真正的
+// MaterialApp 并注入 InspectorRouteObserver，无需用户手动接线。
+// NOTE: The root here is a StatelessWidget shell (ExampleAppShell) wrapping the
+// real MaterialApp. This exercises the route-observer *penetration* path:
+// _wrapAppWithRouteObserver drills through the shell, finds the inner MaterialApp
+// and injects InspectorRouteObserver automatically.
 void main() {
-  // 零侵入集成：一行代码启用所有检查器功能 / Zero-invasion: one line enables all inspector features
-  // http 包和 Dio 用户均无需额外配置 / No extra config needed for http package and Dio users
-  ZeroInspectorKit.runAppWithInspector(MaterialApp(home: const HomePage()));
+  ZeroInspectorKit.runAppWithInspector(const ExampleAppShell());
 }
 
-/// 主页 / Home page
-/// 展示所有检查器功能的示例 / Show examples of all inspector features
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+/// 根壳：一个普通的 StatelessWidget，内部返回 MaterialApp。
+/// 用来演示「穿透」—— 检查器不会把它当成 MaterialApp，而是 build 它、
+/// 穿透到内部的 MaterialApp 注入路由观察者。
+/// A plain StatelessWidget shell wrapping the real MaterialApp. Demonstrates
+/// penetration: the inspector builds this shell, finds the inner MaterialApp
+/// and injects the route observer.
+class ExampleAppShell extends StatelessWidget {
+  const ExampleAppShell({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Zero Inspector Kit Example',
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      // 路由演示：命名路由。InspectorRouteObserver 由检查器穿透壳后自动挂到
+      // 内部 MaterialApp 的 navigatorObservers，所有 push/pop 都会被 Route
+      // tracking 捕获，无需手动接线。
+      // Route demo: named routes. InspectorRouteObserver is auto-attached by the
+      // inspector after penetrating the shell, so every push/pop is captured by
+      // Route tracking with no manual wiring.
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const ExampleHomePage(),
+        '/detail': (context) => const ExampleDetailPage(),
+      },
+    );
+  }
 }
 
-class _HomePageState extends State<HomePage>
-    with SingleTickerProviderStateMixin {
-  /// Dio 实例用于发送网络请求 / Dio instance for sending network requests
-  /// 通过 HttpOverrides 自动捕获，无需额外配置 / Auto-captured via HttpOverrides, no extra configuration needed
-  final Dio _dio = Dio();
+Future<void> _seedExampleDatabases() async {
+  final dir = await getDatabasesPath();
+  for (final name in ['example1.db', 'example2.db']) {
+    final path = '$dir/$name';
+    final db = await openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE items(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            value REAL,
+            created_at TEXT
+          )
+        ''');
+        for (var i = 0; i < 20; i++) {
+          await db.insert('items', {
+            'name': 'Item $i',
+            'value': i * 1.5,
+            'created_at': DateTime.now().toIso8601String(),
+          });
+        }
+      },
+    );
+    await db.close();
+  }
+  // 注册 SQLite 提供者（示例中展示数据库查看器用法）。
+  DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
+}
 
-  /// Logger 实例用于测试第三方日志库集成 / Logger instance for testing third-party log library integration
-  late Logger _logger;
+/// 路由演示用的二级页面 / A second-level page for the route demo.
+class ExampleDetailPage extends StatelessWidget {
+  const ExampleDetailPage({super.key});
 
-  // ==================== FPS 演示状态 / FPS demo state ====================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Detail Page')),
+      body: const Center(
+        child: Text(
+          'You navigated here via a named route (/detail).\n'
+          'Open the inspector\'s Route tracking to see this push/pop.',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
 
-  /// 掉帧动画控制器（用于大量动画模拟掉帧）/ Jank animation controller (for many animations to simulate jank)
-  AnimationController? _jankAnimationController;
+/// 一组用于演示的示例请求定义：涵盖不同 HTTP 方法、URL 与预期状态码。
+/// A set of demo requests: different HTTP methods, URLs and expected codes.
+class _DemoRequest {
+  const _DemoRequest(this.method, this.url, this.label);
+  final String method;
+  final String url;
+  final String label;
+}
 
-  /// 是否启用重动画模式（大量旋转+缩放动画，故意触发掉帧）/ Whether heavy animation mode is on (many rotate+scale animations to intentionally trigger jank)
-  bool _heavyAnimationsEnabled = false;
+const List<_DemoRequest> _demoRequests = [
+  _DemoRequest(
+    'GET',
+    'https://jsonplaceholder.typicode.com/posts/1',
+    'GET · 200',
+  ),
+  _DemoRequest(
+    'GET',
+    'https://jsonplaceholder.typicode.com/posts/99999',
+    'GET · 404',
+  ),
+  _DemoRequest(
+    'POST',
+    'https://jsonplaceholder.typicode.com/posts',
+    'POST · 201',
+  ),
+  _DemoRequest(
+    'PUT',
+    'https://jsonplaceholder.typicode.com/posts/1',
+    'PUT · 200',
+  ),
+  _DemoRequest(
+    'DELETE',
+    'https://jsonplaceholder.typicode.com/posts/1',
+    'DELETE · 200',
+  ),
+];
 
-  /// 重动画数量 / Number of heavy animations
-  final int _heavyAnimationCount = 80;
+class ExampleHomePage extends StatefulWidget {
+  const ExampleHomePage({super.key});
 
-  /// 流畅动画控制器（单个轻量动画，演示高 FPS）/ Smooth animation controller (single lightweight animation for high FPS demo)
-  AnimationController? _smoothAnimationController;
+  @override
+  State<ExampleHomePage> createState() => _ExampleHomePageState();
+}
 
-  /// 是否启用流畅动画模式（演示高 FPS 60 流畅运行）/ Whether smooth animation mode is on (demonstrates high 60 FPS)
-  bool _smoothAnimationEnabled = false;
+class _ExampleHomePageState extends State<ExampleHomePage> {
+  final _httpClient = HttpClient();
+  int _requestCount = 0;
+
+  // 第三方 logger 演示用的实例（懒创建），与"检查器日志"完全解耦。
+  // Lazily-created instance for the third-party logger demo, fully decoupled
+  // from the inspector's own logs.
+  Logger? _logger;
+  // 是否开启了"检查器 → logger"转发。只在用户显式开关时才设置全局回调，
+  // 关闭时复位为 null，避免污染后续所有日志捕获。
+  // Whether "inspector → logger" forwarding is on. The global callback is only
+  // set while the toggle is on, and reset to null when off, so it never leaks
+  // into unrelated log captures.
+  bool _forwardingToLogger = false;
 
   @override
   void initState() {
     super.initState();
 
+    // 验证 ohos 原生插件是否被正确打包并调用 / Verify the ohos native plugin is bundled and invoked
     _verifyOhosPlugin();
-    _setupLoggerIntegration();
-    _initTestDatabase();
+    // 在 zone 内（runApp 之后）初始化插件，确保 binding 也在同一 zone。
+    // Initialize plugins inside the zone (after runApp) so the binding is in
+    // the same zone as runApp.
+    _initInspectorData();
   }
 
   /// 验证 ohos 原生插件是否被正确打包并调用 / Verify the ohos native plugin is bundled and invoked
@@ -68,833 +189,341 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  /// 设置 Logger 日志库集成 / Set up Logger log library integration
-  void _setupLoggerIntegration() {
-    _logger = Logger(printer: PrettyPrinter(methodCount: 0, printEmojis: true));
-  }
+  Future<void> _initInspectorData() async {
 
-  /// 使用 Logger 库输出日志 / Output logs using Logger library
-  /// Logger 库通过 print() 输出日志，会被检查器自动捕获 / Logger library outputs via print(), which will be auto-captured by inspector
-  void _logWithLogger() {
-    _logger.t('Logger trace message');
-    _logger.d('Logger debug message');
-    _logger.i('Logger info message');
-    _logger.w('Logger warning message');
-    _logger.e('Logger error message');
-    _logger.f('Logger fatal message');
-  }
-
-  /// 初始化测试数据库 / Initialize test databases
-  /// 创建两个测试数据库用于演示数据库查看器功能 / Create two test databases to demonstrate database viewer functionality
-  /// - test_database.db: 包含 users 和 posts 表 / - test_database.db: contains users and posts tables
-  /// - test_data.sqlite: 包含 products 和 orders 表 / - test_data.sqlite: contains products and orders tables
-  Future<void> _initTestDatabase() async {
     try {
-      final dbPath = await getDatabasesPath();
-      await openDatabase(
-        join(dbPath, 'test_database.db'),
-        version: 1,
-        onCreate: (db, version) async {
-          await db.execute('''
-            CREATE TABLE users (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              name TEXT,
-              email TEXT,
-              age INTEGER
-            )
-          ''');
-          await db.execute('''
-            CREATE TABLE posts (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              title TEXT,
-              content TEXT,
-              user_id INTEGER,
-              created_at TEXT
-            )
-          ''');
-          await db.insert('users', {
-            'name': 'Alice',
-            'email': 'alice@example.com',
-            'age': 25,
-          });
-          await db.insert('users', {
-            'name': 'Bob',
-            'email': 'bob@example.com',
-            'age': 30,
-          });
-          await db.insert('users', {
-            'name': 'Charlie',
-            'email': 'charlie@example.com',
-            'age': 35,
-          });
-          await db.insert('posts', {
-            'title': 'First Post',
-            'content': 'Hello World!',
-            'user_id': 1,
-            'created_at': '2024-01-01',
-          });
-          await db.insert('posts', {
-            'title': 'Second Post',
-            'content': 'Flutter is awesome',
-            'user_id': 2,
-            'created_at': '2024-01-02',
-          });
-        },
-      );
+      // 演示「自定义数据库源」一行注册 API（SharedPreferences / Hive）。
+      final prefs = await SharedPreferences.getInstance();
+      ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs));
 
-      await openDatabase(
-        join(dbPath, 'test_data.sqlite'),
-        version: 1,
-        onCreate: (db, version) async {
-          await db.execute('''
-            CREATE TABLE products (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              name TEXT,
-              price REAL,
-              stock INTEGER
-            )
-          ''');
-          await db.execute('''
-            CREATE TABLE orders (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              product_id INTEGER,
-              quantity INTEGER,
-              total REAL,
-              created_at TEXT
-            )
-          ''');
-          await db.insert('products', {
-            'name': 'iPhone',
-            'price': 5999,
-            'stock': 100,
-          });
-          await db.insert('products', {
-            'name': 'iPad',
-            'price': 3999,
-            'stock': 50,
-          });
-          await db.insert('products', {
-            'name': 'MacBook',
-            'price': 12999,
-            'stock': 30,
-          });
-          await db.insert('orders', {
-            'product_id': 1,
-            'quantity': 2,
-            'total': 11998,
-            'created_at': '2024-01-03',
-          });
-          await db.insert('orders', {
-            'product_id': 2,
-            'quantity': 1,
-            'total': 3999,
-            'created_at': '2024-01-04',
-          });
-        },
-      );
+      // Hive 必须先初始化目录（否则 Hive.openBox 会抛 HiveError）。
+      final appDir = await getApplicationDocumentsDirectory();
+      Hive.init(appDir.path);
 
-      print('Test databases initialized successfully');
-    } catch (e) {
-      print('Failed to initialize databases: $e');
+      final settingsBox = await Hive.openBox('settings');
+      await settingsBox.putAll({
+        'theme': 'dark',
+        'notifications': true,
+        'lastSync': DateTime.now().toIso8601String(),
+      });
+      final cacheBox = await Hive.openBox('cache');
+      await cacheBox.put('user_profile', {'name': 'Zero', 'vip': 1});
+      ZeroInspectorKit.registerHive({
+        'settings': HiveBoxAdapter(settingsBox),
+        'cache': HiveBoxAdapter(cacheBox),
+      });
+
+      // 演示 SQLite 数据库查看（写入两个示例库并注册提供者）。
+      await _seedExampleDatabases();
+    } catch (error, stack) {
+      debugPrint('Inspector data init failed: $error\n$stack');
     }
   }
 
-  /// 发送 Dio GET 请求 / Send Dio GET request
-  /// 请求会通过 HttpOverrides 自动捕获（零侵入）/ Request will be auto-captured via HttpOverrides (zero-invasion)
-  Future<void> _makeDioGetRequest() async {
-    try {
-      await _dio.get('https://jsonplaceholder.typicode.com/posts/1');
-      print('Dio GET request completed successfully');
-    } catch (e) {
-      print('Dio GET request failed: $e');
-    }
-  }
-
-  /// 发送 Dio POST 请求 / Send Dio POST request
-  Future<void> _makeDioPostRequest() async {
-    try {
-      await _dio.post(
-        'https://jsonplaceholder.typicode.com/posts',
-        data: {'title': 'foo', 'body': 'bar', 'userId': 1},
-      );
-      print('Dio POST request completed successfully');
-    } catch (e) {
-      print('Dio POST request failed: $e');
-    }
-  }
-
-  /// 发送 Dio PUT 请求 / Send Dio PUT request
-  Future<void> _makeDioPutRequest() async {
-    try {
-      await _dio.put(
-        'https://jsonplaceholder.typicode.com/posts/1',
-        data: {'title': 'updated title', 'body': 'updated body', 'userId': 1},
-      );
-      print('Dio PUT request completed successfully');
-    } catch (e) {
-      print('Dio PUT request failed: $e');
-    }
-  }
-
-  /// 发送 Dio DELETE 请求 / Send Dio DELETE request
-  Future<void> _makeDioDeleteRequest() async {
-    try {
-      await _dio.delete('https://jsonplaceholder.typicode.com/posts/1');
-      print('Dio DELETE request completed successfully');
-    } catch (e) {
-      print('Dio DELETE request failed: $e');
-    }
-  }
-
-  /// 发送 Dio PATCH 请求 / Send Dio PATCH request
-  Future<void> _makeDioPatchRequest() async {
-    try {
-      await _dio.patch(
-        'https://jsonplaceholder.typicode.com/posts/1',
-        data: {'title': 'patched title'},
-      );
-      print('Dio PATCH request completed successfully');
-    } catch (e) {
-      print('Dio PATCH request failed: $e');
-    }
-  }
-
-  /// 发送 Dio HEAD 请求 / Send Dio HEAD request
-  Future<void> _makeDioHeadRequest() async {
-    try {
-      await _dio.head('https://jsonplaceholder.typicode.com/posts/1');
-      print('Dio HEAD request completed successfully');
-    } catch (e) {
-      print('Dio HEAD request failed: $e');
-    }
-  }
-
-  /// 发送 HTTP GET 请求 / Send HTTP GET request
-  /// 直接使用 http 包发送，请求会被 HttpOverrides 自动拦截 / Send directly via http package, request will be auto-intercepted by HttpOverrides
-  /// 用户不需要做任何额外配置，零侵入！/ No extra configuration needed, zero-invasion!
-  Future<void> _makeHttpGetRequest() async {
-    try {
-      await http.get(Uri.parse('https://jsonplaceholder.typicode.com/posts/2'));
-      print('HTTP GET request completed successfully');
-    } catch (e) {
-      print('HTTP GET request failed: $e');
-    }
-  }
-
-  /// 发送 HTTP POST 请求 / Send HTTP POST request
-  /// 直接使用 http 包发送，请求会被 HttpOverrides 自动拦截 / Send directly via http package, request will be auto-intercepted by HttpOverrides
-  /// 用户不需要做任何额外配置，零侵入！/ No extra configuration needed, zero-invasion!
-  Future<void> _makeHttpPostRequest() async {
-    try {
-      await http.post(
-        Uri.parse('https://jsonplaceholder.typicode.com/posts'),
-        body: {'title': 'foo', 'body': 'bar', 'userId': 1},
-      );
-      print('HTTP POST request completed successfully');
-    } catch (e) {
-      print('HTTP POST request failed: $e');
-    }
-  }
-
-  /// 发送 HTTP PUT 请求 / Send HTTP PUT request
-  /// 直接使用 http 包发送，请求会被 HttpOverrides 自动拦截 / Send directly via http package, request will be auto-intercepted by HttpOverrides
-  Future<void> _makeHttpPutRequest() async {
-    try {
-      await http.put(
-        Uri.parse('https://jsonplaceholder.typicode.com/posts/1'),
-        body: {'title': 'updated title', 'body': 'updated body', 'userId': 1},
-      );
-      print('HTTP PUT request completed successfully');
-    } catch (e) {
-      print('HTTP PUT request failed: $e');
-    }
-  }
-
-  /// 发送 HTTP DELETE 请求 / Send HTTP DELETE request
-  /// 直接使用 http 包发送，请求会被 HttpOverrides 自动拦截 / Send directly via http package, request will be auto-intercepted by HttpOverrides
-  Future<void> _makeHttpDeleteRequest() async {
-    try {
-      await http.delete(
-        Uri.parse('https://jsonplaceholder.typicode.com/posts/1'),
-      );
-      print('HTTP DELETE request completed successfully');
-    } catch (e) {
-      print('HTTP DELETE request failed: $e');
-    }
-  }
-
-  /// 发送 HTTP PATCH 请求 / Send HTTP PATCH request
-  /// 直接使用 http 包发送，请求会被 HttpOverrides 自动拦截 / Send directly via http package, request will be auto-intercepted by HttpOverrides
-  Future<void> _makeHttpPatchRequest() async {
-    try {
-      await http.patch(
-        Uri.parse('https://jsonplaceholder.typicode.com/posts/1'),
-        body: {'title': 'patched title'},
-      );
-      print('HTTP PATCH request completed successfully');
-    } catch (e) {
-      print('HTTP PATCH request failed: $e');
-    }
-  }
-
-  /// 发送 HTTP HEAD 请求 / Send HTTP HEAD request
-  /// 直接使用 http 包发送，请求会被 HttpOverrides 自动拦截 / Send directly via http package, request will be auto-intercepted by HttpOverrides
-  Future<void> _makeHttpHeadRequest() async {
-    try {
-      await http.head(
-        Uri.parse('https://jsonplaceholder.typicode.com/posts/1'),
-      );
-      print('HTTP HEAD request completed successfully');
-    } catch (e) {
-      print('HTTP HEAD request failed: $e');
-    }
-  }
-
-  // ==================== Memory 测试 / Memory Tests ====================
-
-  /// 保存加载的图片引用，防止被 GC 回收 / Keep image references to prevent GC
-  final List<Widget> _loadedImages = [];
-
-  /// 加载测试图片（测试图片缓存）/ Load test images (test image cache)
-  Future<void> _loadTestImages() async {
-    final imageUrls = [
-      'https://picsum.photos/200/200?random=1',
-      'https://picsum.photos/200/200?random=2',
-      'https://picsum.photos/200/200?random=3',
-      'https://picsum.photos/200/200?random=4',
-      'https://picsum.photos/400/400?random=5',
-    ];
-
-    for (final url in imageUrls) {
+  Future<void> _sendAllDemoRequests() async {
+    for (final demo in _demoRequests) {
       try {
-        final imageProvider = NetworkImage(url);
-        final completer = Completer<void>();
-        final stream = imageProvider.resolve(const ImageConfiguration());
-        final listener = ImageStreamListener(
-          (_, _) {
-            if (!completer.isCompleted) {
-              completer.complete();
-            }
-          },
-          onError: (error, stackTrace) {
-            if (!completer.isCompleted) {
-              completer.completeError(error, stackTrace);
-            }
-          },
-        );
-        stream.addListener(listener);
-        await completer.future;
-        _loadedImages.add(Image.network(url, width: 100, height: 100));
+        late HttpClientRequest request;
+        switch (demo.method) {
+          case 'POST':
+            request = await _httpClient.postUrl(Uri.parse(demo.url))
+              ..write('{"title":"demo","body":"hello","userId":1}');
+          case 'PUT':
+            request = await _httpClient.putUrl(Uri.parse(demo.url))
+              ..write('{"title":"demo","body":"updated","userId":1}');
+          case 'DELETE':
+            request = await _httpClient.deleteUrl(Uri.parse(demo.url));
+          default:
+            request = await _httpClient.getUrl(Uri.parse(demo.url));
+        }
+        final response = await request.close();
+        await response.drain();
+        if (mounted) {
+          setState(() {
+            _requestCount++;
+          });
+        }
       } catch (e) {
-        print('Failed to load image: $url - $e');
+        if (mounted) {
+          setState(() {
+            _requestCount++;
+          });
+        }
       }
     }
-    print(
-      'Loaded ${imageUrls.length} test images (total: ${_loadedImages.length})',
-    );
   }
 
-  /// 分配内存（测试堆内存监控）/ Allocate memory (test heap monitoring)
-  void _allocateMemory() {
-    // 分配约 10MB 的内存 / Allocate approximately 10MB of memory
-    final data = List.generate(10000, (_) => List.filled(1000, 'x' * 100));
-    print('Allocated ~10MB of memory (${data.length} lists)');
-    // 保持引用，防止立即被 GC 回收 / Keep reference to prevent immediate GC
-    _memoryHolders.add(data);
-  }
-
-  /// 保持内存引用的列表 / List to hold memory references
-  final List<dynamic> _memoryHolders = [];
-
-  /// 手动触发 GC / Manually trigger GC
-  void _triggerGC() {
-    // 清除引用，让 GC 可以回收 / Clear references for GC
-    _memoryHolders.clear();
-    print('Cleared memory references, GC will collect them');
-  }
-
-  // ==================== FPS 演示方法 / FPS demo methods ====================
-
-  /// 切换重动画模式（故意触发掉帧演示）
-  /// Toggle heavy animation mode (intentionally triggers jank for demo)
-  void _toggleHeavyAnimations() {
-    setState(() {
-      _heavyAnimationsEnabled = !_heavyAnimationsEnabled;
-    });
-
-    if (_heavyAnimationsEnabled) {
-      _jankAnimationController ??= AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 800),
-      )..repeat(reverse: true);
-      print('Heavy animations enabled ($_heavyAnimationCount widgets)');
-    } else {
-      _jankAnimationController?.stop();
-      _jankAnimationController?.dispose();
-      _jankAnimationController = null;
-      print('Heavy animations disabled');
+  /// 演示日志查看器：通过 InspectorLogInterceptor 输出各层级、不同 tag 的日志，
+  /// 并故意抛出一个被捕获的异常（连同 stack），方便在 Log 查看器里演示分级、
+  /// 搜索与按 tag 筛选。
+  /// Demo the Log viewer: emit logs of every level with different tags via
+  /// InspectorLogInterceptor, plus a caught exception (with stack) so the Log
+  /// viewer can demo level filtering, search, and tag grouping.
+  void _emitDemoLogs() {
+    InspectorLog.v('Bootstrap sequence started', tag: 'lifecycle');
+    InspectorLog.d('Hydrating cached config from disk', tag: 'cache');
+    InspectorLog.i('User session restored (uid=1024)', tag: 'auth');
+    InspectorLog.i('Fetched 12 items from remote API', tag: 'network');
+    InspectorLog.w('Slow response: /feed took 1820ms', tag: 'network');
+    InspectorLog.w('Token expires in 90s, will refresh soon', tag: 'auth');
+    InspectorLog.e('Failed to decode push payload', tag: 'push');
+    try {
+      throw StateError('Simulated crash in background sync');
+    } catch (error, stack) {
+      InspectorLog.e('Background sync error: $error\n$stack', tag: 'sync');
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Emitted demo logs — open the Log viewer'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
-  /// 故意执行密集计算（阻塞主线程 100-500ms）触发掉帧
-  /// Intentionally run heavy computation (block main thread 100-500ms) to trigger jank
-  void _triggerJankComputation() {
-    final stopwatch = Stopwatch()..start();
-    final durationMs = 100 + (DateTime.now().microsecondsSinceEpoch % 400);
-    // 密集循环计算 / Heavy loop computation
-    var sum = 0;
-    while (stopwatch.elapsedMilliseconds < durationMs) {
-      for (var i = 0; i < 10000; i++) {
-        sum += i * i % 7;
+  /// 演示第三方日志库集成：使用 `logger` 包（pub.dev 上的 logger 2.x）输出日志。
+  /// 检查器会自动通过 print() 捕获这些日志（归类为 Info 级别），无需任何配置。
+  /// 本函数只负责"logger → 检查器"这一段（单向），不触碰全局转发状态，
+  /// 因此与 _emitDemoLogs 完全互不影响。
+  /// Demo third-party logger integration: emit logs via the `logger` package.
+  /// The inspector auto-captures them through print() (classified as Info), no
+  /// config needed. This only covers the "logger → inspector" direction and
+  /// never touches the global forwarding state, so it is fully independent of
+  /// _emitDemoLogs.
+  void _emitLoggerLogs() {
+    final logger = _logger ??= Logger(
+      printer: PrettyPrinter(methodCount: 0, errorMethodCount: 3),
+    );
+    logger.t('logger verbose: lazy-loaded feature flags');
+    logger.d('logger debug: cache hit ratio = 0.87');
+    logger.i('logger info: order #8852 created');
+    logger.w('logger warning: retry 2/3 after timeout');
+    logger.e(
+      'logger error: payment gateway returned 503',
+      error: 'gateway_unavailable',
+      stackTrace: StackTrace.current,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Emitted logger logs — auto-captured by Log viewer'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// 切换"检查器 → logger"转发开关。开启时设置一次全局回调，关闭时复位为
+  /// null，确保不影响其它演示（例如 demo 日志）的捕获行为。
+  /// Toggle the "inspector → logger" forwarding switch. When on, install the
+  /// global callback once; when off, reset it to null so other demos (e.g. demo
+  /// logs) are unaffected.
+  void _toggleLoggerForwarding() {
+    final logger = _logger ??= Logger(
+      printer: PrettyPrinter(methodCount: 0, errorMethodCount: 3),
+    );
+    setState(() {
+      _forwardingToLogger = !_forwardingToLogger;
+    });
+    if (_forwardingToLogger) {
+      InspectorLog.onLogCaptured = (entry) {
+        // 用 level.name 判断级别（无需直接引用插件的 LogLevel 类型）。
+        // Use level.name to avoid importing the internal LogLevel type.
+        final lvl = entry.level.name == 'error' ? Level.error : Level.info;
+        logger.log(lvl, '[inspector] ${entry.message}');
+      };
+    } else {
+      // 关闭时清除回调，避免永久污染后续日志捕获。
+      // Clear the callback when off so it never leaks into later captures.
+      InspectorLog.onLogCaptured = null;
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _forwardingToLogger
+                ? 'Forwarding inspector logs → logger: ON'
+                : 'Forwarding inspector logs → logger: OFF',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// 触发一次强制掉帧：在 UI 线程做一段同步重计算，制造可见的 jank，
+  /// 让 FPS 监控页能看到掉帧标记与 FPS 抖动。
+  /// Force a jank: a blocking synchronous computation on the UI thread so the
+  /// FPS monitor records a dropped frame and FPS dip.
+  void _triggerJank() {
+    final sw = Stopwatch()..start();
+    var sink = 0;
+    while (sw.elapsedMilliseconds < 120) {
+      for (var i = 0; i < 100000; i++) {
+        sink += (i * 31) ~/ 7;
       }
     }
-    print(
-      'Heavy computation done: blocked ${stopwatch.elapsedMilliseconds}ms, sum=$sum',
-    );
-  }
-
-  /// 切换流畅动画模式（单个轻量动画，演示高 FPS 60 流畅运行）
-  /// Toggle smooth animation mode (single lightweight animation, demonstrates high 60 FPS)
-  void _toggleSmoothAnimation() {
-    setState(() {
-      _smoothAnimationEnabled = !_smoothAnimationEnabled;
-    });
-
-    if (_smoothAnimationEnabled) {
-      _smoothAnimationController ??= AnimationController(
-        vsync: this,
-        duration: const Duration(seconds: 2),
-      )..repeat();
-      print('Smooth animation enabled (single lightweight widget)');
-    } else {
-      _smoothAnimationController?.stop();
-      _smoothAnimationController?.dispose();
-      _smoothAnimationController = null;
-      print('Smooth animation disabled');
-    }
-  }
-
-  @override
-  void dispose() {
-    _jankAnimationController?.dispose();
-    _jankAnimationController = null;
-    _smoothAnimationController?.dispose();
-    _smoothAnimationController = null;
-    super.dispose();
-  }
-
-  /// 使用 print() 输出不同级别的日志 / Output logs of different levels using print()
-  /// 检查器会根据前缀自动识别日志级别（[VERBOSE]、[DEBUG]、[INFO]、[WARNING]、[ERROR]）
-  /// Inspector auto-detects log level based on prefix ([VERBOSE], [DEBUG], [INFO], [WARNING], [ERROR])
-  void _logMessages() {
-    print('[VERBOSE] This is a verbose log');
-    print('[DEBUG] This is a debug log');
-    print('[INFO] This is an info log');
-    print('[WARNING] This is a warning log');
-    print('[ERROR] This is an error log');
-  }
-
-  /// 使用检查器的日志方法输出日志 / Output logs using inspector's log methods
-  /// 通过 InspectorLogInterceptor 直接调用日志方法，无需 print() / Call log methods directly via InspectorLogInterceptor, no print() needed
-  void _logWithCustomCallback() {
-    InspectorLogInterceptor.instance.debug('Custom debug log via callback');
-    InspectorLogInterceptor.instance.info('Custom info log via callback');
-    InspectorLogInterceptor.instance.warning('Custom warning log via callback');
-    InspectorLogInterceptor.instance.error('Custom error log via callback');
+    debugPrint('jank workload done (result=$sink)');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Zero Inspector Kit Example')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Network Requests',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: _makeDioGetRequest,
-                child: const Text('Dio GET Request'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _makeDioPostRequest,
-                child: const Text('Dio POST Request'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _makeDioPutRequest,
-                child: const Text('Dio PUT Request'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _makeDioDeleteRequest,
-                child: const Text('Dio DELETE Request'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _makeDioPatchRequest,
-                child: const Text('Dio PATCH Request'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _makeDioHeadRequest,
-                child: const Text('Dio HEAD Request'),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'HTTP Package Requests',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _makeHttpGetRequest,
-                child: const Text('HTTP GET Request'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _makeHttpPostRequest,
-                child: const Text('HTTP POST Request'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _makeHttpPutRequest,
-                child: const Text('HTTP PUT Request'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _makeHttpDeleteRequest,
-                child: const Text('HTTP DELETE Request'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _makeHttpPatchRequest,
-                child: const Text('HTTP PATCH Request'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _makeHttpHeadRequest,
-                child: const Text('HTTP HEAD Request'),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Logs',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: _logMessages,
-                child: const Text('Generate Logs'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _logWithCustomCallback,
-                child: const Text('Custom Logs (Callback)'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _logWithLogger,
-                child: const Text('Logger Library Logs'),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Logs are automatically captured from:\n- print() calls\n- Flutter errors/exceptions\n- Custom log methods\n- Logger library (via integration)',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Production Build: Inspector is automatically\n'
-                'disabled in release mode (no code changes needed)',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.blue, fontSize: 12),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Third-party log library integration:\n'
-                'Logger logs are captured because print() is called\n'
-                'Alternatively, use onLogCaptured callback for custom handling',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Database',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Test database with users and posts tables\nis auto-created on app startup',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Memory',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () {
-                  _loadTestImages();
-                },
-                child: const Text('Load Test Images'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _allocateMemory,
-                child: const Text('Allocate Memory (10MB)'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _triggerGC,
-                child: const Text('Trigger GC'),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Load images to test image cache\n'
-                'Allocate memory to test heap monitoring\n'
-                'Trigger GC to test garbage collection',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'FPS / Performance',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: _triggerJankComputation,
-                child: const Text('Trigger Jank (Heavy Computation)'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _toggleHeavyAnimations,
-                child: Text(
-                  _heavyAnimationsEnabled
-                      ? 'Disable Heavy Animations'
-                      : 'Enable Heavy Animations (Jank Demo)',
-                ),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _toggleSmoothAnimation,
-                child: Text(
-                  _smoothAnimationEnabled
-                      ? 'Disable Smooth Animation'
-                      : 'Enable Smooth Animation (High FPS Demo)',
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Enable FPS monitoring via the switch in the inspector\'s FPS tab.\n'
-                'Heavy Animations renders 80 rotating widgets to trigger jank.\n'
-                'Smooth Animation runs a single lightweight widget for stable 60 FPS.\n'
-                'Heavy Computation blocks the main thread for 100-500ms.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-              if (_heavyAnimationsEnabled) ...[
-                const SizedBox(height: 12),
-                _buildHeavyAnimationPreview(),
-              ],
-              if (_smoothAnimationEnabled) ...[
-                const SizedBox(height: 12),
-                _buildSmoothAnimationPreview(),
-              ],
-              const SizedBox(height: 24),
-              const Text(
-                'Navigation',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SecondScreen(),
-                    ),
-                  );
-                },
-                child: const Text('Navigate to Second Screen'),
-              ),
-            ],
+      appBar: AppBar(title: const Text('Zero Inspector Kit')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'The root here is a StatelessWidget shell (ExampleAppShell) wrapping '
+            'the real MaterialApp — this exercises the route-observer '
+            'penetration path. Navigate below and watch the captured-route '
+            'counter (it proves the observer was injected through the shell).',
+            textAlign: TextAlign.center,
           ),
-        ),
+          const SizedBox(height: 16),
+          Text(
+            'Requests sent: $_requestCount',
+            style: Theme.of(context).textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          // 实时显示「检查器已捕获的路由数」。若穿透成功，进入 /detail 再返回
+          // 后计数会增加；若始终为 0，说明穿透回退、路由追踪未生效。
+          // Live count of routes captured by the inspector. If penetration
+          // succeeded, this grows after navigating; if it stays 0, the fallback
+          // path was taken and route tracking did not engage.
+          const _RouteCaptureIndicator(),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _sendAllDemoRequests,
+            icon: const Icon(Icons.cloud_download),
+            label: const Text('Send mixed requests (GET/POST/PUT/DELETE)'),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _emitDemoLogs,
+            icon: const Icon(Icons.message_outlined),
+            label: const Text('Emit demo logs (see Log viewer)'),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _emitLoggerLogs,
+            icon: const Icon(Icons.library_books_outlined),
+            label: const Text('Emit logger logs (3rd-party)'),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _toggleLoggerForwarding,
+            icon: Icon(
+              _forwardingToLogger
+                  ? Icons.link_off_outlined
+                  : Icons.link_outlined,
+            ),
+            style: _forwardingToLogger
+                ? ElevatedButton.styleFrom(backgroundColor: Colors.orange)
+                : null,
+            label: Text(
+              _forwardingToLogger
+                  ? 'Forward inspector logs → logger: ON'
+                  : 'Forward inspector logs → logger: OFF',
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _triggerJank,
+            icon: const Icon(Icons.speed),
+            label: const Text('Trigger a jank (see FPS monitor)'),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(context).pushNamed('/detail'),
+            icon: const Icon(Icons.arrow_forward),
+            label: const Text('Open detail page (route demo)'),
+          ),
+          const SizedBox(height: 16),
+          // Widget 检查器演示：带 Key 的嵌套组件树，打开 Widget 检查器即可查看
+          // 每个节点的类型、Key、子节点数与层级。
+          // Widget inspector demo: a nested tree with Keys — open the Widget
+          // Inspector to inspect each node's type, Key, child count and depth.
+          _buildWidgetDemoTree(),
+        ],
       ),
-      // 悬浮按钮由 ZeroInspectorKit.runAppWithInspector 自动通过 Overlay 创建，无需手动添加
-      // Floating button is auto-created via Overlay by runAppWithInspector, no manual addition needed
     );
   }
 
-  /// 构建重动画预览（80 个同时旋转+缩放的 widget，故意触发掉帧）
-  /// Build heavy animation preview (80 simultaneously rotating+scaling widgets, intentionally triggering jank)
-  Widget _buildHeavyAnimationPreview() {
-    final controller = _jankAnimationController;
-    if (controller == null) return const SizedBox.shrink();
-
+  /// 一个有代表性的嵌套组件树，带有 GlobalKey / ValueKey / Key，
+  /// 方便在 Widget 检查器中观察节点信息。
+  /// A representative nested widget tree with GlobalKey / ValueKey / Key so the
+  /// Widget Inspector shows meaningful node details.
+  Widget _buildWidgetDemoTree() {
     return Container(
-      width: double.infinity,
-      height: 150,
-      padding: const EdgeInsets.all(8),
+      key: const Key('widgetDemoContainer'),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.1),
+        color: Colors.blue.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
       ),
-      child: ClipRect(
-        child: Wrap(
-          spacing: 2,
-          runSpacing: 2,
-          children: List.generate(_heavyAnimationCount, (index) {
-            return AnimatedBuilder(
-              animation: controller,
-              builder: (context, child) {
-                final angle = controller.value * 3.14159 * 2 * (index % 3 + 1);
-                final scale = 0.5 + (controller.value * 0.5);
-                return Transform.rotate(
-                  angle: angle,
-                  child: Transform.scale(
-                    scale: scale,
-                    child: Container(
-                      width: 14,
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color:
-                            Colors.primaries[index % Colors.primaries.length],
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            );
-          }),
-        ),
-      ),
-    );
-  }
-
-  /// 构建流畅动画预览（单个轻量 widget 平滑旋转，演示高 FPS 60）
-  /// Build smooth animation preview (single lightweight widget rotating smoothly, demonstrates high 60 FPS)
-  Widget _buildSmoothAnimationPreview() {
-    final controller = _smoothAnimationController;
-    if (controller == null) return const SizedBox.shrink();
-
-    return Container(
-      width: double.infinity,
-      height: 150,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.green.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-      ),
-      child: Center(
-        child: AnimatedBuilder(
-          animation: controller,
-          builder: (context, child) {
-            // 平滑的复合动画：旋转 + 缩放 + 渐变 / Smooth compound animation: rotate + scale + gradient
-            final angle = controller.value * 3.14159 * 2;
-            final scale =
-                0.8 + 0.2 * (0.5 + 0.5 * (controller.value - 0.5).abs() * 2);
-            return Transform.rotate(
-              angle: angle,
-              child: Transform.scale(
-                scale: scale,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Colors.green, Colors.teal, Colors.cyan],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.green.withValues(alpha: 0.4),
-                        blurRadius: 20,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.bolt_rounded,
-                    color: Colors.white,
-                    size: 40,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
+      child: Column(
+        key: const Key('widgetDemoColumn'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Widget Inspector demo tree',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          ListView.builder(
+            key: const Key('widgetDemoList'),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 3,
+            itemBuilder: (context, index) => ListTile(
+              key: ValueKey('item_$index'),
+              leading: const Icon(Icons.widgets_rounded),
+              title: Text('Nested card #$index'),
+              subtitle: Text('key=item_$index'),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// 第二页 / Second screen
-/// 用于演示路由导航追踪功能 / Used to demonstrate route navigation tracking
-class SecondScreen extends StatelessWidget {
-  const SecondScreen({super.key});
+/// 实时显示「检查器已捕获的路由数」的小部件。
+/// 监听 [InspectorService]（ChangeNotifier），每次路由 push/pop 都会触发重建，
+/// 让用户无需打开面板也能直观确认穿透注入是否成功。
+/// A small live widget showing how many routes the inspector has captured.
+/// Listens to [InspectorService] (a ChangeNotifier) so it rebuilds on every
+/// route push/pop, letting the user verify penetration without opening the panel.
+class _RouteCaptureIndicator extends StatelessWidget {
+  const _RouteCaptureIndicator();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Second Screen')),
-      body: Center(
-        child: Column(
+    return ListenableBuilder(
+      listenable: InspectorService.instance,
+      builder: (context, _) {
+        final count = InspectorService.instance.routeEntryCount;
+        final color = count > 0 ? Colors.green : Colors.grey;
+        return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('This is the second screen'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ThirdScreen()),
-                );
-              },
-              child: const Text('Navigate to Third Screen'),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Go Back'),
+            Icon(Icons.route_outlined, color: color, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Routes captured by inspector: $count',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: color),
             ),
           ],
-        ),
-      ),
-      // 悬浮按钮由 ZeroInspectorKit.runAppWithInspector 自动通过 Overlay 创建
-      // Floating button auto-created via Overlay by runAppWithInspector
-    );
-  }
-}
-
-/// 第三页 / Third screen
-/// 用于演示路由导航追踪功能 / Used to demonstrate route navigation tracking
-class ThirdScreen extends StatelessWidget {
-  const ThirdScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Third Screen')),
-      body: const Center(child: Text('This is the third screen')),
-      // 悬浮按钮由 ZeroInspectorKit.runAppWithInspector 自动通过 Overlay 创建
-      // Floating button auto-created via Overlay by runAppWithInspector
+        );
+      },
     );
   }
 }

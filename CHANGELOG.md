@@ -1,5 +1,91 @@
 # Changelog
 
+## 1.4.1
+
+> **🛠 Fixes / 修复:** 修复 `MemoryInspectorService.getDocumentsDirSize` 与 `getCacheDirSize` 中 `return _calculateDirSize(dir)` 未 `await` 导致的 `unawaited_return_in_try_block` 分析告警。改用 `final size = await _calculateDirSize(dir); return size;`,使 `try` 块的异常捕获能正确覆盖目录大小计算中的异步错误。无新增公共 API,向后兼容。
+> Fixes the `unawaited_return_in_try_block` analysis warning in `MemoryInspectorService.getDocumentsDirSize` and `getCacheDirSize`, where `return _calculateDirSize(dir)` was not awaited. Now `final size = await _calculateDirSize(dir); return size;`, so the `try` block's exception handling correctly covers async errors during directory-size calculation. No new public API; backward compatible.
+
+- 修复 / Fix
+  - `getDocumentsDirSize` / `getCacheDirSize` 先 `await` 计算结果再 `return`,消除 `unawaited_return_in_try_block` 告警
+  - `getDocumentsDirSize` / `getCacheDirSize` now `await` the result before `return`, removing the `unawaited_return_in_try_block` warning
+
+## 1.4.0
+
+> **🧭 路由追踪穿透 / Route-observer penetration:** `ZeroInspectorKit.runAppWithInspector` 现在能穿透包裹根组件的轻量壳（如 `StatelessWidget` / `Container` / `Builder` / `Padding` / `Center` / `SizedBox` 等），找到内部的 `MaterialApp` 并自动注入 `InspectorRouteObserver`，无需把 `MaterialApp` 直接作为根传入即可启用路由追踪。遇到不可穿透的组件（如 `StatefulWidget` 壳）时安全回退到外层包裹模式。无新增公共 API。
+> `ZeroInspectorKit.runAppWithInspector` now penetrates a lightweight shell wrapping the root (e.g. `StatelessWidget` / `Container` / `Builder` / `Padding` / `Center` / `SizedBox`), finds the inner `MaterialApp`, and auto-injects `InspectorRouteObserver` — so route tracking works even when the `MaterialApp` is not passed as the root directly. Falls back safely to an outer wrapper when the shell is impenetrable (e.g. a `StatefulWidget` shell). No new public API.
+
+- 路由 / Route
+  - `runAppWithInspector` 现在递归穿透中间壳组件以定位 `MaterialApp` 并注入路由观察者；示例 app 根节点改为 `StatelessWidget` 壳以演示该能力
+  - `runAppWithInspector` now recursively penetrates intermediate shell widgets to locate the `MaterialApp` and inject the route observer; the example app's root is now a `StatelessWidget` shell to demonstrate the capability
+  - 新增 `test/route_observer_penetration_test.dart` 覆盖穿透成功与回退路径
+  - Added `test/route_observer_penetration_test.dart` covering both the penetration-success and fallback paths
+
+- 网络 / Network
+  - 网络查看器新增可展开筛选面板（工具栏漏斗图标），支持按 **HTTP Method**（GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS，多选）、**状态码区间**（2xx/3xx/4xx/5xx/Other，多选）、**拦截状态**（全部/已修改/未修改）三维筛选，可与关键词搜索叠加；含一键 Reset
+  - The network viewer gains an expandable filter panel (funnel icon in the toolbar) supporting **HTTP Method** (GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS, multi-select), **status code** (2xx/3xx/4xx/5xx/Other, multi-select), and **interception status** (All/Modified/Unmodified) filters, composable with keyword search; includes a Reset action
+  - `NetworkRequest` 新增 `isModifiedByInterceptor` 字段，命中拦截规则并实际修改请求/响应体或状态码时由拦截层自动置 `true`；请求卡片对「已修改」请求显示标记图标
+  - `NetworkRequest` gains an `isModifiedByInterceptor` field, auto-set to `true` by the interception layer when a rule actually modifies the request/response body or status code; modified requests show a marker icon on the card
+
+## 1.3.6
+
+> **📊 趋势图交互增强 / Trend chart interaction:** 内存趋势图现在支持触摸交互——点击或拖动折线图区域可高亮最近的数据点，显示十字准线与浮动 Tooltip（精确数值 + 相对"现在"的时间偏移）。未触摸时仍显示 Current / Peak / Min 图例。无新增公共 API，组件沿用原构造签名。
+> The memory trend chart now supports touch interaction — tap or drag on the chart to highlight the nearest data point, showing a crosshair plus a floating tooltip with the exact value and the time offset from "now". The Current / Peak / Min legend is still shown when not touched. No new public API; the widget keeps its original constructor signature.
+
+- 内存 / Memory
+  - 新增趋势图触摸交互：点击 / 拖动定位最近数据点，绘制十字准线并高亮该点（蓝色外圈 + 实心点）
+  - Added trend chart touch interaction: tap/drag locates the nearest data point, drawing a crosshair and highlighting it (blue ring + solid dot)
+  - 触摸时顶部浮出 Tooltip，显示该时刻的精确数值与相对时间（如 `-1m 23s`）
+  - A floating tooltip appears on touch, showing the exact value and relative time (e.g. `-1m 23s`)
+  - 未触摸时保持原 Current / Peak / Min 图例展示，交互状态由 `StatefulWidget` 本地维护，不影响采样逻辑
+  - Untouched state keeps the original Current / Peak / Min legend; interaction state is local to a `StatefulWidget` and does not affect sampling logic
+
+## 1.3.5
+
+> **🚀 检查器能力扩展 / Inspector capability expansion：** 本版本新增网络 **Timeline 瀑布图**、**系统分享**导出内容（基于 `share_plus`）、**Widget 检查器**（树形展示业务 Widget 树，自动排除检查器自身浮层），并将 **Database 查看器**扩展到 **SharedPreferences** 与 **Hive**。Widget 检查器与 Network Timeline 均**默认关闭、通过面板顶部开关控制（与内存监控一致）**。公共 API 新增 `SharedPrefsProvider`、`HiveProvider`、`NetworkTimeline`、`WidgetTreeInspector`、`WidgetTreeService`、`InspectorSwitchCard`，以及一行注册方法 `ZeroInspectorKit.registerSharedPrefs()` / `registerHive()` 与 `init` 配置项 `enableWidgetInspector` / `enableNetworkTimeline`。
+> This release adds a network **Timeline / waterfall view**, **system sharing** of exported content (via `share_plus`), a **Widget inspector** (collapsible business widget tree, auto-excluding the inspector's own overlay), and extends the **Database viewer** to **SharedPreferences** and **Hive**. Both the Widget inspector and Network Timeline are **off by default and toggled via a top switch in the panel (like memory monitoring)**. New public API: `SharedPrefsProvider`, `HiveProvider`, `NetworkTimeline`, `WidgetTreeInspector`, `WidgetTreeService`, `InspectorSwitchCard`, plus one-line registration `ZeroInspectorKit.registerSharedPrefs()` / `registerHive()` and `init` flags `enableWidgetInspector` / `enableNetworkTimeline`.
+
+- 网络 / Network
+  - 新增 Timeline 瀑布图视图（`NetworkTimeline`），在 NetworkViewer 中以时间轴展示每个请求的耗时与并发重叠，可点击定位详情
+  - Added a Timeline/waterfall view (`NetworkTimeline`) showing per-request duration & overlap on a time axis, tappable to locate details in NetworkViewer
+  - Network Timeline 现由面板顶部**总开关**控制，默认关闭；开启后工具栏才出现视图切换，关闭时始终以列表展示（避免无谓的瀑布图布局开销）
+  - Network Timeline is now gated by a top **master switch** in the panel, off by default; enabling it reveals the view toggle, and the list is always shown otherwise
+- Widget 检查器 / Widget inspector
+  - 新增 Widget 树检查器（`WidgetTreeInspector`），以**面包屑导航**浏览当前渲染树快照（主列表只显示当前层、点击下钻、面包屑跳回祖先），叶子节点弹出详情，自动排除检查器自身子树
+  - Added a widget-tree inspector (`WidgetTreeInspector`) that browses a **breadcrumb navigation** snapshot of the current widget tree (current-level list, tap to drill in, breadcrumb jumps back to ancestors), with a leaf detail sheet, auto-excluding the inspector's own subtree
+  - 由 `WidgetTreeService` 驱动，面板顶部**总开关**控制，默认关闭；仅开启后才遍历渲染树（避免无谓开销），与内存监控一致
+  - Driven by `WidgetTreeService`, gated by a top **master switch**, off by default; the element tree is walked only when enabled (no needless overhead), matching memory monitoring
+- 导出 / Export
+  - 新增基于 `share_plus` 的**系统分享**，日志与网络请求均可一键分享导出文件（pubspec 新增 `share_plus` 依赖）
+  - Added `share_plus`-based **system sharing** — logs and network requests can be shared via the system sheet (new `share_plus` dependency)
+- 数据库 / Database
+  - Database 查看器现支持 **SharedPreferences** 与 **Hive**：新增 `SharedPrefsProvider` / `HiveProvider`，通过 `DatabaseRegistry.instance.registerProvider(...)` 手动注册（插件零依赖，自动适配任意版本）
+  - The Database viewer now supports **SharedPreferences** and **Hive**: new `SharedPrefsProvider` / `HiveProvider` registered manually via `DatabaseRegistry.instance.registerProvider(...)` (zero plugin dependency, any version supported)
+  - 新增**一行注册 API**：`ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs))` 与 `ZeroInspectorKit.registerHive({'name': HiveBoxAdapter(box)})`，无需手动拼接 `DatabaseRegistry`
+  - New **one-line registration API**: `ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs))` and `ZeroInspectorKit.registerHive({'name': HiveBoxAdapter(box)})` — no need to touch `DatabaseRegistry` directly
+  - `init` / `runAppWithInspector` 新增 `enableWidgetInspector`、`enableNetworkTimeline` 配置项，可直接预置对应开关为开启
+  - `init` / `runAppWithInspector` gain `enableWidgetInspector` and `enableNetworkTimeline` flags to pre-enable the switches
+- Widget 检查器交互打磨 / Widget inspector UX polish
+  - 将浏览方式从「内联可折叠树 + 横向滑动整棵树」改为**面包屑导航**（类似文件管理器）：主列表只显示当前层节点，点击含子节点的项即下钻到下一层，顶部分层面包屑可一键跳回任意祖先层；叶子节点点击弹出底部抽屉看详情。彻底消除深层节点的 `RenderFlex` 横向溢出与反直觉横滑，层级关系依然清晰
+  - Reworked browsing from an "inline collapsible tree with whole-tree horizontal scroll" to **breadcrumb navigation** (file-manager style): the main list shows only the current level; tapping an item with children drills into its children, and the breadcrumb bar jumps back to any ancestor; tapping a leaf opens a bottom-sheet detail. This removes the `RenderFlex` horizontal overflow and unintuitive panning on deep trees while keeping the hierarchy clear
+- Routes 视图交互打磨 / Routes view UX polish
+  - 将路由详情从「底部抽屉」改为与 Network 一致的**同面板双屏详情**（列表 ↔ 详情切换）：点击记录进入详情页，工具栏显示 `Back` 返回箭头 + `Route Detail` 标题，大段 Arguments JSON 可完整滚动展示；列表态工具栏保留数量徽章与清空按钮
+  - Reworked route detail from a bottom-sheet into a **same-panel list ↔ detail** view matching Network: tapping a record opens the detail page with a `Back` arrow + `Route Detail` title in the toolbar, letting long `Arguments` JSON scroll fully; the list state keeps the count badge and Clear button
+
+## 1.3.4
+
+> **🧹 元数据与文档清理 / Metadata & docs cleanup：** 本版本补充了 `pubspec.yaml` 的 `documentation` 字段，移除了与 `docs/` 完全镜像的遗留 `wiki/` 目录（统一文档单一信息源），并启用了更严格的 `analysis_options.yaml` 规则（已修复因此暴露的 5 处代码问题）。公共 API 不变。
+> This release adds the `documentation` field to `pubspec.yaml`, removes the legacy `wiki/` directory (a mirror of `docs/`, now the single source of truth), and enables stricter `analysis_options.yaml` rules (5 latent code issues fixed as a result). Public API unchanged.
+
+- 元数据 / Metadata
+  - `pubspec.yaml` 新增 `documentation` 字段，指向 GitHub Pages 文档站，提升 pub.dev 评分
+  - Added `documentation` field to `pubspec.yaml` pointing to the GitHub Pages site for a better pub.dev score
+- 文档 / Docs
+  - 删除与 `docs/` 内容完全重复的遗留 `wiki/` 目录，并清理 `.github/workflows/ci.yml`、`AGENTS.md`、`CONTRIBUTING.md` 中对 `wiki/**` 的残留引用；`docs/` 成为唯一文档源
+  - Removed the legacy `wiki/` directory (a duplicate of `docs/`) and cleaned up `wiki/**` references in `ci.yml`, `AGENTS.md`, `CONTRIBUTING.md`; `docs/` is now the single source of truth
+- 代码质量 / Code quality
+  - `analysis_options.yaml` 启用 13 条安全 lint 规则（如 `prefer_single_quotes`、`unawaited_futures`），并修复 5 处因此触发的 info 级问题，现 `flutter analyze` 零问题
+  - `analysis_options.yaml` enables 13 safe lint rules (e.g. `prefer_single_quotes`, `unawaited_futures`); 5 resulting info-level issues fixed, `flutter analyze` is now clean
+
 ## 1.3.3
 
 > **🛡️ 网络拦截健壮性 / Network interception robustness：** 本版本加固了网络拦截，避免并发请求 ID 碰撞、大请求体导致 OOM，以及二进制 / 非 UTF-8 响应体解析异常。公共 API 不变。

@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+
 import '../models/leak_record.dart';
 import '../models/memory_snapshot.dart';
 import '../platform/platform_channel.dart';
@@ -445,7 +447,7 @@ class MemoryInspectorService extends ChangeNotifier {
 
     // 异步触发 VM Service 连接，不阻塞其他功能
     // Async trigger VM Service connection, does not block other features
-    _ensureVmServiceInitialized();
+    unawaited(_ensureVmServiceInitialized());
 
     notifyListeners();
   }
@@ -1242,7 +1244,8 @@ class MemoryInspectorService extends ChangeNotifier {
   Future<int> getDocumentsDirSize() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      return _calculateDirSize(dir);
+      final size = await _calculateDirSize(dir);
+      return size;
     } catch (_) {
       return 0;
     }
@@ -1252,7 +1255,8 @@ class MemoryInspectorService extends ChangeNotifier {
   Future<int> getCacheDirSize() async {
     try {
       final dir = await getTemporaryDirectory();
-      return _calculateDirSize(dir);
+      final size = await _calculateDirSize(dir);
+      return size;
     } catch (_) {
       return 0;
     }

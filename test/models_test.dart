@@ -367,6 +367,49 @@ void main() {
         expect(r2.responseBody, isA<Map>());
       },
     );
+
+    test(
+      'isModifiedByInterceptor 默认 false / isModifiedByInterceptor defaults to false',
+      () {
+        final r = NetworkRequest(
+          id: '1',
+          method: 'GET',
+          url: 'https://a.com',
+          requestTime: 0,
+        );
+        expect(r.isModifiedByInterceptor, isFalse);
+      },
+    );
+
+    test(
+      'copyWith 可覆盖 isModifiedByInterceptor / copyWith overrides isModifiedByInterceptor',
+      () {
+        final r = NetworkRequest(
+          id: '1',
+          method: 'GET',
+          url: 'https://a.com',
+          requestTime: 0,
+        );
+        final modified = r.copyWith(isModifiedByInterceptor: true);
+        expect(modified.isModifiedByInterceptor, isTrue);
+        // 不传该参数时应保留原值 / omitting keeps the original value
+        expect(modified.copyWith().isModifiedByInterceptor, isTrue);
+      },
+    );
+
+    test(
+      'toJson 包含 isModifiedByInterceptor / toJson includes isModifiedByInterceptor',
+      () {
+        final r = NetworkRequest(
+          id: '1',
+          method: 'GET',
+          url: 'https://a.com',
+          requestTime: 0,
+          isModifiedByInterceptor: true,
+        );
+        expect(r.toJson()['isModifiedByInterceptor'], isTrue);
+      },
+    );
   });
 
   /// =======================================================================

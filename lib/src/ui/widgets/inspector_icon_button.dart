@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/inspector_theme.dart';
 
 /// 检查器统一图标按钮 / Shared inspector icon button
@@ -24,6 +25,9 @@ class InspectorIconButton extends StatelessWidget {
   /// 是否可用（不可用则变灰且不可点击）/ Enabled state
   final bool enabled;
 
+  /// 是否处于激活状态（激活时用强调色高亮，用于视图切换等）/ Active state
+  final bool active;
+
   const InspectorIconButton({
     super.key,
     required this.icon,
@@ -32,6 +36,7 @@ class InspectorIconButton extends StatelessWidget {
     this.size = 18,
     this.color,
     this.enabled = true,
+    this.active = false,
   });
 
   @override
@@ -45,11 +50,19 @@ class InspectorIconButton extends StatelessWidget {
           onTap: enabled ? onTap : null,
           child: Container(
             padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: active
+                  ? InspectorColors.accent.withValues(alpha: 0.16)
+                  : null,
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Icon(
               icon,
-              color: enabled
-                  ? (color ?? InspectorColors.textSecondary)
-                  : InspectorColors.textHint,
+              color: active
+                  ? InspectorColors.accent
+                  : (enabled
+                        ? (color ?? InspectorColors.textSecondary)
+                        : InspectorColors.textHint),
               size: size,
             ),
           ),

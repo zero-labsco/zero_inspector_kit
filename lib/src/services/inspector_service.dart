@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
+
 import '../models/network_request.dart';
 import '../models/log_entry.dart';
 import '../models/route_entry.dart';
@@ -40,6 +42,11 @@ class InspectorService extends ChangeNotifier {
 
   /// 拦截总开关 / Interceptor master switch
   bool _interceptorEnabled = false;
+
+  /// 网络瀑布图（Timeline）默认开启偏好 / Network timeline default-on preference
+  /// 由 [ZeroInspectorKit.init] 预置，供 NetworkViewer 初始化总开关。
+  /// Seeded by init(); read by NetworkViewer to pre-set its master switch.
+  bool preferNetworkTimeline = false;
 
   /// 各类数据容量上限（可经 [configure] 调整）/ Per-category capacities (tunable via [configure])
   int _maxNetworkItems = 100;
@@ -146,6 +153,7 @@ class InspectorService extends ChangeNotifier {
     dynamic responseBody,
     int? statusCode,
     dynamic body,
+    bool? modified,
   }) {
     final index = _indexOfNetworkRequest(id);
     if (index != -1) {
@@ -173,6 +181,12 @@ class InspectorService extends ChangeNotifier {
         body: body ?? request.body,
         responseTime: responseTime,
         duration: duration,
+        // 拦截标记：只在命中规则并实际修改时才置 true，不会把已有 true 清零。
+        // Interception flag: only set to true when a rule actually modified the
+        // request; never clears an existing true (modified stays sticky).
+        isModifiedByInterceptor: modified ?? false
+            ? true
+            : request.isModifiedByInterceptor,
         maxBodyBytes: _maxBodyPreviewBytes,
       );
       _networkRequests
