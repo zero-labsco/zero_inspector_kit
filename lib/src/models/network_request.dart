@@ -30,6 +30,13 @@ class NetworkRequest {
   /// 请求耗时（毫秒）/ Request duration (milliseconds)
   final int? duration;
 
+  /// 该请求是否被某条拦截规则实际修改过（请求体/响应体/状态码等）。
+  /// 用于「按拦截状态筛选」。默认 false。
+  /// Whether this request was actually modified by an interceptor rule
+  /// (request body / response body / status code, etc.). Used by the
+  /// "filter by interception status" dimension. Defaults to false.
+  final bool isModifiedByInterceptor;
+
   NetworkRequest({
     required this.id,
     required this.method,
@@ -41,6 +48,7 @@ class NetworkRequest {
     required this.requestTime,
     this.responseTime,
     this.duration,
+    this.isModifiedByInterceptor = false,
   });
 
   /// 获取状态码，默认为-1 / Get status code, default is -1
@@ -70,6 +78,7 @@ class NetworkRequest {
       'requestTime': requestTime,
       'responseTime': responseTime,
       'duration': duration,
+      'isModifiedByInterceptor': isModifiedByInterceptor,
     };
   }
 
@@ -87,6 +96,7 @@ class NetworkRequest {
     int? requestTime,
     int? responseTime,
     int? duration,
+    bool? isModifiedByInterceptor,
     int maxBodyBytes = 0,
   }) {
     final truncatedBody = maxBodyBytes > 0
@@ -106,6 +116,8 @@ class NetworkRequest {
       requestTime: requestTime ?? this.requestTime,
       responseTime: responseTime ?? this.responseTime,
       duration: duration ?? this.duration,
+      isModifiedByInterceptor:
+          isModifiedByInterceptor ?? this.isModifiedByInterceptor,
     );
   }
 

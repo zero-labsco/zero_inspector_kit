@@ -232,6 +232,9 @@ class _InspectorResponseProxy implements HttpClientResponse {
           _requestId,
           statusCode: rule.responseStatusCode ?? _response.statusCode,
           responseBody: bodyStr,
+          // 命中响应拦截规则（修改了响应体或状态码）→ 标记已被拦截修改。
+          // Matched a response rule (modified body/status code) → mark modified.
+          modified: true,
         );
       }
     } catch (_) {}

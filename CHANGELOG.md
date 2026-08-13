@@ -11,6 +11,12 @@
   - 新增 `test/route_observer_penetration_test.dart` 覆盖穿透成功与回退路径
   - Added `test/route_observer_penetration_test.dart` covering both the penetration-success and fallback paths
 
+- 网络 / Network
+  - 网络查看器新增可展开筛选面板（工具栏漏斗图标），支持按 **HTTP Method**（GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS，多选）、**状态码区间**（2xx/3xx/4xx/5xx/Other，多选）、**拦截状态**（全部/已修改/未修改）三维筛选，可与关键词搜索叠加；含一键 Reset
+  - The network viewer gains an expandable filter panel (funnel icon in the toolbar) supporting **HTTP Method** (GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS, multi-select), **status code** (2xx/3xx/4xx/5xx/Other, multi-select), and **interception status** (All/Modified/Unmodified) filters, composable with keyword search; includes a Reset action
+  - `NetworkRequest` 新增 `isModifiedByInterceptor` 字段，命中拦截规则并实际修改请求/响应体或状态码时由拦截层自动置 `true`；请求卡片对「已修改」请求显示标记图标
+  - `NetworkRequest` gains an `isModifiedByInterceptor` field, auto-set to `true` by the interception layer when a rule actually modifies the request/response body or status code; modified requests show a marker icon on the card
+
 ## 1.3.6
 
 > **📊 趋势图交互增强 / Trend chart interaction:** 内存趋势图现在支持触摸交互——点击或拖动折线图区域可高亮最近的数据点，显示十字准线与浮动 Tooltip（精确数值 + 相对"现在"的时间偏移）。未触摸时仍显示 Current / Peak / Min 图例。无新增公共 API，组件沿用原构造签名。

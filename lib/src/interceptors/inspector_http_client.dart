@@ -310,6 +310,17 @@ class _InspectorRequestProxy implements HttpClientRequest {
           finalBodyBytes = utf8.encode(finalBody);
           _request.contentLength = finalBodyBytes.length;
         }
+
+        // 命中规则且实际修改了请求头或请求体 → 标记该请求已被拦截修改。
+        // Matched a rule and actually modified request headers/body → mark as
+        // modified by interceptor for the "filter by interception status" feature.
+        if ((rule.requestHeaders != null || rule.requestBody != null) &&
+            _requestId != null) {
+          InspectorService.instance.updateNetworkRequest(
+            _requestId,
+            modified: true,
+          );
+        }
       }
     } catch (_) {}
 

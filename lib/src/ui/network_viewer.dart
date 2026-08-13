@@ -8,6 +8,37 @@ import '../utils/formatters.dart';
 import 'theme/inspector_theme.dart';
 import 'widgets/widgets.dart';
 
+/// 状态码分组（用于筛选维度）/ Status-code groups (for the filter dimension)
+enum _StatusGroup {
+  s2xx(200, 299, '2xx'),
+  s3xx(300, 399, '3xx'),
+  s4xx(400, 499, '4xx'),
+  s5xx(500, 599, '5xx'),
+  unknown(-1, -1, 'Other');
+
+  const _StatusGroup(this.min, this.max, this.label);
+  final int min;
+  final int max;
+  final String label;
+
+  bool contains(int? code) {
+    if (code == null) return this == unknown;
+    if (this == unknown) return code < 200 || code > 599;
+    return code >= min && code <= max;
+  }
+}
+
+/// 常见 HTTP Method（用于筛选维度）/ Common HTTP methods (for the filter dimension)
+const List<String> _kFilterMethods = [
+  'GET',
+  'POST',
+  'PUT',
+  'DELETE',
+  'PATCH',
+  'HEAD',
+  'OPTIONS',
+];
+
 /// 网络请求查看器 / Network request viewer
 /// 显示所有捕获的网络请求，支持搜索和查看详细信息 / Display all captured network requests, support search and viewing details
 class NetworkViewer extends StatefulWidget {
@@ -40,6 +71,21 @@ class _NetworkViewerState extends State<NetworkViewer> {
 
   /// 已选中的请求 id 集合 / Selected request ids
   final Set<String> _selectedIds = {};
+
+  /// 筛选面板是否展开 / Whether the filter panel is expanded
+  bool _filterExpanded = false;
+
+  /// 选中的 HTTP Method 集合（空 = 不按 method 筛选）/ Selected HTTP methods
+  /// (empty = no method filter)
+  final Set<String> _methodFilters = {};
+
+  /// 选中的状态码分组（空 = 不按状态码筛选）/ Selected status-code groups
+  /// (empty = no status filter)
+  final Set<_StatusGroup> _statusFilters = {};
+
+  /// 拦截状态筛选（null = 全部；true = 已修改；false = 未修改）。
+  /// Interception-status filter (null = all; true = modified; false = unmodified).
+  bool? _modifiedFilter;
 
   @override
   void initState() {
@@ -115,6 +161,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
       children: [
         _buildToolbar(),
         _buildSearchBar(),
+        if (_filterExpanded && _selectedRequest == null) _buildFilterPanel(),
         Expanded(
           child: Stack(
             children: [
@@ -304,6 +351,15 @@ class _NetworkViewerState extends State<NetworkViewer> {
                   }
                 },
               ),
+              // 筛选漏斗（仅列表页显示）/ Filter funnel (list page only)
+              if (_selectedRequest == null)
+                InspectorIconButton(
+                  icon: Icons.filter_alt_rounded,
+                  tooltip: 'Filter',
+                  color: _hasActiveFilter ? InspectorColors.accent : null,
+                  onTap: () =>
+                      setState(() => _filterExpanded = !_filterExpanded),
+                ),
             ],
           ),
         );
@@ -376,13 +432,172 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
   }
 
+  /// 是否存在生效的筛选条件（用于漏斗图标高亮）/ Whether any filter is active
+  bool get _hasActiveFilter =>
+      _methodFilters.isNotEmpty ||
+      _statusFilters.isNotEmpty ||
+      _modifiedFilter != null;
+
+  /// 可展开的筛选面板 / Expandable filter panel
+  Widget _buildFilterPanel() {
+    Widget wrap(String label, List<Widget> chips) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 12, bottom: 4),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: InspectorColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Wrap(spacing: 6, runSpacing: 6, children: chips),
+        ],
+      ),
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: InspectorColors.surface,
+        border: Border(bottom: BorderSide(color: InspectorColors.border)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          wrap('Method', [
+            for (final m in _kFilterMethods)
+              _filterChip(
+                label: m,
+                selected: _methodFilters.contains(m),
+                onTap: () => setState(() {
+                  _methodFilters.contains(m)
+                      ? _methodFilters.remove(m)
+                      : _methodFilters.add(m);
+                }),
+              ),
+          ]),
+          wrap('Status', [
+            for (final g in _StatusGroup.values)
+              _filterChip(
+                label: g.label,
+                selected: _statusFilters.contains(g),
+                onTap: () => setState(() {
+                  _statusFilters.contains(g)
+                      ? _statusFilters.remove(g)
+                      : _statusFilters.add(g);
+                }),
+              ),
+          ]),
+          wrap('Interception', [
+            _filterChip(
+              label: 'All',
+              selected: _modifiedFilter == null,
+              onTap: () => setState(() => _modifiedFilter = null),
+            ),
+            _filterChip(
+              label: 'Modified',
+              selected: _modifiedFilter == true,
+              onTap: () => setState(() => _modifiedFilter = true),
+            ),
+            _filterChip(
+              label: 'Unmodified',
+              selected: _modifiedFilter == false,
+              onTap: () => setState(() => _modifiedFilter = false),
+            ),
+          ]),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => setState(() {
+                _methodFilters.clear();
+                _statusFilters.clear();
+                _modifiedFilter = null;
+              }),
+              child: Text(
+                'Reset',
+                style: TextStyle(color: InspectorColors.accent, fontSize: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 筛选 chip / Filter chip
+  Widget _filterChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected
+              ? InspectorColors.accent.withValues(alpha: 0.15)
+              : InspectorColors.card,
+          border: Border.all(
+            color: selected ? InspectorColors.accent : InspectorColors.border,
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected
+                ? InspectorColors.accent
+                : InspectorColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
   List<NetworkRequest> _filterRequests(List<NetworkRequest> requests) {
-    if (_searchKeyword.isEmpty) return requests;
-    final keyword = _searchKeyword.toLowerCase();
-    return requests.where((req) {
-      return req.url.toLowerCase().contains(keyword) ||
-          req.method.toLowerCase().contains(keyword);
-    }).toList();
+    var result = requests;
+
+    // 关键词搜索（URL / method）/ Keyword search (URL / method)
+    if (_searchKeyword.isNotEmpty) {
+      final keyword = _searchKeyword.toLowerCase();
+      result = result.where((req) {
+        return req.url.toLowerCase().contains(keyword) ||
+            req.method.toLowerCase().contains(keyword);
+      }).toList();
+    }
+
+    // 按 Method 筛选（多选，空集合 = 不过滤）/ Filter by method (multi-select)
+    if (_methodFilters.isNotEmpty) {
+      result = result
+          .where((req) => _methodFilters.contains(req.method.toUpperCase()))
+          .toList();
+    }
+
+    // 按状态码分组筛选（多选，空集合 = 不过滤）/ Filter by status group
+    if (_statusFilters.isNotEmpty) {
+      result = result.where((req) {
+        return _statusFilters.any((g) => g.contains(req.statusCode));
+      }).toList();
+    }
+
+    // 按拦截状态筛选 / Filter by interception status
+    if (_modifiedFilter != null) {
+      result = result
+          .where((req) => req.isModifiedByInterceptor == _modifiedFilter)
+          .toList();
+    }
+
+    return result;
   }
 
   Widget _buildRequestList() {
@@ -584,6 +799,18 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         Icons.edit_note_rounded,
                         size: 14,
                         color: InspectorColors.accent,
+                      ),
+                    ),
+                  if (request.isModifiedByInterceptor)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Tooltip(
+                        message: 'Modified by interceptor',
+                        child: Icon(
+                          Icons.auto_fix_high_rounded,
+                          size: 14,
+                          color: InspectorColors.accent,
+                        ),
                       ),
                     ),
                   const SizedBox(width: 8),
