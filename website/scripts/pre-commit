@@ -1,0 +1,16 @@
+#!/bin/sh
+# Pre-commit hook template for zero_inspector_kit.
+#
+# Installed into .git/hooks/pre-commit by `npm run setup-hook`
+# (see website/scripts/install-hook.mjs). It is NOT tracked in .git/
+# directly, so this template file is the source of truth.
+#
+# On commit, it runs sync-docs.mjs which:
+#   - detects whether website/ source or pubspec.yaml version changed
+#   - injects the package version (from pubspec.yaml) into website/pages/*.md
+#   - builds the Nextra site (website/out/)
+#   - syncs website/out/ -> docs/ and stages it
+# If nothing changed, it exits 0 immediately (no build).
+
+root="$(git rev-parse --show-toplevel)"
+node "$root/website/scripts/sync-docs.mjs"
