@@ -762,9 +762,8 @@ class _NetworkViewerState extends State<NetworkViewer> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: _getMethodColor(
-                        request.method,
-                      ).withValues(alpha: 0.2),
+                      color: _getMethodColor(request.method)
+                          .withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(
@@ -830,9 +829,8 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(
-                          request.status,
-                        ).withValues(alpha: 0.15),
+                        color: _getStatusColor(request.status)
+                            .withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(

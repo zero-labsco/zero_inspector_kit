@@ -140,10 +140,8 @@ class _LegendDot extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: InspectorColors.textHint,
-            fontSize: 10,
-          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: InspectorColors.textHint, fontSize: 10),
         ),
       ],
     );
@@ -207,9 +205,8 @@ class _TimelineRow extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: _methodColor(
-                          request.method,
-                        ).withValues(alpha: 0.2),
+                        color: _methodColor(request.method)
+                            .withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
