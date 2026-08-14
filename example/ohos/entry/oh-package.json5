@@ -6,6 +6,8 @@
   "main": "",
   "author": "",
   "license": "",
-  "dependencies": {},
+  "dependencies": {
+    "zero_inspector_kit": "file:../../../ohos"
+  },
 }
 

@@ -61,9 +61,10 @@ the OHOS Flutter fork. To use it:
    `custom_3.35.8-ohos-1.0.1`), not the official stable Flutter.
    使用**鸿蒙定制 Flutter 分支**(如 fvm 管理的 `custom_3.35.8-ohos-1.0.1`)编译 HAP,而非官方稳定版。
 3. No extra Dart imports or config are required — `runAppWithInspector()` works the
-   same way. Native crash/freeze logs are collected via `hiAppEvent` (the
-   `ohos.permission.APP_TRACKING_CONSENT` permission is declared in `module.json5`).
-   无需额外的 Dart 引入或配置,`runAppWithInspector()` 用法一致。原生崩溃/卡死日志通过 `hiAppEvent` 订阅(已声明 `ohos.permission.APP_TRACKING_CONSENT` 权限)。
+   same way. Native crash/freeze logs are collected via `hiAppEvent`; no additional
+   permission needs to be declared by the consumer (the bundled HAR does not request
+   one).
+   无需额外的 Dart 引入或配置,`runAppWithInspector()` 用法一致。原生崩溃/卡死日志通过 `hiAppEvent` 订阅;消费者无需声明额外权限(随包分发的 HAR 不申请权限)。
 
 > Note: the official `flutter analyze` / `pana` CI runs on stable Flutter and ignores
 > the `ohos` platform; OHOS runtime verification happens on the OHOS fork only.

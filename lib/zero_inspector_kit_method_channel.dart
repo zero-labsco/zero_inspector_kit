@@ -18,4 +18,18 @@ class MethodChannelZeroInspectorKit extends ZeroInspectorKitPlatform {
     );
     return version;
   }
+
+  @override
+  /// 获取进程级内存信息 / Get process-level memory info
+  Future<Map<String, dynamic>?> getProcessMemoryInfo() async {
+    try {
+      final result = await methodChannel.invokeMethod<Map>(
+        'getProcessMemoryInfo',
+      );
+      if (result == null) return null;
+      return result.map((key, value) => MapEntry(key.toString(), value));
+    } catch (_) {
+      return null;
+    }
+  }
 }

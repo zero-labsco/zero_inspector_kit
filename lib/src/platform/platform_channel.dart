@@ -1,10 +1,19 @@
 import 'package:flutter/services.dart';
 
+import '../../zero_inspector_kit_platform_interface.dart';
+
 /// 平台通道服务 / Platform channel service
 /// 用于与原生代码通信，获取平台相关信息和原生日志 / Used for communication with native code, get platform info and native logs
 class PlatformChannel {
   /// 方法通道名称 / Method channel name
   static const MethodChannel _channel = MethodChannel('zero_inspector_kit');
+
+  /// 当前是否为鸿蒙(OpenHarmony)平台 / Whether current platform is OpenHarmony
+  ///
+  /// 用于决定是否启用鸿蒙特有桥接（原生日志 hiAppEvent、进程内存 VmRSS 等）。
+  /// Used to decide whether to enable OHOS-specific bridges (native log hiAppEvent,
+  /// process memory VmRSS, etc.).
+  static bool get isOhos => ZeroInspectorKitPlatform.isOhos;
 
   /// 获取平台版本 / Get platform version
   static Future<String?> getPlatformVersion() async {

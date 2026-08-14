@@ -506,9 +506,12 @@ class MemoryInspectorService extends ChangeNotifier {
   /// 检测当前平台是否支持 Native 内存采集
   /// Detect whether current platform supports Native memory collection
   ///
-  /// 仅 Android 和 iOS 真机支持 / Only Android and iOS real devices are supported
+  /// Android / iOS 真机支持；鸿蒙(OpenHarmony)通过原生 VmRSS 真实返回进程内存。
+  /// Android / iOS real devices are supported; OpenHarmony returns real process
+  /// memory via native VmRSS.
   void _detectNativeSupport() {
-    _isNativeSupported = Platform.isAndroid || Platform.isIOS;
+    _isNativeSupported =
+        Platform.isAndroid || Platform.isIOS || PlatformChannel.isOhos;
   }
 
   /// 开始 Native 内存数据采集刷新 / Start Native memory data collection refresh
@@ -557,6 +560,18 @@ class MemoryInspectorService extends ChangeNotifier {
       final nativeRss = _readInt(map, 'rss');
       if (nativeRss > 0) {
         _currentProcessRss = nativeRss;
+      }
+
+      // 鸿蒙(OpenHarmony)无安卓/iOS 分项，totalPss 为 0；以真实 VmRSS(totalRss)
+      // 作为总进程内存展示位，使内存视图在鸿蒙上显示真实进程内存。
+      // OHOS has no Android/iOS breakdown (totalPss == 0); use the real VmRSS
+      // (totalRss) as the total-process-memory display value so the memory view
+      // shows real usage on OHOS.
+      if (PlatformChannel.isOhos) {
+        final ohosTotalRss = _readInt(map, 'totalRss');
+        if (ohosTotalRss > 0) {
+          _currentTotalPss = ohosTotalRss;
+        }
       }
 
       notifyListeners();

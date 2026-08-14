@@ -31,4 +31,22 @@ class ZeroInspectorKitOhos extends ZeroInspectorKitPlatform {
     );
     return version;
   }
+
+  @override
+  /// 获取进程级内存信息 / Get process-level memory info
+  ///
+  /// 鸿蒙真实返回 VmRSS/rss（取自 /proc/self/status），其余安卓/iOS 分项填 0。
+  /// OHOS returns the real VmRSS/rss (from /proc/self/status); Android/iOS-only
+  /// breakdown fields are 0.
+  Future<Map<String, dynamic>?> getProcessMemoryInfo() async {
+    try {
+      final result = await methodChannel.invokeMethod<Map>(
+        'getProcessMemoryInfo',
+      );
+      if (result == null) return null;
+      return result.map((key, value) => MapEntry(key.toString(), value));
+    } catch (_) {
+      return null;
+    }
+  }
 }

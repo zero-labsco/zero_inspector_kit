@@ -46,6 +46,7 @@ import 'src/services/inspector_service.dart';
 import 'src/services/shared_prefs_provider.dart';
 import 'src/services/hive_provider.dart';
 import 'src/services/widget_tree_service.dart';
+import 'src/services/native_log_service.dart';
 
 /// ZeroInspectorKit 插件入口类 / ZeroInspectorKit plugin entry class
 /// 提供一键初始化和应用包装功能，实现零侵入集成 / Provides one-click initialization and app wrapping for zero-invasion integration
@@ -121,6 +122,11 @@ class ZeroInspectorKit {
       if (onLogCaptured != null) {
         InspectorLogInterceptor.instance.onLogCaptured = onLogCaptured;
       }
+      // 鸿蒙无 logcat，通过 hiAppEvent 真实上报本应用崩溃/卡死事件，
+      // 汇入日志查看器（非鸿蒙平台为 no-op）。
+      // OHOS has no logcat; bridge hiAppEvent crash/freeze events into the
+      // Log viewer (no-op off OHOS).
+      NativeLogService.instance.start();
     }
 
     if (enableNetworkCapture) {

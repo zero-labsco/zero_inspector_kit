@@ -2,6 +2,13 @@
 {
   "app": {
     "signingConfigs": [],
+    "ohos": {
+      "dependencies": {
+        "overrides": {
+          "zero_inspector_kit": "file:../ohos"
+        }
+      }
+    },
     "products": [
       {
         "name": "default",

@@ -62,4 +62,16 @@ abstract class ZeroInspectorKitPlatform extends PlatformInterface {
   Future<String?> getPlatformVersion() {
     throw UnimplementedError('platformVersion() has not been implemented.');
   }
+
+  /// 获取进程级内存信息 / Get process-level memory info
+  ///
+  /// 通过原生 Platform Channel 调用获取进程级内存数据。
+  /// 鸿蒙(OpenHarmony)返回真实的 VmRSS/rss；安卓/iOS 返回对应平台分项。
+  /// 平台不支持时返回 null。
+  /// Calls the native Platform Channel to get process-level memory data. OHOS
+  /// returns the real VmRSS/rss; Android/iOS return their respective breakdown.
+  /// Returns null when unsupported.
+  Future<Map<String, dynamic>?> getProcessMemoryInfo() {
+    throw UnimplementedError('getProcessMemoryInfo() has not been implemented.');
+  }
 }
