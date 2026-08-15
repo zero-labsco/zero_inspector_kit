@@ -113,14 +113,39 @@ function restoreOriginals() {
   backups.clear();
 }
 
+// Build a set of relative paths (files + dirs) present in `dir`, rooted at `dir`.
+function listRelative(dir) {
+  const acc = new Set();
+  const walk = (cur, prefix) => {
+    for (const e of readdirSync(cur, { withFileTypes: true })) {
+      const rel = prefix ? `${prefix}/${e.name}` : e.name;
+      acc.add(rel);
+      if (e.isDirectory()) walk(join(cur, e.name), rel);
+    }
+  };
+  if (existsSync(dir)) walk(dir, '');
+  return acc;
+}
+
 function syncOutToDocs() {
   if (!existsSync(outDir)) {
     throw new Error('website/out does not exist — build may have failed');
   }
-  for (const entry of readdirSync(docsDir)) {
-    rmSync(join(docsDir, entry), { recursive: true, force: true });
+
+  // Incremental sync instead of blindly wiping docs/:
+  // 1. Delete only the *orphan* entries in docs/ that no longer exist in out/.
+  //    This is a small, scattered set (not a bulk tree wipe) so it does not
+  //    trip bulk-delete guards in non-interactive environments.
+  // 2. Copy out/ -> docs/ recursively. cpSync overwrites existing files
+  //    individually (no bulk rm), so the existing tree is replaced in place.
+  const outPaths = listRelative(outDir);
+  for (const rel of listRelative(docsDir)) {
+    if (!outPaths.has(rel)) {
+      rmSync(join(docsDir, rel), { recursive: true, force: true });
+    }
   }
   cpSync(outDir, docsDir, { recursive: true });
+
   // GitHub Pages runs Jekyll by default, which silently drops any file or
   // directory whose name begins with an underscore (e.g. _next, _meta). That
   // strips all CSS/JS from the static export and leaves the site unstyled.

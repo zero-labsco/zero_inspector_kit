@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.4.2
+
+> **🎨 Widget inspector: size, constraints & visual properties / Widget 检查器新增尺寸、约束与视觉属性:** The widget inspector detail view now shows a widget's **rendered size** (`RenderBox.size`), **layout constraints** (`RenderBox.constraints`), and extracted **visual/layout properties** (color via a swatch preview, padding, margin, alignment, width/height, decoration, border, etc.). The detail sheet is now scrollable with a capped height to avoid overflow when many properties are present. The captured tree excludes the inspector's own `InspectorPanel` subtree. No new public API; backward compatible.
+> Widget 检查器的详情视图现在展示 widget 的**实际渲染尺寸**（`RenderBox.size`）、**布局约束**（`RenderBox.constraints`），以及提取的**视觉/布局属性**（颜色以色块预览呈现，另有 padding、margin、alignment、width/height、decoration、border 等）。详情抽屉改为可滚动并限制最大高度，属性过多时不再溢出屏幕。采集的树会自动排除检查器自身的 `InspectorPanel` 子树。无新增公共 API；向后兼容。
+
+- 新增 / Added
+  - Widget 详情抽屉新增 **Size**（真实渲染尺寸，取自 `RenderBox.size`）与 **Constraints**（布局约束，取自 `RenderBox.constraints`）
+  - The detail sheet now shows **Size** (real rendered size from `RenderBox.size`) and **Constraints** (layout constraints from `RenderBox.constraints`)
+  - 从 widget 诊断属性中提取 **视觉/布局属性**（白名单约 40 项：color/bg/fg、padding、margin、alignment、width、height、decoration、border、fontSize、elevation、shape 等）
+  - Extracted **visual/layout properties** from widget diagnostics (allow-list of ~40 entries: color/bg/fg, padding, margin, alignment, width, height, decoration, border, fontSize, elevation, shape, ...)
+  - 颜色类属性在值文本旁渲染**色块预览**（颜色值保留 Flutter 原始描述文本，不转 hex）
+  - Color properties render a **swatch preview** next to the value text (the color value keeps Flutter's original description text, not hex)
+  - 详情抽屉改为 `SingleChildScrollView` + 屏幕高度 70% 上限，长值自动换行，修复溢出
+  - The detail sheet is now a `SingleChildScrollView` capped at 70% screen height with wrapping long values, fixing overflow
+  - 采集树时自动排除检查器自身的 `InspectorPanel` 子树，保持业务树干净
+  - The captured tree now automatically excludes the inspector's own `InspectorPanel` subtree
+  - 新增 `test/widget_inspector_test.dart` 覆盖尺寸采集、颜色色块提取与子树排除
+  - Added `test/widget_inspector_test.dart` covering size capture, color-swatch extraction, and subtree exclusion
+
 ## 1.4.1
 
 > **🛠 Fixes / 修复:** 修复 `MemoryInspectorService.getDocumentsDirSize` 与 `getCacheDirSize` 中 `return _calculateDirSize(dir)` 未 `await` 导致的 `unawaited_return_in_try_block` 分析告警。改用 `final size = await _calculateDirSize(dir); return size;`,使 `try` 块的异常捕获能正确覆盖目录大小计算中的异步错误。无新增公共 API,向后兼容。
