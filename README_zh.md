@@ -11,7 +11,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.4.1 修复了 `MemoryInspectorService` 中的 `unawaited_return_in_try_block` 分析告警（无破坏性变更）。它基于 v1.4.0 —— 该版本为检查器带来两项新增 —— **路由追踪穿透**（当根组件是包裹壳，如 `StatelessWidget` / `Container` / `Builder` / `Padding` / `Center` 包着真正的 `MaterialApp` 时，检查器会穿透壳、定位内部 `MaterialApp` 并自动注入 `InspectorRouteObserver`，无需把 `MaterialApp` 直接作为根传入即可启用路由追踪）与**更丰富的网络筛选**（网络查看器新增可展开筛选面板，可按 HTTP Method、状态码区间、拦截状态筛选）。建议所有用户升级到 `^1.4.1`。
+> **🔔 推荐升级：** v1.4.2 为 widget 检查器的详情视图新增了**尺寸、约束与视觉/布局属性（含颜色色块预览）**——现在你不仅能看 widget 的树结构，还能直接查看它的实际渲染尺寸与颜色（无破坏性变更）。建议所有用户升级到 `^1.4.2`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)**
 
@@ -40,19 +40,19 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.4.1
+  zero_inspector_kit: ^1.4.2
 ```
 
 ### GitHub
 
-或者，你也可以从 GitHub 安装（将 `1.4.1` 替换为你需要的版本号）：
+或者，你也可以从 GitHub 安装（将 `1.4.2` 替换为你需要的版本号）：
 
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.4.1
+      ref: release/v1.4.2
 ```
 
 ## 使用方法

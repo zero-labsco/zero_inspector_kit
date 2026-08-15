@@ -141,15 +141,15 @@ Singleton service extending `ChangeNotifier`.
 
 ## Platform Support / 平台支持
 
-| Feature | Android | iOS | Desktop |
-|---------|---------|-----|---------|
-| FPS Monitoring | ✅ | ✅ | ✅ |
-| Jank Detection | ✅ | ✅ | ✅ |
-| Trend Chart | ✅ | ✅ | ✅ |
+| Feature | Android | iOS |
+|---------|---------|-----|
+| FPS Monitoring | ✅ | ✅ |
+| Jank Detection | ✅ | ✅ |
+| Trend Chart | ✅ | ✅ |
 
-> FPS monitoring uses Flutter engine APIs and works on all platforms supported by Flutter.
+> FPS monitoring uses Flutter engine APIs and works on Android and iOS (the two platforms this plugin targets).
 >
-> FPS 监控使用 Flutter 引擎 API，在 Flutter 支持的所有平台上均可用。
+> FPS 监控使用 Flutter 引擎 API，在本插件支持的两个平台 Android 与 iOS 上均可用。
 
 ## Demo / 演示
 

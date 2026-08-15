@@ -189,15 +189,15 @@ When VM Service is unavailable:
 
 ## Platform Support / 平台支持
 
-| Feature | Android | iOS | Desktop |
-|---------|---------|-----|---------|
-| Process RSS | ✅ | ✅ | ✅ |
-| Native Memory | ✅ | ✅ | ❌ |
-| Dart Heap (VM Service) | ✅ (no PC) | ✅ (no PC) | ✅ |
-| Manual GC | ✅ (no PC) | ✅ (no PC) | ✅ |
-| Leak Detection | ✅ | ✅ | ✅ |
-| Image Cache | ✅ | ✅ | ✅ |
-| Storage Stats | ✅ | ✅ | ✅ |
+| Feature | Android | iOS |
+|---------|---------|-----|
+| Process RSS | ✅ | ✅ |
+| Native Memory | ✅ | ✅ |
+| Dart Heap (VM Service) | ✅ (no PC) | ✅ (no PC) |
+| Manual GC | ✅ (no PC) | ✅ (no PC) |
+| Leak Detection | ✅ | ✅ |
+| Image Cache | ✅ | ✅ |
+| Storage Stats | ✅ | ✅ |
 
 ## Refresh Intervals / 刷新间隔
 

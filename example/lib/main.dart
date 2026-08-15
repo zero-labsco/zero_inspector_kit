@@ -439,10 +439,27 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
     );
   }
 
-  /// 一个有代表性的嵌套组件树，带有 GlobalKey / ValueKey / Key，
-  /// 方便在 Widget 检查器中观察节点信息。
-  /// A representative nested widget tree with GlobalKey / ValueKey / Key so the
-  /// Widget Inspector shows meaningful node details.
+  /// 一个用于 Widget 检查器演示的嵌套组件树：
+  /// - 带 Key，方便观察节点信息；
+  /// - 显式设置**颜色**（`ColoredBox` / `Container` 的 color）与**固定尺寸**
+  ///   （`SizedBox` / `width`+`height`），让检查器首屏就能在详情里看到颜色色块
+  ///   与渲染尺寸数据；
+  /// - 含 `padding` / `alignment` 等布局属性，演示视觉/布局属性提取；
+  /// - **刻意做出多种不同尺寸**（横幅、卡片、小方块、圆形点），方便在 Widget
+  ///   检查器里下钻时直观看到每个节点的 size 各不相同——而不是整棵树都接近
+  ///   屏宽的 441.4×918.9。
+  /// 打开 Widget 检查器，点开 "Widget Inspector demo tree" 下钻即可看到。
+  ///
+  /// A nested tree for the Widget Inspector demo:
+  /// - has Keys so node info is meaningful;
+  /// - sets explicit **color** (`ColoredBox` / `Container` color) and **fixed
+  ///   size** (`SizedBox` / `width`+`height`) so the inspector shows the color
+  ///   swatch and rendered size right away;
+  /// - carries `padding` / `alignment` etc. to demo visual/layout extraction;
+  /// - **deliberately mixes many sizes** (banner, cards, small squares, a dot)
+  ///   so drilling in the Widget Inspector shows each node's size differs —
+  ///   rather than the whole tree being near the screen-wide 441.4×918.9.
+  /// Open the Widget Inspector, expand "Widget Inspector demo tree" and drill.
   Widget _buildWidgetDemoTree() {
     return Container(
       key: const Key('widgetDemoContainer'),
@@ -461,16 +478,85 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          ListView.builder(
-            key: const Key('widgetDemoList'),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 3,
-            itemBuilder: (context, index) => ListTile(
-              key: ValueKey('item_$index'),
-              leading: const Icon(Icons.widgets_rounded),
-              title: Text('Nested card #$index'),
-              subtitle: Text('key=item_$index'),
+          const Text(
+            'Open the Widget Inspector (tab above) and drill into the nodes '
+            'below. Each has a different rendered size — e.g. the red card is '
+            '160×48 while the small dot is only 24×24, so you can watch the '
+            'size change as you go deeper.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          // 撑满宽度的横幅：高度 72，颜色橙。尺寸不等于屏宽但接近屏宽，用来
+          // 演示"接近整屏"与"固定尺寸"的差异。
+          // Full-width banner: 72 tall, orange. Shows "near full width" vs the
+          // fixed-size boxes below.
+          Container(
+            key: const Key('bannerBox'),
+            width: double.infinity,
+            height: 72,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF9500),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: const Text(
+              'Banner · full width × 72',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 固定的红色卡片：尺寸 160 × 48，颜色红。检查器里可见 size 与 color。
+          // Fixed red card: 160 × 48, red. Inspector shows size and color.
+          Container(
+            key: const Key('redBox'),
+            width: 160,
+            height: 48,
+            color: const Color(0xFFFF3B30),
+            alignment: Alignment.center,
+            child: const Text(
+              'Container · red · 160×48',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // ColoredBox：更鲜明的绿色背景，尺寸由内容撑开（无固定宽高）。
+          // ColoredBox: a vivid green background, size driven by content.
+          ColoredBox(
+            key: const Key('greenBox'),
+            color: const Color(0xFF34C759),
+            child: const Padding(
+              key: Key('greenBoxPadding'),
+              padding: EdgeInsets.all(16),
+              child: Text('ColoredBox · green · sized by content'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 固定尺寸的蓝色块。
+          // Fixed-size blue box.
+          SizedBox(
+            key: const Key('blueBox'),
+            width: 200,
+            height: 40,
+            child: Container(
+              key: const Key('blueInner'),
+              color: const Color(0xFF007AFF),
+              alignment: Alignment.center,
+              child: const Text(
+                'SizedBox 200×40 · blue',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 圆形小点：仅 24 × 24，演示"很小"的节点尺寸，方便对比 size 变化。
+          // A tiny dot: only 24 × 24, to contrast strongly against the others.
+          Container(
+            key: const Key('dotBox'),
+            width: 24,
+            height: 24,
+            decoration: const BoxDecoration(
+              color: Color(0xFFAF52DE),
+              shape: BoxShape.circle,
             ),
           ),
         ],
