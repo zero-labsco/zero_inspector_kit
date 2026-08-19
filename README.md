@@ -1,6 +1,12 @@
 # Zero Inspector Kit
 
-A powerful Flutter plugin for in-app developer console, providing real-time debugging tools including network request inspection, logging, database viewing, memory monitoring, FPS monitoring, and route tracking.
+<div align="center">
+
+**English** &nbsp;|&nbsp; [简体中文](README_zh.md)
+
+</div>
+
+A powerful Flutter plugin for an in-app developer console, providing real-time debugging tools: network inspection, logging, database viewing, memory monitoring, FPS monitoring, and route tracking.
 
 [![pub version](https://img.shields.io/pub/v/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit)
 [![pub points](https://img.shields.io/pub/points/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit/score)
@@ -13,31 +19,49 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 
 > **🔔 Upgrade recommended:** v1.4.2 adds size, constraints and visual/layout properties (with a color swatch preview) to the widget inspector detail view — so you can now inspect a widget's rendered dimensions and colors, not just its tree structure (no breaking changes). All users are advised to upgrade to `^1.4.2`.
 
-🌐 **[Official Website](https://www.zerolabsco.com/)**
+🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
-📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)**
+---
 
-🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Zero-Invasion Integration](#zero-invasion-integration-recommended)
+  - [Logging](#logging)
+  - [Network Requests](#network-requests)
+  - [Network Interceptor](#network-request-interceptor)
+  - [Database Provider](#database-provider)
+  - [Memory Monitor](#memory-monitor)
+  - [FPS Monitor](#fps-monitor)
+  - [Custom Database Provider](#custom-database-provider)
+  - [Widget Inspector & Network Timeline](#widget-inspector--network-timeline-off-by-default)
+- [API Reference](#api-reference)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
 
 ## Features
 
-- **Zero Invasion**: Integrate with just **1 line of code**, no need to modify any existing project code.
-- **Network Inspector**: Capture and view all HTTP requests in real-time, including request/response headers, body, status codes, and latency. Supports modifying request body and headers via interceptor rules (for POST/PUT/PATCH requests). Supports batch selection (batch "Copy as cURL" and batch deletion) and one-click cURL copy. A toolbar eye toggle masks sensitive headers (`Authorization`, `Cookie`, etc.) on export. The network viewer also offers an expandable filter panel — filter by HTTP Method, status code (2xx/3xx/4xx/5xx/Other), and interception status (modified/unmodified), composable with keyword search.
-- **Logging System**: Capture application logs automatically from print() calls, Flutter errors/exceptions, and custom log methods. Supports multiple levels (verbose, debug, info, warning, error) and third-party log library integration.
-- **Database Viewer**: Inspect SQLite and other databases with support for custom database providers.
-- **Memory Monitor**: Real-time memory monitoring with trend chart, Dart Heap details, Native memory breakdown (Android PSS / iOS physicalFootprint), memory leak detection, image cache monitoring, and app storage statistics. Master switch to avoid performance overhead.
-- **FPS Monitor**: Real-time FPS measurement, frame duration stats, jank detection, and FPS trend chart (30-second window). Master switch to avoid performance overhead.
-- **Route Tracker**: Monitor navigation history and current route information.
-- **Alert System**: Define alert rules on network requests, logs, memory, and FPS to surface problems proactively. The floating button shows an unread-count badge (cleared when the panel is opened), and an Alerts tab lists triggered alerts. Per-source throttling (1-second sliding window keyed on source + message) suppresses duplicate alerts during sustained breaches or request bursts, while periodic re-alerts keep persistent issues visible.
-- **Floating Button**: Accessible floating inspector button with breathing animation, rendered via root `Overlay` so it stays independent of any page's widget tree. Drag and release to auto-dock and tuck into the nearest screen edge (only a small peek visible); tap the peek to smoothly pull it out, then tap again to open the panel. This avoids conflicts with system back-gesture edges.
-- **Modern UI**: Beautiful dark theme with gradient design, customizable colors via centralized theme configuration.
-- **Cross-platform**: Works on Android and iOS.
+- **Zero-Invasion Integration** — One line of code, no changes to existing project code.
+- **Network Inspector** — Real-time capture of all HTTP (http & Dio) requests; modify bodies/headers via interceptor rules; batch cURL copy; sensitive-header masking; filterable by method/status/interception.
+- **Logging System** — Auto-captures `print()`, Flutter errors, and custom logs across multiple levels; integrates with third-party log libraries.
+- **Database Viewer** — Inspect SQLite and other databases via custom providers.
+- **Memory Monitor** — Trend chart, Dart Heap, Native memory breakdown, leak detection, image-cache & storage stats (master switch to avoid overhead).
+- **FPS Monitor** — Real-time FPS, jank detection, trend chart, frame records (master switch to avoid overhead).
+- **Route Tracker** — Navigation history and current route.
+- **Alert System** — Rule-based alerts on network/logs/memory/FPS with unread badge and throttling.
+- **Floating Button** — Breathing-animation overlay button that auto-docks to screen edges, avoiding back-gesture conflicts.
+- **Modern UI** — Dark theme with gradients and centralized, customizable colors.
+- **Cross-Platform** — Android and iOS.
+
+---
 
 ## Installation
 
 ### Pub.dev (Recommended)
-
-Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
@@ -46,19 +70,19 @@ dependencies:
 
 ### GitHub
 
-Alternatively, you can install from GitHub (replace `1.4.2` with the version you need):
-
 ```yaml
 dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.4.2
+      ref: release/v1.4.2   # replace 1.4.2 with the version you need
 ```
+
+---
 
 ## Usage
 
-### Zero Invasion Integration (Recommended)
+### Zero-Invasion Integration (Recommended)
 
 Integrate with just **1 line of code**, no need to modify any existing project code:
 
@@ -67,7 +91,7 @@ import 'package:flutter/material.dart';
 import 'package:zero_inspector_kit/zero_inspector_kit.dart';
 
 void main() {
-  // Single line: Initialize inspector, capture print() via Zone, and display floating button
+  // Single line: init inspector, capture print() via Zone, show floating button
   ZeroInspectorKit.runAppWithInspector(const MyApp());
 }
 
@@ -87,36 +111,32 @@ class MyApp extends StatelessWidget {
 }
 ```
 
-**Zero Invasion Explanation**:
+**What the inspector does automatically (no other code changes):**
 
-After integration, the inspector automatically does the following without modifying any other project code:
+| Capability | How |
+|------------|-----|
+| ✅ Log Capture | All `print()` / `debugPrint()` calls and Flutter errors via Zone |
+| ✅ Network Interception | All **http** & **Dio** requests via `HttpOverrides` (Dio uses `HttpClient`) |
+| ✅ Database Scan | Auto-scans and registers SQLite databases |
+| ✅ Floating Button | Shown via `Overlay`, no manual widget needed |
+| ✅ Route Tracking | Via `InspectorRouteObserver` (auto-injected into `MaterialApp`) |
 
-- ✅ **Log Capture**: Automatically captures all `print()`, `debugPrint()` calls and Flutter errors via Zone
-- ✅ **Network Interception**: Automatically intercepts all **http package** and **Dio** network requests via HttpOverrides (Dio uses HttpClient by default).
-- ✅ **Database Scan**: Automatically scans and registers SQLite databases
-- ✅ **Floating Button**: Automatically displayed via Overlay, no need to manually add any components
-- ✅ **Route Tracking**: Monitors navigation history via `InspectorRouteObserver` (automatically injected into MaterialApp)
-
-**Production Build**: The inspector is automatically disabled in release mode. You don't need to remove any code - Flutter's tree-shaking will remove all inspector-related code from production builds.
+**Production Build:** The inspector is automatically disabled in release mode — tree-shaking removes all related code, so you never need to delete anything.
 
 ### Manual Integration (More Control)
-
-If you need more control (e.g. pre-enable switches at startup or register custom data sources), use the manual integration:
 
 ```dart
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive/hive.dart';
 
 void main() async {
-  // 1) Manual init (more control than the one-line runAppWithInspector)
+  // 1) Manual init (more control than the one-line helper)
   ZeroInspectorKit.init(
     enableWidgetInspector: true,   // optional: pre-enable Widget Inspector
     enableNetworkTimeline: true,   // optional: pre-enable Network Timeline
   );
 
   // 2) Register custom data sources (one-line API)
-  //    SharedPreferences / Hive: the plugin itself has NO dependency on these
-  //    packages — any object exposing the right read/write interface works.
   final prefs = await SharedPreferences.getInstance();
   ZeroInspectorKit.registerSharedPrefs(SharedPreferencesAdapter(prefs));
 
@@ -132,9 +152,7 @@ void main() async {
 }
 ```
 
-> **About dependencies:** the plugin itself doesn't need `shared_preferences` / `hive`, but **your app** still must add them to its own `pubspec.yaml` if it wants to inspect these (the snippet above imports them) so you can obtain the `prefs` / `box` instance to pass in.
-
-Both appear as entries under the **Database** tab and reuse the same browse/export flow as SQLite.
+> **About dependencies:** the plugin itself doesn't need `shared_preferences` / `hive`; **your app** must still add them to its own `pubspec.yaml` if it wants to inspect these. Both appear under the **Database** tab and reuse the same browse/export flow as SQLite.
 
 <details>
 <summary>Prefer the raw API? Register the providers yourself.</summary>
@@ -154,130 +172,64 @@ void main() {
 
 ### Logging
 
-The logger automatically captures logs from multiple sources once started:
+Start automatic capture from multiple sources:
 
 ```dart
 InspectorLogInterceptor.instance.start();
 ```
 
-**Auto-captured logs:**
-- `print()` and `debugPrint()` calls
-- Flutter framework errors and exceptions
-- Unhandled exceptions caught by `runZonedGuarded`
+**Auto-captured:** `print()` / `debugPrint()`, Flutter framework errors, and `runZonedGuarded` exceptions.
 
-**Manual logging (Optional):**
-
-For more precise log level control, you can use the inspector's log methods. This is **optional** and does not affect auto-capture functionality.
-
-Quick shorthand (recommended):
+**Manual logging (optional):**
 
 ```dart
-InspectorLog.v('Verbose log');
-InspectorLog.d('Debug log');
-InspectorLog.i('Info log');
-InspectorLog.w('Warning log');
-InspectorLog.e('Error log');
+InspectorLog.v('Verbose'); InspectorLog.d('Debug');
+InspectorLog.i('Info');    InspectorLog.w('Warning');
+InspectorLog.e('Error');
 ```
 
-You can also use the full form if needed:
-
-```dart
-InspectorLogInterceptor.instance.verbose('Verbose log');
-InspectorLogInterceptor.instance.debug('Debug log');
-InspectorLogInterceptor.instance.info('Info log');
-InspectorLogInterceptor.instance.warning('Warning log');
-InspectorLogInterceptor.instance.error('Error log');
-```
-
-**Third-party log library integration (Automatic):**
-
-**No configuration needed!** The plugin automatically captures logs from all third-party logging libraries (e.g., logger, flutter_logger, logcat) that use `print()` or `debugPrint()`.
-
-How it works: The plugin captures all `print()` calls by overriding `debugPrint` and using Zone mechanism. Most third-party logging libraries internally output logs via `print()`.
-
-These logs are categorized as **INFO level** since each library has its own level indicators (emoji, prefixes, etc.) that users can identify from the log content.
-
-**Bidirectional Sync (Optional):**
-
-If you need to sync inspector-captured logs to your third-party logging library (make inspector logs also appear in your logging service), use the `onLogCaptured` callback:
+Third-party libraries that log via `print()`/`debugPrint()` (e.g. `logger`, `flutter_logger`) are captured automatically — no config needed. Use `onLogCaptured` to sync captured logs back into your own logging service:
 
 ```dart
 import 'package:logger/logger.dart';
-
 final logger = Logger();
 
 InspectorLogInterceptor.instance.onLogCaptured = (entry) {
-  logger.log(
-    _mapLogLevel(entry.level),
-    '${entry.tag != null ? '[${entry.tag}] ' : ''}${entry.message}',
-  );
+  logger.log(_mapLogLevel(entry.level),
+    '${entry.tag != null ? '[${entry.tag}] ' : ''}${entry.message}');
 };
 ```
 
 ### Network Requests
 
-All HTTP requests (both **http package** and **Dio**) are automatically intercepted via `HttpOverrides` after initialization. No additional setup is required!
+All HTTP requests (both **http** and **Dio**) are intercepted via `HttpOverrides` automatically after init — no setup required.
 
-**http package:**
 ```dart
 import 'package:http/http.dart' as http;
-
-// GET request (automatically captured)
-final response = await http.get(
-  Uri.parse('https://api.example.com/data'),
-);
-
-// POST request (automatically captured)
-final response = await http.post(
-  Uri.parse('https://api.example.com/data'),
-  body: {'key': 'value'},
-);
+final r = await http.get(Uri.parse('https://api.example.com/data')); // captured
 ```
 
-**Dio (zero-invasion):**
 ```dart
 import 'package:dio/dio.dart';
-
-final Dio dio = Dio();
-
-// GET request (automatically captured)
-final response = await dio.get('https://api.example.com/data');
-
-// POST request (automatically captured)
-final response = await dio.post(
-  'https://api.example.com/data',
-  data: {'key': 'value'},
-);
+final dio = Dio();
+final r = await dio.get('https://api.example.com/data'); // captured
 ```
 
-**Note:** Dio uses `IOHttpClientAdapter` by default, which internally uses `dart:io`'s `HttpClient`. This allows the inspector to capture Dio requests automatically via `HttpOverrides` without any additional configuration.
+> **Note:** Dio uses `IOHttpClientAdapter` (which uses `dart:io`'s `HttpClient`), so it is captured automatically without extra config.
 
 ### Network Request Interceptor
 
-The inspector supports intercepting and modifying network requests via rules. This is useful for testing different request parameters without modifying app code.
+Modify requests via rules — useful for testing parameters without touching app code.
 
-**Workflow:**
-1. Send a request normally (it will be captured in the Network panel)
-2. Open the request detail and tap the Interceptor icon
-3. Configure the modification rule (URL pattern, HTTP method, request modifications)
-4. Save the rule — subsequent matching requests will use the modified parameters
+**Workflow:** send a request → open detail → tap the interceptor icon → configure rule (URL pattern, method, body/header edits) → save. Subsequent matching requests use the modified parameters.
 
-**Supported modifications:**
-- Request body and request headers
-- Only for requests with body (POST, PUT, PATCH, etc.)
-- GET requests are view-only and cannot be modified
+| Aspect | Detail |
+|--------|--------|
+| Supported edits | Request body & headers (POST/PUT/PATCH only) |
+| GET requests | View-only, cannot be modified (no body) |
+| Rule matching | Exact or regex URL pattern; method filter (GET/POST/PUT/DELETE/PATCH/HEAD/Any) |
 
-**Why can't GET requests be modified?**
-- The interceptor currently supports modifying request body and headers only
-- GET requests don't have a request body
-- Modifying GET request parameters would require URL modification
-- URL modification may cause unexpected issues with request routing and parameter encoding
-
-**Rule matching:**
-- URL pattern matching (exact match or regex)
-- HTTP method filtering (GET, POST, PUT, DELETE, PATCH, HEAD, or Any)
-
-**Note:** When no rules are configured or rules are disabled, all requests are sent normally without any modification.
+When no rules are configured or they are disabled, all requests are sent unmodified.
 
 ### Database Provider
 
@@ -287,125 +239,44 @@ DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
 
 ### Memory Monitor
 
-The memory monitor provides comprehensive memory analysis with a master switch to control data collection (off by default to avoid performance overhead).
+Comprehensive analysis with a master switch (off by default to avoid overhead).
 
-**Master Switch:**
-- Top switch in the Memory panel controls whether monitoring is enabled
-- When disabled: all timers stop, VM Service connection is cleared (no WebSocket overhead)
-- When enabled: starts data collection and attempts VM Service connection
-
-**Memory Trend Chart:**
-- Real-time line chart with 2-minute history window (240 snapshots × 500ms)
-- Switchable between 4 metrics: Process RSS / Dart Heap / New Space / Old Space
-
-**Dart Heap Overview (requires VM Service):**
-- Heap Usage / Capacity / External usage with progress bar
-- New/Old space detailed breakdown (Usage / Capacity / External)
-- Manual GC trigger button (disabled when VM Service unavailable)
-
-**Native Memory (100% available on real devices):**
-- Android: Total PSS, Dalvik PSS, Native PSS, Native Private Dirty, Device Memory status
-- iOS: Physical Footprint, Compressed memory, Process RSS, Device available memory
-- Low memory warning indicator
-
-**Memory Leak Detection (based on Dart 2.17+ WeakReference):**
-- Register objects for leak tracking via `trackObject()` API
-- Four-state transition: tracking → verifying → leaked / released
-- Auto-trigger GC verification after exceeding expected release time
-- UI shows suspected leaks (red), tracking objects, and released objects
+- **Master Switch:** top toggle in the Memory panel; off = no timers / no VM Service connection.
+- **Trend Chart:** 2-minute window (240 snapshots × 500ms), switchable across Process RSS / Dart Heap / New Space / Old Space.
+- **Dart Heap (needs VM Service):** usage/capacity/external bars; new/old-space breakdown; manual GC trigger.
+- **Native Memory (real devices):** Android PSS breakdown; iOS physical footprint/compressed/RSS; low-memory warning.
+- **Leak Detection (Dart 2.17+ `WeakReference`):** `trackObject()` four-state flow; auto-GC verification; UI shows suspected/tracking/released objects.
 
 ```dart
-// Quick shorthand (recommended)
-myBloc.trackMemoryLeak(tag: 'HomePage_myBloc');
-
-// Or use top-level function
-trackMemoryLeak(myBloc, tag: 'HomePage_myBloc');
-
-// Cancel tracking
-myBloc.untrackMemoryLeak();
-
-// Or use the full form if needed
-MemoryInspectorService.instance.trackObject(
-  myBloc,
-  tag: 'HomePage_myBloc',
-  expectedReleaseAfter: Duration(seconds: 60),
-);
-MemoryInspectorService.instance.untrackObject(myBloc);
-
-// Clear all records
-MemoryInspectorService.instance.clearLeakRecords();
+myBloc.trackMemoryLeak(tag: 'HomePage_myBloc');   // shorthand
+// or: trackMemoryLeak(myBloc, tag: 'HomePage_myBloc');
+myBloc.untrackMemoryLeak();                        // cancel
+MemoryInspectorService.instance.clearLeakRecords(); // clear all
 ```
 
-**Image Cache Monitoring:**
-- Real-time display of image cache size and count
-- Shows pending (loading) and live (in use) image counts
-- Visual progress bar of cache usage
-- One-click clear all image cache
+- **Image Cache:** live size/count, pending vs live, usage bar, one-click clear.
+- **App Storage:** documents / temp / DB size, one-click temp clear.
 
-**App Storage Statistics:**
-- Documents directory size
-- Temp cache directory size
-- Total database file size
-- One-click clear app temp cache
-
-**⚠️ Important: VM Service availability**
-
-**When debugging via PC with `flutter run`, Dart VM Heap data may be unavailable (VM: OFF).**
-
-**Reason:** When using `flutter run` to debug via PC, the flutter tool sets up port forwarding between PC and device via `adb reverse`, allowing PC-side DevTools to access the device's VM Service. However, `Service.getInfo()` returns a `serverUri` from PC's perspective; when the app process internally accesses `127.0.0.1:PC_port`, the device doesn't have that port listening locally, resulting in `Connection refused` and VM Service showing OFF.
-
-**Does not affect actual usage:** When opening the debug app directly without PC connection (no flutter tool involved), VM Service listens directly on the device's local port, the app can connect normally, and Dart Heap data displays correctly.
-
-**Fallback:** When VM Service is unavailable, Native memory (Android PSS / iOS physicalFootprint) still displays normally, and process RSS is always available. Only Dart Heap details and manual GC are unavailable.
+> **⚠️ VM Service availability:** when debugging via `flutter run` on PC, Dart VM Heap may show `VM: OFF` (port-forwarding quirk). Native memory and process RSS still work. Opening the debug app directly on-device shows Heap data correctly.
 
 ### FPS Monitor
 
-The FPS Monitor provides real-time frame performance analysis with a master switch to control data collection (off by default to avoid performance overhead).
+Real-time frame analysis with a master switch (off by default).
 
-**Master Switch:**
-- Top switch in the FPS panel controls whether monitoring is enabled
-- When disabled: no frame timings callbacks, no timer, no overhead
-- When enabled: starts collecting frame data via `WidgetsBinding.instance.addTimingsCallback`
-
-**Features:**
-- Current FPS, jank rate, total frame count
-- FPS trend line chart (30-second window, 60 data points)
-- Janky frame list with duration and timestamp (frames > 16ms)
-- Reset button to clear all statistics
-
-**Accuracy (since v1.2.1):**
-- Frame timestamps use `timing.timestampInMicroseconds(FramePhase.buildStart)` — the real per-frame start time from the Flutter engine, not `DateTime.now()` (which collides across batched frames)
-- Frame duration uses `rasterFinish - buildStart`, covering **both build and raster (GPU) phases** — this catches GPU rasterization jank, the most common Flutter jank type that pure `buildDuration`-based detection misses
-
-**Programmatic control (optional):**
+- **Master Switch:** top toggle; off = no timings callback, zero overhead.
+- **Metrics:** current FPS, jank rate, total frames, 30-second trend chart (60 points), janky-frame list (>16ms).
+- **Accuracy (since v1.2.1):** uses real `buildStart` timestamps (not `DateTime.now()`) and `rasterFinish - buildStart` duration, catching GPU raster jank.
 
 ```dart
-// Start / Stop FPS monitoring from code
 FpsService.instance.start();
-FpsService.instance.stop();
-
-// Read current stats
 final fps = FpsService.instance.currentFps;
-final jankRate = FpsService.instance.jankRate;
-final totalFrames = FpsService.instance.totalFrameCount;
-final jankyFrames = FpsService.instance.totalJankyCount;
-
-// Clear historical data
+final jank = FpsService.instance.jankRate;
 FpsService.instance.clear();
-
-// Listen to updates
-FpsService.instance.addListener(() {
-  // Update your own UI
-});
-
-// Historical data access
-final history = FpsService.instance.fpsHistory;       // List<double>, 60 entries
-final records = FpsService.instance.frameRecords;      // List<FrameRecord>, unmodifiable
 ```
 
 ### Custom Database Provider
 
-To add support for other databases, implement the `DatabaseProvider` interface:
+Implement `DatabaseProvider` for other databases:
 
 ```dart
 class MyCustomDatabaseProvider implements DatabaseProvider {
@@ -413,36 +284,32 @@ class MyCustomDatabaseProvider implements DatabaseProvider {
   String get name => 'CustomDB';
 
   @override
-  Future<List<DatabaseInfo>> getDatabases() async {
-    // Return list of databases
-    return [];
-  }
+  Future<List<DatabaseInfo>> getDatabases() async => [];
 
   @override
-  Future<QueryResult> queryTable(String dbPath, String tableName, {int limit = 50}) async {
-    // Execute query and return results
-    return QueryResult(columns: [], rows: []);
-  }
+  Future<QueryResult> queryTable(String dbPath, String tableName, {int limit = 50}) async =>
+      QueryResult(columns: [], rows: []);
 }
 
-// Register the provider
 DatabaseRegistry.instance.registerProvider(MyCustomDatabaseProvider());
 ```
 
-### Widget inspector & Network Timeline (off by default)
+### Widget Inspector & Network Timeline (off by default)
 
-Both features are **off by default** and toggled via a top switch inside the panel — exactly like Memory monitoring, so they incur no overhead until you turn them on. You can also pre-enable them at startup:
-
-- **Widget Inspector** takes a **one-shot snapshot** of the current widget tree (via a post-frame callback) and browses it via **breadcrumb navigation** (file-manager style): the main list shows only the current level; tap an item with children to **drill into** its children, and the breadcrumb bar jumps back to any ancestor. Tapping a leaf opens a bottom-sheet detail. It is **not live** — once enabled it does not auto-follow UI changes; tap the toolbar **Refresh** button (or toggle the switch off/on) to re-snapshot.
-- **Network Timeline** is **live** — new requests stream into the waterfall in real time, no manual refresh needed.
+Both are **off by default** and toggled via a panel switch (like Memory), so no overhead until enabled. Pre-enable at startup:
 
 ```dart
 ZeroInspectorKit.runAppWithInspector(
   const MyApp(),
-  enableWidgetInspector: true,   // open the Widget tab with the switch already on
-  enableNetworkTimeline: true,    // open Network with the Timeline switch already on
+  enableWidgetInspector: true,   // one-shot tree snapshot + breadcrumb navigation
+  enableNetworkTimeline: true,   // live request waterfall
 );
 ```
+
+- **Widget Inspector:** one-shot snapshot browsed via breadcrumb navigation (not live; tap Refresh to re-snapshot).
+- **Network Timeline:** live waterfall of requests, no manual refresh.
+
+---
 
 ## API Reference
 
@@ -450,58 +317,46 @@ ZeroInspectorKit.runAppWithInspector(
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| enabled | bool | Whether the inspector is enabled (default: true, automatically disabled in release mode) |
+| `enabled` | `bool` | Whether the inspector is enabled (default: `true`, auto-disabled in release) |
 
 ### ConditionalInspector
 
-A convenience widget that automatically shows/hides the inspector based on build mode.
+Auto shows/hides the inspector based on build mode.
 
 ```dart
-ConditionalInspector(
-  child: YourAppWidget(),
-)
+ConditionalInspector(child: YourAppWidget())
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| child | Widget | The child widget |
-| enabled | bool | Whether the inspector is enabled (default: true) |
+| `child` | `Widget` | The child widget |
+| `enabled` | `bool` | Whether the inspector is enabled (default: `true`) |
 
 ### InspectorLogInterceptor
 
 | Method | Description |
 |--------|-------------|
-| start() | Start capturing logs |
-| stop() | Stop capturing logs |
-| log(level, message, tag) | Add a log entry |
-| verbose(message, tag) | Add verbose log |
-| debug(message, tag) | Add debug log |
-| info(message, tag) | Add info log |
-| warning(message, tag) | Add warning log |
-| error(message, tag) | Add error log |
+| `start()` / `stop()` | Start / stop capturing logs |
+| `log(level, message, tag)` | Add a log entry |
+| `verbose/debug/info/warning/error(message, tag)` | Add a log at the given level |
 
 | Property | Type | Description |
 |----------|------|-------------|
-| onLogCaptured | `void Function(LogEntry)?` | Callback when a log is captured, used for third-party log library integration |
+| `onLogCaptured` | `void Function(LogEntry)?` | Callback for third-party log integration |
 
 ### InspectorLog
 
-A shorthand wrapper around `InspectorLogInterceptor.instance` for shorter log calls.
+Shorthand wrapper around `InspectorLogInterceptor.instance`.
 
 | Method | Description |
 |--------|-------------|
-| start() | Start capturing logs |
-| stop() | Stop capturing logs |
-| log(level, message, {tag}) | Add a log entry |
-| v(message, {tag}) | Add verbose log |
-| d(message, {tag}) | Add debug log |
-| i(message, {tag}) | Add info log |
-| w(message, {tag}) | Add warning log |
-| e(message, {tag}) | Add error log |
+| `start()` / `stop()` | Start / stop capturing logs |
+| `log(level, message, {tag})` | Add a log entry |
+| `v/d/i/w/e(message, {tag})` | Add a log at the given level |
 
 | Property | Type | Description |
 |----------|------|-------------|
-| isRunning | bool | Whether log capture is currently active |
+| `isRunning` | `bool` | Whether log capture is active |
 
 ### InspectorRouteObserver
 
@@ -509,28 +364,27 @@ Navigator observer for tracking route changes.
 
 ### FpsService
 
-Singleton service for FPS monitoring, extends `ChangeNotifier`.
+Singleton FPS service extending `ChangeNotifier`.
 
 | Method | Description |
 |--------|-------------|
-| start() | Start FPS monitoring |
-| stop() | Stop FPS monitoring |
-| clear() | Clear all historical data and counters |
+| `start()` / `stop()` | Start / stop monitoring |
+| `clear()` | Clear all history and counters |
 
 | Property | Type | Description |
 |----------|------|-------------|
-| isRunning | bool | Whether monitoring is currently active |
-| currentFps | double | Current FPS (updated every 500ms) |
-| jankRate | double | Jank rate as percentage |
-| totalFrameCount | int | Total frames captured |
-| totalJankyCount | int | Total janky frames captured (>16ms) |
-| lastFrameJanky | bool | Whether the most recent frame was janky |
-| fpsHistory | `List<double>` | Recent 60 FPS values (unmodifiable) |
-| frameRecords | `List<FrameRecord>` | Recent frame records (unmodifiable, up to 3600) |
+| `isRunning` | `bool` | Whether monitoring is active |
+| `currentFps` | `double` | Current FPS (every 500ms) |
+| `jankRate` | `double` | Jank rate (%) |
+| `totalFrameCount` | `int` | Total frames captured |
+| `totalJankyCount` | `int` | Total janky frames (>16ms) |
+| `lastFrameJanky` | `bool` | Whether the latest frame was janky |
+| `fpsHistory` | `List<double>` | Recent 60 FPS values (unmodifiable) |
+| `frameRecords` | `List<FrameRecord>` | Recent frame records (unmodifiable, ≤3600) |
 
 ### runInspectorApp
 
-A helper function to run your app with the inspector Zone, enabling automatic print() capture.
+Runs your app inside the inspector Zone for automatic `print()` capture.
 
 ```dart
 runInspectorApp(VoidCallback appRunner)
@@ -538,7 +392,9 @@ runInspectorApp(VoidCallback appRunner)
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| appRunner | VoidCallback | The function to run your app (usually `runApp`) |
+| `appRunner` | `VoidCallback` | Function to run your app (usually `runApp`) |
+
+---
 
 ## Contributing
 
@@ -549,9 +405,11 @@ Contributions are welcome! Please read the [Contributing Guidelines](CONTRIBUTIN
 - 💬 [Join Discussions](https://github.com/zero-labsco/zero_inspector_kit/discussions)
 - 📖 [Contributing Guide](CONTRIBUTING.md)
 
+---
+
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.
 
 This plugin is licensed under GPL-3.0, which permits commercial use. Any derivative project that modifies this plugin and redistributes it must publish its complete source code under the same license.
 
