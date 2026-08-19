@@ -553,3 +553,7 @@ runInspectorApp(VoidCallback appRunner)
 ## 许可证
 
 本项目采用 GNU General Public License v3.0 许可证 - 详见 [LICENSE](LICENSE) 文件。
+
+本插件采用 GPL-3.0 授权，允许商业使用；任何对本插件进行修改并再分发的衍生项目，必须以相同许可证公开其完整源代码。
+
+本插件按"原样"提供，不提供任何担保。作者不对修改版或衍生项目的功能、安全性及任何使用后果承担责任。

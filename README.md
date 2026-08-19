@@ -552,3 +552,7 @@ Contributions are welcome! Please read the [Contributing Guidelines](CONTRIBUTIN
 ## License
 
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+
+This plugin is licensed under GPL-3.0, which permits commercial use. Any derivative project that modifies this plugin and redistributes it must publish its complete source code under the same license.
+
+This plugin is provided "as is", without warranty of any kind. The author assumes no responsibility or liability for the functionality, security, or any consequences arising from the use of modified versions or derivative projects.
