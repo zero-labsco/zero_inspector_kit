@@ -226,3 +226,9 @@ See [Usage > Edge Docking](Usage#edge-docking-since-v120--边缘吸附v120-起) 
 **A:** This project is licensed under **GPL-3.0**. You can use it freely, but any modified commercial distribution must also be open-source under GPL-3.0.
 
 本项目采用 **GPL-3.0** 许可证。可以自由使用，但修改后的商业分发也必须在 GPL-3.0 下开源。
+
+### Q: Are you liable for issues in modified versions? / 修改版出问题你们负责吗？
+
+**A:** This plugin is provided "as is", without warranty of any kind. The author assumes no responsibility or liability for the functionality, security, or any consequences arising from the use of modified versions or derivative projects.
+
+本插件按"原样"提供，不提供任何担保。作者不对修改版或衍生项目的功能、安全性及任何使用后果承担责任。
