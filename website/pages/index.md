@@ -49,3 +49,7 @@ A powerful Flutter plugin for in-app developer console, providing real-time debu
 This project is licensed under the **GNU General Public License v3.0**.
 
 本项目采用 GNU General Public License v3.0 许可证。
+
+This plugin is provided "as is", without warranty of any kind. The author assumes no responsibility or liability for the functionality, security, or any consequences arising from the use of modified versions or derivative projects.
+
+本插件按"原样"提供，不提供任何担保。作者不对修改版或衍生项目的功能、安全性及任何使用后果承担责任。
