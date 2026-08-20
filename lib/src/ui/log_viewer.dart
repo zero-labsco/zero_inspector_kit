@@ -94,42 +94,85 @@ class _LogViewerState extends State<LogViewer> {
   @override
   Widget build(BuildContext context) {
     final selected = _selectedLog;
-    return Column(
+    // 计算 filter bar 底部偏移，下拉面板紧随其下方弹出。
+    // Compute the filter bar's bottom offset so the panel drops right below it.
+    var panelTop = 44.0;
+    if (_tagDropdownOpen) {
+      final bar = _filterBarKey.currentContext?.findRenderObject();
+      if (bar is RenderBox) {
+        final selfBox = context.findRenderObject();
+        if (selfBox is RenderBox) {
+          final barY = bar.localToGlobal(Offset.zero).dy;
+          final selfY = selfBox.localToGlobal(Offset.zero).dy;
+          panelTop = barY - selfY + bar.size.height;
+        }
+      }
+    }
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        _buildToolbar(),
-        // 详情页隐藏搜索栏与过滤栏 / Detail view hides the search & filter bars
-        if (selected == null) _buildSearchBar(),
-        if (selected == null) _buildFilterBar(),
-        Expanded(
-          child: ListenableBuilder(
-            listenable: InspectorService.instance,
-            builder: (context, child) {
-              if (selected != null) {
-                return _buildLogDetail(context, selected);
-              }
+        Column(
+          children: [
+            _buildToolbar(),
+            // 详情页隐藏搜索栏与过滤栏 / Detail view hides the search & filter bars
+            if (selected == null) _buildSearchBar(),
+            if (selected == null) _buildFilterBar(),
+            Expanded(
+              child: ListenableBuilder(
+                listenable: InspectorService.instance,
+                builder: (context, child) {
+                  if (selected != null) {
+                    return _buildLogDetail(context, selected);
+                  }
 
-              final logs = _filterLogs(InspectorService.instance.logEntries);
+                  final logs =
+                      _filterLogs(InspectorService.instance.logEntries);
 
-              if (logs.isEmpty) {
-                return InspectorEmptyState(
-                  message:
-                      _searchKeyword.isEmpty &&
-                          _filterLevel == null &&
-                          _filterTag == null
-                      ? 'No logs yet'
-                      : 'No matching logs',
-                  icon: Icons.subject_rounded,
-                );
-              }
+                  if (logs.isEmpty) {
+                    return InspectorEmptyState(
+                      message:
+                          _searchKeyword.isEmpty &&
+                                  _filterLevel == null &&
+                                  _filterTag == null
+                              ? 'No logs yet'
+                              : 'No matching logs',
+                      icon: Icons.subject_rounded,
+                    );
+                  }
 
-              return ListView.builder(
-                controller: _scrollController,
-                itemCount: logs.length,
-                itemBuilder: (context, index) => _buildLogItem(logs[index]),
-              );
-            },
-          ),
+                  return ListView.builder(
+                    controller: _scrollController,
+                    itemCount: logs.length,
+                    itemBuilder: (context, index) =>
+                        _buildLogItem(logs[index]),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
+        // 下拉面板：覆盖整个视图的蒙层 + 自绘面板，避免背景穿透点击。
+        // Dropdown: a full-view modal barrier plus the self-drawn panel so
+        // taps behind it are blocked (no click-through).
+        if (_tagDropdownOpen && _selectedLog == null)
+          Positioned.fill(
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                GestureDetector(
+                  onTap: () => setState(() => _tagDropdownOpen = false),
+                  behavior: HitTestBehavior.opaque,
+                ),
+                Positioned(
+                  top: panelTop,
+                  left: 12,
+                  child: _buildTagDropdownPanel(
+                    _availableTags(InspectorService.instance.logEntries),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -378,53 +421,52 @@ class _LogViewerState extends State<LogViewer> {
     });
   }
 
+  /// 过滤栏容器 key，用于让下拉面板精准跟随其下方弹出。
+  /// Key for the filter bar, so the panel can anchor right below it.
+  final GlobalKey _filterBarKey = GlobalKey();
+
   /// 构建过滤栏 / Build filter bar
+  /// tag 筛选位于级别 chip 同一栏、且排在 All 之前。
+  /// Tag filter shares the level row, placed before the "All" chip.
   Widget _buildFilterBar() {
     return ListenableBuilder(
       listenable: InspectorService.instance,
       builder: (context, child) {
         final tags = _availableTags(InspectorService.instance.logEntries);
-        // Stack 允许下拉面板超出 filter bar 边界，渲染在主视图内（而非
-        // Navigator 的 Overlay），避免被面板裁剪或遮挡。
-        // Stack lets the panel overflow the bar and render inside the view
-        // instead of the Navigator's Overlay (which the panel overlay covers).
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: InspectorColors.surface,
-                border:
-                    Border(bottom: BorderSide(color: InspectorColors.border)),
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip(null, 'All', Icons.filter_list_rounded),
-                    ..._levels.map(
-                      (level) => _buildFilterChip(
-                        level,
-                        _getLevelText(level),
-                        _getLevelIcon(level),
-                      ),
-                    ),
-                    if (tags.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      _buildTagDropdown(tags),
-                    ],
-                  ],
-                ),
-              ),
+        return Container(
+          key: _filterBarKey,
+          width: double.infinity,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: InspectorColors.surface,
+            border: Border(
+              bottom: BorderSide(color: InspectorColors.border),
             ),
-            if (_tagDropdownOpen && tags.isNotEmpty)
-              Positioned(
-                top: 44,
-                right: 12,
-                child: _buildTagDropdownPanel(tags),
-              ),
-          ],
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                if (tags.isNotEmpty) ...[
+                  _buildTagDropdown(tags),
+                  const SizedBox(width: 6),
+                ],
+                _buildFilterChip(
+                  null,
+                  'All',
+                  Icons.filter_list_rounded,
+                ),
+                ..._levels.map(
+                  (level) => _buildFilterChip(
+                    level,
+                    _getLevelText(level),
+                    _getLevelIcon(level),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -498,6 +540,7 @@ class _LogViewerState extends State<LogViewer> {
       elevation: 6,
       borderRadius: BorderRadius.circular(8),
       color: InspectorColors.surface,
+      type: MaterialType.card,
       child: Container(
         constraints: BoxConstraints(
           maxHeight: 240,
@@ -505,6 +548,7 @@ class _LogViewerState extends State<LogViewer> {
           maxWidth: 260,
         ),
         decoration: BoxDecoration(
+          color: InspectorColors.surface,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: InspectorColors.border, width: 0.5),
         ),
