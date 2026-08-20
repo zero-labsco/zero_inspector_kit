@@ -16,11 +16,15 @@ class InspectorSearchField extends StatelessWidget {
   /// 清空回调 / Clear callback
   final VoidCallback onClear;
 
+  /// 输入变化回调 / Input change callback
+  final ValueChanged<String>? onChanged;
+
   const InspectorSearchField({
     super.key,
     required this.controller,
     required this.hint,
     required this.onClear,
+    this.onChanged,
   });
 
   @override
@@ -35,6 +39,7 @@ class InspectorSearchField extends StatelessWidget {
       child: TextField(
         controller: controller,
         style: TextStyle(color: InspectorColors.textPrimary, fontSize: 12),
+        onChanged: onChanged,
         decoration: InputDecoration(
           // 使用 collapsed 避免 Material 默认上下内边距，配合精确 contentPadding 垂直居中
           // Use collapsed to drop Material's default vertical padding; exact
