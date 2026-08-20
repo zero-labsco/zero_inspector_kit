@@ -96,7 +96,9 @@ void main() {
     expect(find.byType(LogViewer), findsOneWidget);
   });
 
-  testWidgets('标签过滤下拉（视图内面板）/ tag filter dropdown (in-view panel)', (tester) async {
+  testWidgets('标签过滤下拉（视图内面板）/ tag filter dropdown (in-view panel)', (
+    tester,
+  ) async {
     log('a', LogLevel.info, tag: 'tagA');
     log('b', LogLevel.info, tag: 'tagB');
     await tester.pumpWidget(

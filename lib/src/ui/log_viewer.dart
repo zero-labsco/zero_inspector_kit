@@ -125,17 +125,18 @@ class _LogViewerState extends State<LogViewer> {
                     return _buildLogDetail(context, selected);
                   }
 
-                  final logs =
-                      _filterLogs(InspectorService.instance.logEntries);
+                  final logs = _filterLogs(
+                    InspectorService.instance.logEntries,
+                  );
 
                   if (logs.isEmpty) {
                     return InspectorEmptyState(
                       message:
                           _searchKeyword.isEmpty &&
-                                  _filterLevel == null &&
-                                  _filterTag == null
-                              ? 'No logs yet'
-                              : 'No matching logs',
+                              _filterLevel == null &&
+                              _filterTag == null
+                          ? 'No logs yet'
+                          : 'No matching logs',
                       icon: Icons.subject_rounded,
                     );
                   }
@@ -143,8 +144,7 @@ class _LogViewerState extends State<LogViewer> {
                   return ListView.builder(
                     controller: _scrollController,
                     itemCount: logs.length,
-                    itemBuilder: (context, index) =>
-                        _buildLogItem(logs[index]),
+                    itemBuilder: (context, index) => _buildLogItem(logs[index]),
                   );
                 },
               ),
@@ -436,13 +436,10 @@ class _LogViewerState extends State<LogViewer> {
         return Container(
           key: _filterBarKey,
           width: double.infinity,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: InspectorColors.surface,
-            border: Border(
-              bottom: BorderSide(color: InspectorColors.border),
-            ),
+            border: Border(bottom: BorderSide(color: InspectorColors.border)),
           ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -452,11 +449,7 @@ class _LogViewerState extends State<LogViewer> {
                   _buildTagDropdown(tags),
                   const SizedBox(width: 6),
                 ],
-                _buildFilterChip(
-                  null,
-                  'All',
-                  Icons.filter_list_rounded,
-                ),
+                _buildFilterChip(null, 'All', Icons.filter_list_rounded),
                 ..._levels.map(
                   (level) => _buildFilterChip(
                     level,
@@ -486,8 +479,7 @@ class _LogViewerState extends State<LogViewer> {
             color: _tagDropdownOpen || _filterTag != null
                 ? InspectorColors.accent.withValues(alpha: 0.15)
                 : InspectorColors.card,
-            borderRadius:
-                BorderRadius.circular(InspectorDimensions.chipRadius),
+            borderRadius: BorderRadius.circular(InspectorDimensions.chipRadius),
             border: Border.all(
               color: _tagDropdownOpen || _filterTag != null
                   ? InspectorColors.accent.withValues(alpha: 0.5)
@@ -581,11 +573,7 @@ class _LogViewerState extends State<LogViewer> {
         child: Row(
           children: [
             if (selected)
-              Icon(
-                Icons.check_rounded,
-                size: 14,
-                color: InspectorColors.accent,
-              )
+              Icon(Icons.check_rounded, size: 14, color: InspectorColors.accent)
             else
               const SizedBox(width: 14),
             const SizedBox(width: 6),
