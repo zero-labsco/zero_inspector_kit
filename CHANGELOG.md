@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.1
+
+> **🐞 Log viewer tag filter fix / 日志查看器标签筛选修复:** The tag filter dropdown now opens **inside the main inspector view** instead of the Navigator's Overlay, so the menu is no longer clipped or occluded by the persistent inspector panel. The trigger is now an in-view chip that toggles a self-drawn panel (tap outside a tag, or pick a level chip, to dismiss). No new public API; backward compatible.
+> 标签筛选下拉现在会在**主视图内**展开，而不再使用 Navigator 的 Overlay，因此菜单不会再被常驻检查器面板裁剪或遮挡。触发器改为视图内的 chip，点按可展开自绘面板（点击 tag 外部或选择级别 chip 即可收起）。无新增公共 API；向后兼容。
+
+- 修复 / Fixed
+  - 标签筛选下拉从 `DropdownButton`（渲染在 Navigator Overlay）改为**主视图内自绘面板**，修复被面板遮挡的问题
+  - Tag filter dropdown replaced with an **in-view self-drawn panel** (was a `DropdownButton` rendered in the Navigator Overlay that the panel overlay covered)
+  - 触发器改为可点击 chip，并支持在选中 tag 或点击级别 chip 时自动收起面板
+  - Trigger is now a tappable chip; the panel auto-dismisses when a tag is picked or a level chip is tapped
+
 ## 1.5.0
 
 > **📜 Log viewer enhancements / 日志查看器增强:** The log viewer now supports **auto-scroll to the latest entry (pausable)**, **regex search**, **tag filtering**, and **one-tap copy of a single log entry** (as JSON). Auto-scroll keeps new logs in view and can be paused for inspection; the regex toggle compiles the pattern with graceful handling of invalid input; a tag dropdown filters by any captured tag; tapping an entry opens an in-view detail page (with a back button) with copy, and each row has a quick copy button. No new public API; backward compatible.

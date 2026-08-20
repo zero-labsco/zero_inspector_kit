@@ -25,6 +25,9 @@ class _LogViewerState extends State<LogViewer> {
   /// 当前过滤的标签（null 表示不限）/ Currently filtered tag (null = any)
   String? _filterTag;
 
+  /// tag 下拉面板是否在 view 内展开 / Whether the in-view tag dropdown is open
+  bool _tagDropdownOpen = false;
+
   /// 搜索关键词 / Search keyword
   String _searchKeyword = '';
 
@@ -381,80 +384,180 @@ class _LogViewerState extends State<LogViewer> {
       listenable: InspectorService.instance,
       builder: (context, child) {
         final tags = _availableTags(InspectorService.instance.logEntries);
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: InspectorColors.surface,
-            border: Border(bottom: BorderSide(color: InspectorColors.border)),
-          ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip(null, 'All', Icons.filter_list_rounded),
-                ..._levels.map(
-                  (level) => _buildFilterChip(
-                    level,
-                    _getLevelText(level),
-                    _getLevelIcon(level),
-                  ),
+        // Stack 允许下拉面板超出 filter bar 边界，渲染在主视图内（而非
+        // Navigator 的 Overlay），避免被面板裁剪或遮挡。
+        // Stack lets the panel overflow the bar and render inside the view
+        // instead of the Navigator's Overlay (which the panel overlay covers).
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: InspectorColors.surface,
+                border:
+                    Border(bottom: BorderSide(color: InspectorColors.border)),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip(null, 'All', Icons.filter_list_rounded),
+                    ..._levels.map(
+                      (level) => _buildFilterChip(
+                        level,
+                        _getLevelText(level),
+                        _getLevelIcon(level),
+                      ),
+                    ),
+                    if (tags.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      _buildTagDropdown(tags),
+                    ],
+                  ],
                 ),
-                if (tags.isNotEmpty) ...[
-                  const SizedBox(width: 6),
-                  _buildTagDropdown(tags),
-                ],
-              ],
+              ),
             ),
-          ),
+            if (_tagDropdownOpen && tags.isNotEmpty)
+              Positioned(
+                top: 44,
+                right: 12,
+                child: _buildTagDropdownPanel(tags),
+              ),
+          ],
         );
       },
     );
   }
 
-  /// 构建标签下拉过滤 / Build tag dropdown filter
+  /// 构建标签下拉触发 chip / Build tag filter trigger chip
   Widget _buildTagDropdown(List<String> tags) {
-    return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: _filterTag != null
-            ? InspectorColors.accent.withValues(alpha: 0.15)
-            : InspectorColors.card,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(InspectorDimensions.chipRadius),
-        border: Border.all(
-          color: _filterTag != null
-              ? InspectorColors.accent.withValues(alpha: 0.5)
-              : InspectorColors.border,
-          width: 1,
+        onTap: () => setState(() => _tagDropdownOpen = !_tagDropdownOpen),
+        child: Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: _tagDropdownOpen || _filterTag != null
+                ? InspectorColors.accent.withValues(alpha: 0.15)
+                : InspectorColors.card,
+            borderRadius:
+                BorderRadius.circular(InspectorDimensions.chipRadius),
+            border: Border.all(
+              color: _tagDropdownOpen || _filterTag != null
+                  ? InspectorColors.accent.withValues(alpha: 0.5)
+                  : InspectorColors.border,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.local_offer_outlined,
+                size: 13,
+                color: _tagDropdownOpen || _filterTag != null
+                    ? InspectorColors.accent
+                    : InspectorColors.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _filterTag ?? 'Tag',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: _tagDropdownOpen || _filterTag != null
+                      ? InspectorColors.accent
+                      : InspectorColors.textSecondary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(width: 2),
+              Icon(
+                _tagDropdownOpen
+                    ? Icons.arrow_drop_up_rounded
+                    : Icons.arrow_drop_down_rounded,
+                size: 16,
+                color: _tagDropdownOpen || _filterTag != null
+                    ? InspectorColors.accent
+                    : InspectorColors.textSecondary,
+              ),
+            ],
+          ),
         ),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
-          value: _filterTag,
-          isDense: true,
-          icon: Icon(
-            Icons.arrow_drop_down_rounded,
-            size: 16,
-            color: InspectorColors.textSecondary,
+    );
+  }
+
+  /// 自绘下拉面板（渲染在主视图内，不依赖 Navigator Overlay）
+  /// In-view dropdown panel (renders inside the view, not the Navigator Overlay)
+  Widget _buildTagDropdownPanel(List<String> tags) {
+    return Material(
+      elevation: 6,
+      borderRadius: BorderRadius.circular(8),
+      color: InspectorColors.surface,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: 240,
+          minWidth: 140,
+          maxWidth: 260,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: InspectorColors.border, width: 0.5),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildTagMenuItem(null, 'All tags'),
+              ...tags.map((t) => _buildTagMenuItem(t, t)),
+            ],
           ),
-          dropdownColor: InspectorColors.surface,
-          style: TextStyle(fontSize: 11.5, color: InspectorColors.textPrimary),
-          items: [
-            DropdownMenuItem<String?>(
-              value: null,
+        ),
+      ),
+    );
+  }
+
+  /// 下拉面板中的单条 tag / A single tag item in the dropdown panel
+  Widget _buildTagMenuItem(String? tag, String label) {
+    final selected = _filterTag == tag;
+    return InkWell(
+      onTap: () => setState(() {
+        _filterTag = tag;
+        _tagDropdownOpen = false;
+      }),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        color: selected ? InspectorColors.accent.withValues(alpha: 0.12) : null,
+        child: Row(
+          children: [
+            if (selected)
+              Icon(
+                Icons.check_rounded,
+                size: 14,
+                color: InspectorColors.accent,
+              )
+            else
+              const SizedBox(width: 14),
+            const SizedBox(width: 6),
+            Expanded(
               child: Text(
-                'All tags',
-                style: TextStyle(color: InspectorColors.textSecondary),
-              ),
-            ),
-            ...tags.map(
-              (t) => DropdownMenuItem<String?>(
-                value: t,
-                child: Text(t, style: TextStyle(color: InspectorColors.accent)),
+                label,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: selected
+                      ? InspectorColors.accent
+                      : InspectorColors.textPrimary,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
-          onChanged: (value) => setState(() => _filterTag = value),
         ),
       ),
     );
@@ -505,7 +608,10 @@ class _LogViewerState extends State<LogViewer> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(InspectorDimensions.chipRadius),
-          onTap: () => setState(() => _filterLevel = level),
+          onTap: () => setState(() {
+            _filterLevel = level;
+            _tagDropdownOpen = false;
+          }),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
