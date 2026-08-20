@@ -33,7 +33,9 @@ void main() {
 
   testWidgets('自动滚动开关默认开启 / auto-scroll toggle defaults on', (tester) async {
     log('hello', LogLevel.info);
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LogViewer())));
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: LogViewer())),
+    );
     await tester.pumpAndSettle();
 
     // 默认开启态显示置顶图标（点击后切换为暂停图标）。
@@ -50,7 +52,9 @@ void main() {
   testWidgets('正则搜索可命中 / regex search matches', (tester) async {
     log('User logged in', LogLevel.info, tag: 'auth');
     log('Network timeout', LogLevel.error, tag: 'net');
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LogViewer())));
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: LogViewer())),
+    );
     await tester.pumpAndSettle();
 
     // 开启正则模式 / enable regex mode
@@ -71,7 +75,9 @@ void main() {
 
   testWidgets('无效正则不崩溃 / invalid regex does not crash', (tester) async {
     log('plain message', LogLevel.info);
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LogViewer())));
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: LogViewer())),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.code_rounded));
@@ -93,7 +99,9 @@ void main() {
   testWidgets('标签过滤下拉 / tag filter dropdown', (tester) async {
     log('a', LogLevel.info, tag: 'tagA');
     log('b', LogLevel.info, tag: 'tagB');
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LogViewer())));
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: LogViewer())),
+    );
     await tester.pumpAndSettle();
 
     // 打开标签下拉并选择 tagB / open dropdown and pick tagB
@@ -114,7 +122,9 @@ void main() {
 
     log('hello', LogLevel.info);
     log('world', LogLevel.error, tag: 'net');
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LogViewer())));
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: LogViewer())),
+    );
     await tester.pumpAndSettle();
 
     // 不抛 RenderFlex 溢出 / no RenderFlex overflow
@@ -127,23 +137,27 @@ void main() {
       LogLevel.warning,
       tag: 'veryLongTagLabelThatShouldEllipsisNicely',
     );
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LogViewer())));
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: LogViewer())),
+    );
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('veryLongTagLabelThatShouldEllipsisNicely'), findsOneWidget);
+    expect(
+      find.text('veryLongTagLabelThatShouldEllipsisNicely'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('详情弹窗不溢出 / detail sheet does not overflow', (
-    tester,
-  ) async {
+  testWidgets('详情弹窗不溢出 / detail sheet does not overflow', (tester) async {
     // 用中等长度消息，确保列表项渲染出首行文本且弹窗内容较长。
     // Moderately long message so the first line renders in the list and the
     // sheet content is tall enough to exercise the overflow fix.
-    final longMsg =
-        List.generate(25, (i) => 'line $i: ${'x' * 80}').join('\n');
+    final longMsg = List.generate(25, (i) => 'line $i: ${'x' * 80}').join('\n');
     log(longMsg, LogLevel.error, tag: 'detailTag');
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: LogViewer())));
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: LogViewer())),
+    );
     await tester.pumpAndSettle();
 
     // 打开详情弹窗：点击列表项里的 tag（触发整行 onTap）。
