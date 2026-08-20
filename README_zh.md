@@ -17,7 +17,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.4.2 为 widget 检查器的详情视图新增了**尺寸、约束与视觉/布局属性（含颜色色块预览）**——现在你不仅能看 widget 的树结构，还能直接查看它的实际渲染尺寸与颜色（无破坏性变更）。建议所有用户升级到 `^1.4.2`。
+> **🔔 推荐升级：** v1.5.0 为日志查看器带来**自动滚动（可暂停）、正则搜索、按标签过滤与单条日志一键复制**——更快定位与复用日志（无破坏性变更）。建议所有用户升级到 `^1.5.0`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -47,7 +47,7 @@
 
 - **零侵入集成**：一行代码，无需改动现有项目代码。
 - **网络检查器**：实时捕获所有 HTTP（http & Dio）请求；通过拦截规则修改请求体/请求头；批量复制 cURL；敏感请求头遮蔽；可按方法/状态码/拦截状态筛选。
-- **日志系统**：自动捕获 `print()`、Flutter 错误及自定义日志，支持多级别与第三方日志库集成。
+- **日志系统**：自动捕获 `print()`、Flutter 错误及自定义日志，支持多级别与第三方日志库集成；新增自动滚动（可暂停）、正则搜索、按标签过滤与单条日志一键复制。
 - **数据库查看器**：支持 SQLite 及其他数据库，可自定义提供者。
 - **内存监控**：趋势图、Dart Heap、Native 内存分项、泄漏检测、图片缓存与存储统计（总开关避免开销）。
 - **FPS 监控**：实时帧率、掉帧检测、趋势图、帧记录（总开关避免开销）。
@@ -65,7 +65,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.4.2
+  zero_inspector_kit: ^1.5.0
 ```
 
 ### GitHub
@@ -75,7 +75,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.4.2   # 将 1.4.2 替换为你需要的版本号
+      ref: release/v1.5.0   # 将 1.5.0 替换为你需要的版本号
 ```
 
 ---

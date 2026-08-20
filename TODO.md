@@ -230,8 +230,8 @@
 
 ### 中优先级
 
-- [ ] **日志查看器增强 / Log viewer enhancements**
-  - **状态**: 待实现 / To be implemented
+- [x] **日志查看器增强 / Log viewer enhancements** ✅ 已完成 / Done
+  - **状态**: 已实现（v1.5.0）/ Implemented (v1.5.0)
   - **实现方案 / Implementation**:
     - 自动滚动到最新（可暂停）
     - Auto-scroll to latest (with pause option)
@@ -299,8 +299,8 @@
     - 通过 `ZeroInspectorKit` 总开关开启；无需额外 API 调用
     - Enabled via the `ZeroInspectorKit` master switch; no extra API call needed
 
-- [ ] **路由追踪穿透包装 Widget / Route tracking through wrapper widgets**
-  - **状态**: 待实现 / To be implemented
+- [x] **路由追踪穿透包装 Widget / Route tracking through wrapper widgets** ✅ 已完成 / Done
+  - **状态**: 已实现（v1.4.0+）/ Implemented (v1.4.0+)
   - **背景 / Context**:
     - 当前 `runAppWithInspector` 仅在 `app is MaterialApp` 时才注入 `InspectorRouteObserver`；若用户传 `StatelessWidget` / `Container` 等中间层包着 `MaterialApp`，observer 不会被注册，路由栏永远显示 `0 routes`
     - Currently `_wrapAppWithRouteObserver` only injects `InspectorRouteObserver` when `app is MaterialApp`; if the user passes a `StatelessWidget`/`Container` wrapping a `MaterialApp`, the observer is never registered and Routes shows `0 routes` forever

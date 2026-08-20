@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.5.0
+
+> **📜 Log viewer enhancements / 日志查看器增强:** The log viewer now supports **auto-scroll to the latest entry (pausable)**, **regex search**, **tag filtering**, and **one-tap copy of a single log entry** (as JSON). Auto-scroll keeps new logs in view and can be paused for inspection; the regex toggle compiles the pattern with graceful handling of invalid input; a tag dropdown filters by any captured tag; tapping an entry opens an in-view detail page (with a back button) with copy, and each row has a quick copy button. No new public API; backward compatible.
+> 日志查看器新增**自动滚动到最新（可暂停）**、**正则搜索**、**按标签过滤**与**单条日志一键复制（JSON）**。自动滚动让新日志始终可见且可暂停以便查看；正则开关对非法图案做容错；标签下拉可筛选任意已捕获标签；点击单条日志进入主视图内详情页（带返回按钮）并可复制，每行另配快捷复制按钮。无新增公共 API；向后兼容。
+
+- 新增 / Added
+  - 日志查看器工具栏新增**自动滚动开关**（默认开启，可暂停以稳定查看历史日志）
+  - Log viewer toolbar gains a **pausable auto-scroll toggle** (on by default; pause to keep history still)
+  - 搜索框支持**正则模式**（`RegExp`，不区分大小写），非法图案时不崩溃、仅不匹配
+  - Search field supports a **regex mode** (`RegExp`, case-insensitive) that degrades gracefully on invalid patterns
+  - 过滤栏新增**按标签（tag）下拉过滤**，自动汇总当前日志中的所有标签
+  - Filter bar adds a **tag dropdown** that aggregates every tag present in the current logs
+  - 单条日志支持**一键复制为 JSON**（行内复制按钮 + 详情页复制）
+  - Single log entries can be **copied as JSON** via a per-row button and the detail page
+  - 点击日志行进入**主视图内详情页**（带返回按钮，类似 Network 查看器），可查看完整消息并复制
+  - Tapping a log row opens the **in-view detail page** (with a back button, matching the Network viewer) to view the full message and copy it
+  - 新增 `test/log_viewer_test.dart` 覆盖自动滚动、正则搜索、非法正则容错与标签过滤
+  - Added `test/log_viewer_test.dart` covering auto-scroll, regex search, invalid-regex tolerance and tag filtering
+
 ## 1.4.2
 
 > **🎨 Widget inspector: size, constraints & visual properties / Widget 检查器新增尺寸、约束与视觉属性:** The widget inspector detail view now shows a widget's **rendered size** (`RenderBox.size`), **layout constraints** (`RenderBox.constraints`), and extracted **visual/layout properties** (color via a swatch preview, padding, margin, alignment, width/height, decoration, border, etc.). The detail sheet is now scrollable with a capped height to avoid overflow when many properties are present. The captured tree excludes the inspector's own `InspectorPanel` subtree. No new public API; backward compatible.

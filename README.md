@@ -17,7 +17,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** v1.4.2 adds size, constraints and visual/layout properties (with a color swatch preview) to the widget inspector detail view — so you can now inspect a widget's rendered dimensions and colors, not just its tree structure (no breaking changes). All users are advised to upgrade to `^1.4.2`.
+> **🔔 Upgrade recommended:** v1.5.0 enhances the log viewer with auto-scroll (pausable), regex search, tag filtering and one-tap copy of a single log entry — so you can locate and reuse logs faster than ever (no breaking changes). All users are advised to upgrade to `^1.5.0`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -47,7 +47,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 - **Zero-Invasion Integration** — One line of code, no changes to existing project code.
 - **Network Inspector** — Real-time capture of all HTTP (http & Dio) requests; modify bodies/headers via interceptor rules; batch cURL copy; sensitive-header masking; filterable by method/status/interception.
-- **Logging System** — Auto-captures `print()`, Flutter errors, and custom logs across multiple levels; integrates with third-party log libraries.
+- **Logging System** — Auto-captures `print()`, Flutter errors, and custom logs across multiple levels; integrates with third-party log libraries; auto-scroll (pausable), regex search, tag filtering and one-tap copy of a single log entry.
 - **Database Viewer** — Inspect SQLite and other databases via custom providers.
 - **Memory Monitor** — Trend chart, Dart Heap, Native memory breakdown, leak detection, image-cache & storage stats (master switch to avoid overhead).
 - **FPS Monitor** — Real-time FPS, jank detection, trend chart, frame records (master switch to avoid overhead).
@@ -65,7 +65,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.4.2
+  zero_inspector_kit: ^1.5.0
 ```
 
 ### GitHub
@@ -75,7 +75,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.4.2   # replace 1.4.2 with the version you need
+      ref: release/v1.5.0   # replace 1.5.0 with the version you need
 ```
 
 ---

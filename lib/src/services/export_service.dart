@@ -295,6 +295,10 @@ class ExportService {
     }
   }
 
+  /// 复制单条文本到剪贴板（公开包装，供单条日志复制等使用）
+  /// Copy a single text to clipboard (public wrapper).
+  Future<void> copyText(String content) => copy(content);
+
   /// 日志级别前缀 / Log level prefix
   String _lvl(LogLevel l) {
     switch (l) {

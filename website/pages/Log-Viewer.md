@@ -33,9 +33,16 @@ The Log Viewer automatically captures logs from multiple sources with zero confi
 ## UI Features / UI 功能
 
 ### Filter Bar / 过滤栏
-- **All**: Show all logs / 显示所有日志
+- **All**: Show all logs / 使用 All 显示所有日志
 - **V / D / I / W / E**: Filter by level / 按级别过滤
+- **Tag dropdown**: Filter by any captured tag / 按任意已捕获标签过滤
 - Single-select mode / 单选模式
+
+### Toolbar / 工具栏
+- **Auto-scroll toggle** (default on): Jump to the newest log as new entries arrive; pause to keep history still for inspection / **自动滚动开关**（默认开启）：新日志到达时自动跳到最新；暂停可稳定查看历史
+- **Copy as JSON**: Copy all currently filtered logs as JSON / **复制为 JSON**：将当前过滤后的全部日志复制为 JSON
+- **Share as Text**: Share filtered logs as plain text / **分享为文本**：将过滤后的日志以纯文本分享
+- **Clear**: Clear all logs / **清除**：清空全部日志
 
 ### Log List / 日志列表
 - Level badge with color / 带颜色的级别徽章
@@ -43,10 +50,13 @@ The Log Viewer automatically captures logs from multiple sources with zero confi
 - Tag display (if available) / 标签显示（如有）
 - Error/warning rows have subtle background tint / 错误/警告行有淡色背景
 - Left border color indicates level / 左侧边框颜色表示级别
+- Tap a row to open the in-view detail page with full message and copy; use the back button to return / 点击行进入详情页（主视图内切换），可查看完整消息并复制，点返回按钮回到列表
+- Per-row copy button copies that single log as JSON / 行内复制按钮将该条日志以 JSON 复制
 
 ### Search / 搜索
 - Fuzzy search by message content or tag / 按消息内容或标签模糊搜索
-- Combined with level filter / 可与级别过滤组合使用
+- Toggle **regex mode** (`. *` button) to search with `RegExp` (case-insensitive); invalid patterns degrade gracefully instead of crashing / 点击 **正则模式**（`. *` 按钮）使用 `RegExp` 搜索（不区分大小写）；非法图案优雅降级，不会崩溃
+- Combined with level and tag filters / 可与级别、标签过滤组合使用
 
 ## Manual Logging / 手动记录日志
 

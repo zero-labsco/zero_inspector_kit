@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 
 import '../models/log_entry.dart';
 import '../services/inspector_service.dart';
@@ -7,7 +8,9 @@ import 'theme/inspector_theme.dart';
 import 'widgets/widgets.dart';
 
 /// 日志查看器 / Log viewer
-/// 显示所有捕获的日志，支持按级别过滤和搜索 / Display all captured logs, support filtering by level and search
+/// 显示所有捕获的日志，支持按级别/标签过滤、正则搜索、自动滚动与单条复制。
+/// Display all captured logs with level/tag filtering, regex search,
+/// auto-scroll and per-entry copy.
 class LogViewer extends StatefulWidget {
   const LogViewer({super.key});
 
@@ -19,37 +22,97 @@ class _LogViewerState extends State<LogViewer> {
   /// 当前过滤的日志级别 / Currently filtered log level
   LogLevel? _filterLevel;
 
+  /// 当前过滤的标签（null 表示不限）/ Currently filtered tag (null = any)
+  String? _filterTag;
+
   /// 搜索关键词 / Search keyword
   String _searchKeyword = '';
+
+  /// 是否使用正则搜索 / Whether regex search is enabled
+  bool _useRegex = false;
+
+  /// 编译后的正则（无效时为 null）/ Compiled regex (null when invalid)
+  RegExp? _regex;
+
+  /// 正则是否无效 / Whether the current regex is invalid
+  bool _regexInvalid = false;
+
+  /// 自动滚动到最新 / Auto-scroll to latest
+  bool _autoScroll = true;
 
   /// 搜索控制器 / Search controller
   final TextEditingController _searchController = TextEditingController();
 
+  /// 列表滚动控制器 / Scroll controller
+  final ScrollController _scrollController = ScrollController();
+
   /// 所有日志级别 / All log levels
   final List<LogLevel> _levels = LogLevel.values;
 
+  /// 当前选中的日志 id；非空时进入详情页（类似 Network 查看器）。
+  /// Selected log id; non-null means we're in the detail view (like Network).
+  String? _selectedLogId;
+
+  /// 从实时列表中解析当前选中的日志；找不到（已被淘汰）时返回 null。
+  /// Resolves the selected log from the live list; null if evicted.
+  LogEntry? get _selectedLog {
+    if (_selectedLogId == null) return null;
+    final list = InspectorService.instance.logEntries;
+    for (final e in list) {
+      if (e.id == _selectedLogId) return e;
+    }
+    return null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    InspectorService.instance.addListener(_onServiceChanged);
+  }
+
   @override
   void dispose() {
+    InspectorService.instance.removeListener(_onServiceChanged);
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  /// 监听服务变化，在自动滚动开启时跳到最新（列表顶部）/ React to new logs
+  void _onServiceChanged() {
+    if (!_autoScroll || !_scrollController.hasClients) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final selected = _selectedLog;
     return Column(
       children: [
         _buildToolbar(),
-        _buildSearchBar(),
-        _buildFilterBar(),
+        // 详情页隐藏搜索栏与过滤栏 / Detail view hides the search & filter bars
+        if (selected == null) _buildSearchBar(),
+        if (selected == null) _buildFilterBar(),
         Expanded(
           child: ListenableBuilder(
             listenable: InspectorService.instance,
             builder: (context, child) {
+              if (selected != null) {
+                return _buildLogDetail(context, selected);
+              }
+
               final logs = _filterLogs(InspectorService.instance.logEntries);
 
               if (logs.isEmpty) {
                 return InspectorEmptyState(
-                  message: _searchKeyword.isEmpty && _filterLevel == null
+                  message:
+                      _searchKeyword.isEmpty &&
+                          _filterLevel == null &&
+                          _filterTag == null
                       ? 'No logs yet'
                       : 'No matching logs',
                   icon: Icons.subject_rounded,
@@ -57,6 +120,7 @@ class _LogViewerState extends State<LogViewer> {
               }
 
               return ListView.builder(
+                controller: _scrollController,
                 itemCount: logs.length,
                 itemBuilder: (context, index) => _buildLogItem(logs[index]),
               );
@@ -67,7 +131,7 @@ class _LogViewerState extends State<LogViewer> {
     );
   }
 
-  /// 模糊搜索和级别过滤日志 / Filter logs with fuzzy search and level filter
+  /// 模糊/正则搜索 + 级别 + 标签过滤日志 / Filter logs
   List<LogEntry> _filterLogs(List<LogEntry> logs) {
     var result = logs;
 
@@ -75,19 +139,45 @@ class _LogViewerState extends State<LogViewer> {
       result = result.where((e) => e.level == _filterLevel).toList();
     }
 
+    if (_filterTag != null) {
+      result = result.where((e) => e.tag == _filterTag).toList();
+    }
+
     if (_searchKeyword.isNotEmpty) {
-      final keyword = _searchKeyword.toLowerCase();
-      result = result.where((e) {
-        return e.message.toLowerCase().contains(keyword) ||
-            (e.tag != null && e.tag!.toLowerCase().contains(keyword));
-      }).toList();
+      if (_useRegex) {
+        // 正则模式下无效正则不匹配任何结果，避免崩溃。
+        // In regex mode an invalid pattern matches nothing instead of crashing.
+        if (_regexInvalid || _regex == null) {
+          return const [];
+        }
+        result = result.where((e) {
+          return _regex!.hasMatch(e.message) ||
+              (e.tag != null && _regex!.hasMatch(e.tag!));
+        }).toList();
+      } else {
+        final keyword = _searchKeyword.toLowerCase();
+        result = result.where((e) {
+          return e.message.toLowerCase().contains(keyword) ||
+              (e.tag != null && e.tag!.toLowerCase().contains(keyword));
+        }).toList();
+      }
     }
 
     return result;
   }
 
+  /// 当前日志中所有去重后的标签 / Distinct tags from current logs
+  List<String> _availableTags(List<LogEntry> logs) {
+    final tags = <String>{};
+    for (final e in logs) {
+      if (e.tag != null && e.tag!.isNotEmpty) tags.add(e.tag!);
+    }
+    return tags.toList()..sort();
+  }
+
   /// 构建工具栏 / Build toolbar
   Widget _buildToolbar() {
+    final selected = _selectedLog;
     return ListenableBuilder(
       listenable: InspectorService.instance,
       builder: (context, child) {
@@ -99,12 +189,19 @@ class _LogViewerState extends State<LogViewer> {
           ),
           child: Row(
             children: [
-              InspectorCountBadge(
-                '${InspectorService.instance.logEntries.length}',
-              ),
+              if (selected != null)
+                InspectorIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  tooltip: 'Back',
+                  onTap: () => setState(() => _selectedLogId = null),
+                )
+              else
+                InspectorCountBadge(
+                  '${InspectorService.instance.logEntries.length}',
+                ),
               const SizedBox(width: 8),
               Text(
-                'Logs',
+                selected != null ? 'Log Detail' : 'Logs',
                 style: TextStyle(
                   color: InspectorColors.textPrimary,
                   fontSize: 13,
@@ -112,52 +209,79 @@ class _LogViewerState extends State<LogViewer> {
                 ),
               ),
               const Spacer(),
-              InspectorIconButton(
-                icon: Icons.content_copy_rounded,
-                tooltip: 'Copy as JSON',
-                onTap: () async {
-                  final logs = _filterLogs(
-                    InspectorService.instance.logEntries,
-                  );
-                  if (logs.isEmpty) return;
-                  final messenger = ScaffoldMessenger.of(context);
-                  await ExportService.instance.copyLogs(logs);
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text('Copied ${logs.length} logs as JSON'),
-                      ),
-                    );
-                  }
-                },
-              ),
-              InspectorIconButton(
-                icon: Icons.share_rounded,
-                tooltip: 'Share as Text',
-                onTap: () async {
-                  final logs = _filterLogs(
-                    InspectorService.instance.logEntries,
-                  );
-                  if (logs.isEmpty) return;
-                  final messenger = ScaffoldMessenger.of(context);
-                  await ExportService.instance.exportLogsAndShare(
-                    logs,
-                    json: false,
-                  );
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text('Sharing ${logs.length} logs as Text'),
-                      ),
-                    );
-                  }
-                },
-              ),
-              InspectorIconButton(
-                icon: Icons.delete_outline_rounded,
-                tooltip: 'Clear',
-                onTap: () => InspectorService.instance.clearLogs(),
-              ),
+              if (selected == null)
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    reverse: true,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        InspectorIconButton(
+                          icon: _autoScroll
+                              ? Icons.vertical_align_top_rounded
+                              : Icons.pause_circle_outline_rounded,
+                          tooltip: _autoScroll
+                              ? 'Auto-scroll on'
+                              : 'Auto-scroll paused',
+                          active: _autoScroll,
+                          onTap: () =>
+                              setState(() => _autoScroll = !_autoScroll),
+                        ),
+                        InspectorIconButton(
+                          icon: Icons.content_copy_rounded,
+                          tooltip: 'Copy as JSON',
+                          onTap: () async {
+                            final logs = _filterLogs(
+                              InspectorService.instance.logEntries,
+                            );
+                            if (logs.isEmpty) return;
+                            final messenger = ScaffoldMessenger.of(context);
+                            await ExportService.instance.copyLogs(logs);
+                            if (mounted) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Copied ${logs.length} logs as JSON',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        InspectorIconButton(
+                          icon: Icons.share_rounded,
+                          tooltip: 'Share as Text',
+                          onTap: () async {
+                            final logs = _filterLogs(
+                              InspectorService.instance.logEntries,
+                            );
+                            if (logs.isEmpty) return;
+                            final messenger = ScaffoldMessenger.of(context);
+                            await ExportService.instance.exportLogsAndShare(
+                              logs,
+                              json: false,
+                            );
+                            if (mounted) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Sharing ${logs.length} logs as Text',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        InspectorIconButton(
+                          icon: Icons.delete_outline_rounded,
+                          tooltip: 'Clear',
+                          onTap: () => InspectorService.instance.clearLogs(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         );
@@ -169,38 +293,168 @@ class _LogViewerState extends State<LogViewer> {
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: InspectorSearchField(
-        controller: _searchController,
-        hint: 'Search message, tag...',
-        onClear: () {
-          _searchController.clear();
-          setState(() => _searchKeyword = '');
-        },
+      child: Row(
+        children: [
+          Expanded(
+            child: InspectorSearchField(
+              controller: _searchController,
+              hint: _useRegex
+                  ? 'Search with regex...'
+                  : 'Search message, tag...',
+              onChanged: _onSearchChanged,
+              onClear: () {
+                _searchController.clear();
+                _onSearchChanged('');
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => setState(() => _useRegex = !_useRegex),
+              child: Container(
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: _useRegex
+                      ? InspectorColors.accent.withValues(alpha: 0.15)
+                      : InspectorColors.card,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: _useRegex
+                        ? InspectorColors.accent.withValues(alpha: 0.5)
+                        : InspectorColors.border,
+                    width: 0.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.code_rounded,
+                      size: 14,
+                      color: _useRegex
+                          ? InspectorColors.accent
+                          : InspectorColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '. *',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _useRegex
+                            ? InspectorColors.accent
+                            : InspectorColors.textSecondary,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  /// 搜索输入变化：更新关键词或编译正则 / Handle search input
+  void _onSearchChanged(String value) {
+    setState(() {
+      _searchKeyword = value;
+      _regexInvalid = false;
+      _regex = null;
+      if (_useRegex && value.isNotEmpty) {
+        try {
+          _regex = RegExp(value, caseSensitive: false);
+        } catch (_) {
+          _regexInvalid = true;
+        }
+      }
+    });
+  }
+
   /// 构建过滤栏 / Build filter bar
   Widget _buildFilterBar() {
+    return ListenableBuilder(
+      listenable: InspectorService.instance,
+      builder: (context, child) {
+        final tags = _availableTags(InspectorService.instance.logEntries);
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: InspectorColors.surface,
+            border: Border(bottom: BorderSide(color: InspectorColors.border)),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildFilterChip(null, 'All', Icons.filter_list_rounded),
+                ..._levels.map(
+                  (level) => _buildFilterChip(
+                    level,
+                    _getLevelText(level),
+                    _getLevelIcon(level),
+                  ),
+                ),
+                if (tags.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  _buildTagDropdown(tags),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// 构建标签下拉过滤 / Build tag dropdown filter
+  Widget _buildTagDropdown(List<String> tags) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: InspectorColors.surface,
-        border: Border(bottom: BorderSide(color: InspectorColors.border)),
+        color: _filterTag != null
+            ? InspectorColors.accent.withValues(alpha: 0.15)
+            : InspectorColors.card,
+        borderRadius: BorderRadius.circular(InspectorDimensions.chipRadius),
+        border: Border.all(
+          color: _filterTag != null
+              ? InspectorColors.accent.withValues(alpha: 0.5)
+              : InspectorColors.border,
+          width: 1,
+        ),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildFilterChip(null, 'All', Icons.filter_list_rounded),
-            ..._levels.map(
-              (level) => _buildFilterChip(
-                level,
-                _getLevelText(level),
-                _getLevelIcon(level),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: _filterTag,
+          isDense: true,
+          icon: Icon(
+            Icons.arrow_drop_down_rounded,
+            size: 16,
+            color: InspectorColors.textSecondary,
+          ),
+          dropdownColor: InspectorColors.surface,
+          style: TextStyle(fontSize: 11.5, color: InspectorColors.textPrimary),
+          items: [
+            DropdownMenuItem<String?>(
+              value: null,
+              child: Text(
+                'All tags',
+                style: TextStyle(color: InspectorColors.textSecondary),
+              ),
+            ),
+            ...tags.map(
+              (t) => DropdownMenuItem<String?>(
+                value: t,
+                child: Text(t, style: TextStyle(color: InspectorColors.accent)),
               ),
             ),
           ],
+          onChanged: (value) => setState(() => _filterTag = value),
         ),
       ),
     );
@@ -297,87 +551,120 @@ class _LogViewerState extends State<LogViewer> {
   Widget _buildLogItem(LogEntry entry) {
     final levelColor = _getLevelColor(entry.level);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: entry.level == LogLevel.error
-            ? InspectorColors.error.withValues(alpha: 0.05)
-            : entry.level == LogLevel.warning
-            ? InspectorColors.warning.withValues(alpha: 0.05)
-            : Colors.transparent,
-        border: Border(
-          left: BorderSide(color: levelColor, width: 3),
-          bottom: BorderSide(color: InspectorColors.divider, width: 0.5),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: levelColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  entry.levelText,
-                  style: TextStyle(
-                    color: levelColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                entry.timestampText,
-                style: TextStyle(
-                  color: InspectorColors.textSecondary,
-                  fontSize: 11,
-                ),
-              ),
-              if (entry.tag != null) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: InspectorColors.border,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    entry.tag!,
-                    style: TextStyle(
-                      color: InspectorColors.accent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            entry.message,
-            style: TextStyle(
-              color: entry.level == LogLevel.error
-                  ? InspectorColors.logErrorText
-                  : entry.level == LogLevel.warning
-                  ? InspectorColors.logWarningText
-                  : InspectorColors.textPrimary,
-              fontSize: 12.5,
-              height: 1.4,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _selectedLogId = entry.id),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: entry.level == LogLevel.error
+                ? InspectorColors.error.withValues(alpha: 0.05)
+                : entry.level == LogLevel.warning
+                ? InspectorColors.warning.withValues(alpha: 0.05)
+                : Colors.transparent,
+            border: Border(
+              left: BorderSide(color: levelColor, width: 3),
+              bottom: BorderSide(color: InspectorColors.divider, width: 0.5),
             ),
           ),
-        ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: levelColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      entry.levelText,
+                      style: TextStyle(
+                        color: levelColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      entry.timestampText,
+                      style: TextStyle(
+                        color: InspectorColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (entry.tag != null) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: InspectorColors.border,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          entry.tag!,
+                          style: TextStyle(
+                            color: InspectorColors.accent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  InspectorIconButton(
+                    icon: Icons.copy_rounded,
+                    tooltip: 'Copy this log',
+                    size: 18,
+                    onTap: () => _copySingle(entry),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                entry.message,
+                style: TextStyle(
+                  color: entry.level == LogLevel.error
+                      ? InspectorColors.logErrorText
+                      : entry.level == LogLevel.warning
+                      ? InspectorColors.logWarningText
+                      : InspectorColors.textPrimary,
+                  fontSize: 12.5,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  /// 复制单条日志为 JSON / Copy a single log entry as JSON
+  Future<void> _copySingle(LogEntry entry) async {
+    final messenger = ScaffoldMessenger.of(context);
+    await ExportService.instance.copyText(jsonEncode(entry.toJson()));
+    if (mounted) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Copied log as JSON')),
+      );
+    }
   }
 
   /// 根据日志级别获取颜色 / Get color by log level
@@ -394,5 +681,116 @@ class _LogViewerState extends State<LogViewer> {
       case LogLevel.error:
         return InspectorColors.logError;
     }
+  }
+}
+
+/// 日志详情（view 内切换，类似 Network 查看器）/ In-view log detail
+Widget _buildLogDetail(BuildContext context, LogEntry entry) {
+  final levelColor = _logLevelColor(entry.level);
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: levelColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                entry.levelText,
+                style: TextStyle(
+                  color: levelColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                entry.timestamp.toString(),
+                style: TextStyle(
+                  color: InspectorColors.textSecondary,
+                  fontSize: 11,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            InspectorIconButton(
+              icon: Icons.copy_rounded,
+              tooltip: 'Copy JSON',
+              onTap: () async {
+                await ExportService.instance.copyText(
+                  jsonEncode(entry.toJson()),
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Copied log as JSON')),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+        if (entry.tag != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: InspectorColors.border,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              entry.tag!,
+              style: TextStyle(
+                color: InspectorColors.accent,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: InspectorColors.card,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: SingleChildScrollView(
+            child: Text(
+              entry.message,
+              style: TextStyle(
+                color: InspectorColors.textPrimary,
+                fontSize: 12.5,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// 根据日志级别获取颜色 / Get color by log level
+Color _logLevelColor(LogLevel level) {
+  switch (level) {
+    case LogLevel.verbose:
+      return InspectorColors.logVerbose;
+    case LogLevel.debug:
+      return InspectorColors.logDebug;
+    case LogLevel.info:
+      return InspectorColors.logInfo;
+    case LogLevel.warning:
+      return InspectorColors.logWarning;
+    case LogLevel.error:
+      return InspectorColors.logError;
   }
 }
