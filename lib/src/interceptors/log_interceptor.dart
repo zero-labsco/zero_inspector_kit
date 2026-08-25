@@ -164,8 +164,12 @@ class InspectorLogInterceptor {
 
   /// 通过 print 输出日志并捕获 / Output log via print and capture
   void logPrint(String message) {
-    // ignore: avoid_print
-    print(message);
+    // 仅在调试模式输出到控制台，避免 release 包泄漏日志到 stdout。
+    // Only print to console in debug mode to avoid leaking logs in release builds.
+    assert(() {
+      debugPrint(message);
+      return true;
+    }());
     captureLog(message, LogLevel.debug);
   }
 
