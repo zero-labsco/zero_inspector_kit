@@ -17,7 +17,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** v1.5.1 fixes the log viewer's tag filter dropdown so the menu now opens inside the main view (it was previously clipped/occluded by the inspector panel overlay). All users on 1.5.0 are advised to upgrade to `^1.5.1`.
+> **🔔 Upgrade recommended:** v1.5.2 cleans up the TODO list and consolidates duplicated helpers (shared `formatBytes`, single level-color helper, live search-field clear button, no release-stdout log leak). All users on 1.5.1 are advised to upgrade to `^1.5.2`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -65,7 +65,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.5.1
+  zero_inspector_kit: ^1.5.2
 ```
 
 ### GitHub
@@ -75,7 +75,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.5.1   # replace 1.5.1 with the version you need
+      ref: release/v1.5.2   # replace 1.5.2 with the version you need
 ```
 
 ---

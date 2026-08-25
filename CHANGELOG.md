@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.2
+
+> **🧹 Cleanup & consolidation / 清理与收敛:** Removed the unfinished TODO items and consolidated duplicated helpers without changing any public API. Includes a live-updating search-field clear button and no release-stdout log leak.
+> 移除了未完成的 TODO 项，并收敛了重复代码，未改动任何公共 API。包含实时更新的搜索框清空按钮，且 release 包不再将日志泄漏到 stdout。
+
+- 清理 / Chore
+  - 清空 `TODO.md` 中的未完成项，仅保留已完成功能作为历史归档
+  - Cleared unfinished items in `TODO.md`; kept completed features as historical notes only
+  - 内存查看器的 `formatBytes` 改为委托共享的 `InspectorFormatters.formatBytes`，消除重复实现
+  - `MemoryViewer.formatBytes` now delegates to the shared `InspectorFormatters.formatBytes` (no duplicated impl)
+  - 日志查看器的 `_getLevelColor` 委托文件级 `_logLevelColor`，消除重复的颜色逻辑
+  - `LogViewer._getLevelColor` delegates to the file-level `_logLevelColor` (no duplicated logic)
+  - 搜索框清空按钮改用 `ValueListenableBuilder` 监听输入框，修复输入后清空按钮不出现的缺陷
+  - The search field's clear button now uses `ValueListenableBuilder` so it appears/disappears with input (bug fix)
+  - `logPrint` 仅在调试模式输出到控制台（用 `assert` 守卫），避免 release 包泄漏日志到 stdout
+  - `logPrint` only prints to console in debug mode (guarded by `assert`), avoiding log leak to stdout in release
+
 ## 1.5.1
 
 > **🐞 Log viewer tag filter fix / 日志查看器标签筛选修复:** The tag filter dropdown now opens **inside the main inspector view** instead of the Navigator's Overlay, so the menu is no longer clipped or occluded by the persistent inspector panel. The trigger is now an in-view chip that toggles a self-drawn panel (tap outside a tag, or pick a level chip, to dismiss). No new public API; backward compatible.
