@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'theme/inspector_theme.dart';
+import '../utils/formatters.dart';
 import '../models/leak_record.dart';
 import '../services/memory_inspector_service.dart';
 import 'memory_trend_chart.dart';
@@ -56,16 +57,9 @@ class _MemoryViewerState extends State<MemoryViewer> {
   }
 
   /// 格式化字节数为可读字符串 / Format bytes to readable string
-  static String formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    }
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-  }
+  /// 复用共享工具，避免重复实现 / Delegates to the shared formatter.
+  static String formatBytes(int bytes) =>
+      InspectorFormatters.formatBytes(bytes);
 
   @override
   Widget build(BuildContext context) {

@@ -806,20 +806,8 @@ class _LogViewerState extends State<LogViewer> {
   }
 
   /// 根据日志级别获取颜色 / Get color by log level
-  Color _getLevelColor(LogLevel level) {
-    switch (level) {
-      case LogLevel.verbose:
-        return InspectorColors.logVerbose;
-      case LogLevel.debug:
-        return InspectorColors.logDebug;
-      case LogLevel.info:
-        return InspectorColors.logInfo;
-      case LogLevel.warning:
-        return InspectorColors.logWarning;
-      case LogLevel.error:
-        return InspectorColors.logError;
-    }
-  }
+  /// 复用文件级 _logLevelColor，避免重复实现 / Reuses file-level helper.
+  Color _getLevelColor(LogLevel level) => _logLevelColor(level);
 }
 
 /// 日志详情（view 内切换，类似 Network 查看器）/ In-view log detail

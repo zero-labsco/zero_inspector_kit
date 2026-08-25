@@ -56,18 +56,21 @@ class InspectorSearchField extends StatelessWidget {
             minWidth: 28,
             minHeight: 32,
           ),
-          suffixIcon: controller.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.close_rounded,
-                    size: 14,
-                    color: InspectorColors.textHint,
-                  ),
-                  onPressed: onClear,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                )
-              : null,
+          suffixIcon: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, _) => value.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: 14,
+                      color: InspectorColors.textHint,
+                    ),
+                    onPressed: onClear,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  )
+                : const SizedBox.shrink(),
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 8,
