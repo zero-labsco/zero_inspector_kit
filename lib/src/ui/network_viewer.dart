@@ -1040,20 +1040,29 @@ class _NetworkViewerState extends State<NetworkViewer> {
           ),
           child: Column(
             children: [
-              Row(
-                children: [
-                  _timelineLegend(
-                    color: InspectorColors.accent,
-                    label: 'Wait (TTFB)',
-                    value: waitText,
-                  ),
-                  const SizedBox(width: 16),
-                  _timelineLegend(
-                    color: InspectorColors.success,
-                    label: 'Total',
-                    value: totalText,
-                  ),
-                ],
+              // 图例行在窄面板 / 大系统字体下可能超出可用宽度，用横向滚动包裹，
+              // 避免 RenderFlex 水平溢出（与 viewer toolbar 的处理方式一致）。
+              // The legend row can exceed the available width on narrow panels or
+              // with large system fonts; wrap in a horizontal scroll to avoid
+              // RenderFlex overflow.
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _timelineLegend(
+                      color: InspectorColors.accent,
+                      label: 'Wait (TTFB)',
+                      value: waitText,
+                    ),
+                    const SizedBox(width: 16),
+                    _timelineLegend(
+                      color: InspectorColors.success,
+                      label: 'Total',
+                      value: totalText,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 10),
               SizedBox(

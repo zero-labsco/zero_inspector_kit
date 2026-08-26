@@ -586,11 +586,18 @@ class _RouteCaptureIndicator extends StatelessWidget {
           children: [
             Icon(Icons.route_outlined, color: color, size: 18),
             const SizedBox(width: 8),
-            Text(
-              'Routes captured by inspector: $count',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(color: color),
+            // 用 Flexible 约束文字宽度，避免窄屏或系统大字体下整行溢出。
+            // Flexible bounds the text width so the row never overflows on
+            // narrow screens or with large system fonts.
+            Flexible(
+              child: Text(
+                'Routes captured by inspector: $count',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: color),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         );

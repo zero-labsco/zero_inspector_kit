@@ -185,32 +185,33 @@ class _InspectorPanelState extends State<InspectorPanel>
             ),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Zero Inspector Kit',
-                style: TextStyle(
-                  color: InspectorColors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.3,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Zero Inspector Kit',
+                  style: TextStyle(
+                    color: InspectorColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                  ),
                 ),
-              ),
-              Text(
-                'Developer Tools',
-                style: TextStyle(
-                  color: InspectorColors.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w400,
+                Text(
+                  'Developer Tools',
+                  style: TextStyle(
+                    color: InspectorColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              _buildStatusRow(),
-            ],
+                const SizedBox(height: 3),
+                _buildStatusRow(),
+              ],
+            ),
           ),
-          const Spacer(),
           IconButton(
             onPressed: widget.onClose,
             icon: Container(
@@ -274,47 +275,40 @@ class _InspectorPanelState extends State<InspectorPanel>
           bottom: BorderSide(color: InspectorColors.border, width: 1),
         ),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // 6个Tab(图标+文字)在宽度小于480时需要滚动，否则均匀分布 / 6 tabs need scrolling when width < 480, otherwise evenly distributed
-          final isScrollable = constraints.maxWidth < 480;
-          return TabBar(
-            controller: _tabController,
-            isScrollable: isScrollable,
-            tabAlignment: isScrollable ? TabAlignment.start : TabAlignment.fill,
-            indicator: BoxDecoration(
-              gradient: InspectorGradients.tabIndicator,
-              borderRadius: BorderRadius.circular(
-                InspectorDimensions.chipRadius,
-              ),
-            ),
-            // 始终使用 tab 宽度作为指示器大小，确保选中指示器填满整个 Tab
-            // Always use tab width as indicator size to ensure selection indicator fills the entire tab
-            indicatorSize: TabBarIndicatorSize.tab,
-            indicatorPadding: const EdgeInsets.symmetric(vertical: 4),
-            labelPadding: isScrollable
-                ? const EdgeInsets.symmetric(horizontal: 16)
-                : null,
-            dividerColor: Colors.transparent,
-            labelColor: InspectorColors.textPrimary,
-            unselectedLabelColor: InspectorColors.textSecondary,
-            labelStyle: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-            ),
-            tabs: List.generate(_titles.length, (index) {
-              return Tab(
-                icon: Icon(_icons[index], size: 18),
-                text: _titles[index],
-                height: 44,
-              );
-            }),
-          );
-        },
+      child: TabBar(
+        controller: _tabController,
+        // 始终允许横向滚动：8 个带文字的标签页在窄屏或系统大字体下
+        // 可能超出可用宽度，可滚动才能保证在所有设备/字号下都不溢出。
+        // Always scrollable: with 8 labeled tabs and large system fonts the
+        // row can overflow on some devices; scrolling keeps it safe everywhere.
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        indicator: BoxDecoration(
+          gradient: InspectorGradients.tabIndicator,
+          borderRadius: BorderRadius.circular(InspectorDimensions.chipRadius),
+        ),
+        // 始终使用 tab 宽度作为指示器大小，确保选中指示器填满整个 Tab
+        // Always use tab width as indicator size to ensure selection indicator fills the entire tab
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicatorPadding: const EdgeInsets.symmetric(vertical: 4),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+        dividerColor: Colors.transparent,
+        labelColor: InspectorColors.textPrimary,
+        unselectedLabelColor: InspectorColors.textSecondary,
+        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+        ),
+        tabs: List.generate(_titles.length, (index) {
+          // 不设固定 height：让 tab 高度随图标 + 文字（含系统大字体缩放）自适应，
+          // 否则固定 44 会约束内容，在系统大字体下文字被压出底部导致
+          // RenderFlex bottom overflow。这样在任意设备/字号下都安全。
+          // No fixed height: the tab sizes to its icon + label (including system
+          // font scaling). A fixed 44 would clip/overflow the label on large
+          // system fonts, so letting it size automatically is safe everywhere.
+          return Tab(icon: Icon(_icons[index], size: 18), text: _titles[index]);
+        }),
       ),
     );
   }

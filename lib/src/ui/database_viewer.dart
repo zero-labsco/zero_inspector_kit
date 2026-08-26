@@ -606,45 +606,52 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
   /// 构建分页栏 / Build pagination bar
   Widget _buildPaginationBar(int lastPage) {
     final total = _tableData?.total ?? 0;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        InspectorIconButton(
-          icon: Icons.first_page_rounded,
-          tooltip: 'First page',
-          enabled: _currentPage > 0,
-          onTap: () => _goToPage(0),
-        ),
-        InspectorIconButton(
-          icon: Icons.chevron_left_rounded,
-          tooltip: 'Previous',
-          enabled: _currentPage > 0,
-          onTap: () => _goToPage(_currentPage - 1),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            'Page ${_currentPage + 1} / ${lastPage + 1}'
-            '${total > 0 ? '  ($total total)' : ''}',
-            style: TextStyle(
-              color: InspectorColors.textSecondary,
-              fontSize: 11,
+    // 分页栏含 5 个图标按钮 + 文本，在窄面板 / 大系统字体下可能超出可用宽度，
+    // 用横向滚动包裹避免 RenderFlex 水平溢出（与 viewer toolbar 一致）。
+    // The pagination bar holds 5 icon buttons + text; wrap in a horizontal
+    // scroll so it never overflows on narrow panels / large fonts.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          InspectorIconButton(
+            icon: Icons.first_page_rounded,
+            tooltip: 'First page',
+            enabled: _currentPage > 0,
+            onTap: () => _goToPage(0),
+          ),
+          InspectorIconButton(
+            icon: Icons.chevron_left_rounded,
+            tooltip: 'Previous',
+            enabled: _currentPage > 0,
+            onTap: () => _goToPage(_currentPage - 1),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              'Page ${_currentPage + 1} / ${lastPage + 1}'
+              '${total > 0 ? '  ($total total)' : ''}',
+              style: TextStyle(
+                color: InspectorColors.textSecondary,
+                fontSize: 11,
+              ),
             ),
           ),
-        ),
-        InspectorIconButton(
-          icon: Icons.chevron_right_rounded,
-          tooltip: 'Next',
-          enabled: _currentPage < lastPage,
-          onTap: () => _goToPage(_currentPage + 1),
-        ),
-        InspectorIconButton(
-          icon: Icons.last_page_rounded,
-          tooltip: 'Last page',
-          enabled: _currentPage < lastPage,
-          onTap: () => _goToPage(lastPage),
-        ),
-      ],
+          InspectorIconButton(
+            icon: Icons.chevron_right_rounded,
+            tooltip: 'Next',
+            enabled: _currentPage < lastPage,
+            onTap: () => _goToPage(_currentPage + 1),
+          ),
+          InspectorIconButton(
+            icon: Icons.last_page_rounded,
+            tooltip: 'Last page',
+            enabled: _currentPage < lastPage,
+            onTap: () => _goToPage(lastPage),
+          ),
+        ],
+      ),
     );
   }
 

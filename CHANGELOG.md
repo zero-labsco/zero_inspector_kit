@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.5.3
+
+> **🐛 Fixes / 修复:** Floating inspector button visibility and RenderFlex overflows across all viewers on every device size and system font scale. No public API changes.
+> 修复了悬浮检查器按钮的可见性问题，以及所有查看器在任意设备尺寸与系统字号下的 RenderFlex 溢出问题。未改动公共 API。
+
+- 悬浮按钮 / Floating button
+  - 悬浮小球不再依赖 `Future.delayed` 定时器，改用 `addPostFrameCallback`，避免华为 `trimMemory` 回收后台 Timer 导致不显示
+  - Floating ball now uses `addPostFrameCallback` instead of a `Future.delayed` timer, so Huawei `trimMemory` reclaiming background timers no longer hides it
+- UI 溢出 / Overflow
+  - 面板头部标题在窄屏不再溢出（Column 包 `Expanded`）
+  - InspectorPanel header title no longer overflows on narrow screens (`Expanded`)
+  - TabBar 始终可横向滚动并移除固定 tab 高度，解决大字号下的水平/垂直溢出
+  - TabBar is always horizontally scrollable and its fixed tab height was removed, fixing horizontal/vertical overflow on large fonts
+  - Network 时间轴图例行、Memory 趋势图例与各统计值、Database 分页栏改用横向滚动或 `Expanded`+`ellipsis`，覆盖分屏/小窗（≤300dp）与系统大字体
+  - Network timeline legend, Memory trend legend & stat values, and the Database pagination bar now use horizontal scroll or `Expanded`+`ellipsis`, covering split-screen / small windows (≤300dp) and large system fonts
+  - example 应用 `_RouteCaptureIndicator` 改用 `Flexible` 修复 Row 溢出
+  - example app `_RouteCaptureIndicator` uses `Flexible` to fix a Row overflow
+
 ## 1.5.2
 
 > **🧹 Cleanup & consolidation / 清理与收敛:** Removed the unfinished TODO items and consolidated duplicated helpers without changing any public API. Includes a live-updating search-field clear button and no release-stdout log leak.

@@ -115,8 +115,12 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
       vsync: this,
     );
 
+    // 首帧渲染后再淡入小球，避免依赖 Timer（某些设备/系统内存压力下
+    // Timer 会被抑制，导致小球长时间不显示甚至不显示）。
+    // Show the ball after the first frame instead of a 1s Timer, which some
+    // devices suppress under memory pressure (e.g. system trimMemory on Huawei).
     if (widget.enabled) {
-      Future.delayed(const Duration(seconds: 1), () {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() => _isVisible = true);
         }
