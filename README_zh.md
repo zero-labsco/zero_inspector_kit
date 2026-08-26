@@ -17,7 +17,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.5.2 清理了 TODO 列表并收敛了重复代码（共享 `formatBytes`、统一的级别颜色辅助、搜索框清空按钮实时更新、release 包不再泄漏日志到 stdout）。建议所有 1.5.1 用户升级到 `^1.5.2`。
+> **🔔 推荐升级：** v1.5.3 修复了悬浮检查器按钮的可见性（华为 `trimMemory` 抑制 Timer 导致不显示），并解决了所有查看器在任意设备尺寸与系统字号下的 RenderFlex 溢出问题。建议所有 1.5.2 用户升级到 `^1.5.3`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -65,7 +65,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.5.2
+  zero_inspector_kit: ^1.5.3
 ```
 
 ### GitHub
@@ -75,7 +75,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.5.2   # 将 1.5.2 替换为你需要的版本号
+      ref: release/v1.5.3   # 将 1.5.3 替换为你需要的版本号
 ```
 
 ---

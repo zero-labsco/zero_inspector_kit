@@ -460,32 +460,44 @@ class _MemoryTrendChartState extends State<MemoryTrendChart> {
 
   /// 构建图例项 / Build legend item
   Widget _buildChartLegend(String label, String value, Color color) {
+    // 用 Expanded 约束文字列，避免在大系统字体下 value 文本（如 "1.5 GB"）超出
+    // 外层 Expanded 图例列而向右溢出。外层 _buildLegend 的 Expanded 给出的是
+    // max 约束，若这里用 mainAxisSize: min 会忽略该约束而按自然宽渲染。
+    // Constrain the text column with Expanded so the value text cannot overflow
+    // its legend column on large system fonts.
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: 8,
           height: 8,
+          margin: const EdgeInsets.only(top: 4),
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(color: InspectorColors.textHint, fontSize: 10),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'monospace',
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(color: InspectorColors.textHint, fontSize: 10),
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
               ),
-            ),
-          ],
+              Text(
+                value,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'monospace',
+                ),
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+              ),
+            ],
+          ),
         ),
       ],
     );

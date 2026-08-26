@@ -513,13 +513,22 @@ class _MemoryViewerState extends State<MemoryViewer> {
           ),
         ),
         const Spacer(),
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: isHeader ? 16 : 13,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'monospace',
+        // value 来自 formatBytes，大字体下可能变宽，用 Expanded + ellipsis
+        // 约束，避免向右溢出卡片。
+        // value is from formatBytes and may widen on large fonts; constrain
+        // with Expanded + ellipsis to avoid right overflow.
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+            style: TextStyle(
+              color: color,
+              fontSize: isHeader ? 16 : 13,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'monospace',
+            ),
           ),
         ),
       ],
@@ -730,12 +739,21 @@ class _MemoryViewerState extends State<MemoryViewer> {
               ),
             ),
             const Spacer(),
-            Text(
-              '${formatBytes(usage)} / ${formatBytes(capacity)}',
-              style: TextStyle(
-                color: InspectorColors.textPrimary,
-                fontSize: 11,
-                fontFamily: 'monospace',
+            // "usage / capacity" 拼接文本在大字体下可能变宽，用 Expanded +
+            // ellipsis 约束，避免向右溢出。
+            // The "usage / capacity" string may widen on large fonts; constrain
+            // with Expanded + ellipsis to avoid right overflow.
+            Expanded(
+              child: Text(
+                '${formatBytes(usage)} / ${formatBytes(capacity)}',
+                textAlign: TextAlign.end,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: TextStyle(
+                  color: InspectorColors.textPrimary,
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
               ),
             ),
           ],
@@ -842,12 +860,18 @@ class _MemoryViewerState extends State<MemoryViewer> {
 
   /// 构建缓存统计项 / Build cache stat item
   Widget _buildCacheStat(String label, String value, Color color) {
+    // 三列卡片在超窄面板（分屏/小窗 ≤300dp）+ 大系统字体（2x）下每列很窄，
+    // label/value 需可省略，否则 monospace 长值（如 "1234.56 GB"）会撑破列宽。
+    // In 3-column cards on very narrow panels with large fonts each column is
+    // tiny; ellipsize so long monospace values don't overflow the column.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: TextStyle(color: InspectorColors.textHint, fontSize: 11),
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
         ),
         const SizedBox(height: 3),
         Text(
@@ -858,6 +882,8 @@ class _MemoryViewerState extends State<MemoryViewer> {
             fontWeight: FontWeight.w600,
             fontFamily: 'monospace',
           ),
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
         ),
       ],
     );
@@ -976,15 +1002,27 @@ class _MemoryViewerState extends State<MemoryViewer> {
             ),
           ),
           const SizedBox(height: 12),
+          // 两个状态 chip 在超窄面板 + 大字体下可能总宽超出可用宽度，
+          // 用 Expanded 约束各自宽度并允许文本省略。
+          // On very narrow panels with large fonts the two chips can exceed the
+          // available width; constrain each with Expanded + ellipsis.
           Row(
             children: [
-              _buildStatusChip(
-                'Pending',
-                pendingCount,
-                InspectorColors.warning,
+              Expanded(
+                child: _buildStatusChip(
+                  'Pending',
+                  pendingCount,
+                  InspectorColors.warning,
+                ),
               ),
               const SizedBox(width: 10),
-              _buildStatusChip('Live', liveCount, InspectorColors.success),
+              Expanded(
+                child: _buildStatusChip(
+                  'Live',
+                  liveCount,
+                  InspectorColors.success,
+                ),
+              ),
             ],
           ),
         ],
@@ -994,6 +1032,10 @@ class _MemoryViewerState extends State<MemoryViewer> {
 
   /// 构建状态标签 / Build status chip
   Widget _buildStatusChip(String label, int count, Color color) {
+    // 内部 Row 不再用 mainAxisSize: min（否则会忽略外层 Expanded 约束而在大
+    // 字体下溢出），改为默认 max 并让文本可省略，使其在任意宽度下安全。
+    // Use default (max) Row + ellipsis so the chip honors an outer Expanded
+    // and never overflows on large fonts.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -1002,7 +1044,6 @@ class _MemoryViewerState extends State<MemoryViewer> {
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 6,
@@ -1010,12 +1051,16 @@ class _MemoryViewerState extends State<MemoryViewer> {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
-          Text(
-            '$label: $count',
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+          Expanded(
+            child: Text(
+              '$label: $count',
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -1138,13 +1183,21 @@ class _MemoryViewerState extends State<MemoryViewer> {
           style: TextStyle(color: InspectorColors.textSecondary, fontSize: 12),
         ),
         const Spacer(),
-        Text(
-          formatBytes(size),
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'monospace',
+        // formatBytes(size) 在大字体下可能变宽，用 Expanded + ellipsis 约束。
+        // formatBytes(size) may widen on large fonts; constrain with Expanded
+        // + ellipsis to avoid right overflow.
+        Expanded(
+          child: Text(
+            formatBytes(size),
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'monospace',
+            ),
           ),
         ),
       ],
@@ -1483,6 +1536,9 @@ class _MemoryViewerState extends State<MemoryViewer> {
 
   /// 构建泄漏检测统计芯片 / Build leak detection stat chip
   Widget _buildLeakStatChip(String label, int count, Color color) {
+    // 三列布局在超窄面板 + 大字体下每列很窄，label/数值需可省略避免溢出。
+    // In 3-column layout on very narrow panels with large fonts, ellipsize
+    // label/value so they don't overflow their column.
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
       decoration: BoxDecoration(
@@ -1494,6 +1550,8 @@ class _MemoryViewerState extends State<MemoryViewer> {
         children: [
           Text(
             '$count',
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
             style: TextStyle(
               color: color,
               fontSize: 16,
@@ -1504,6 +1562,8 @@ class _MemoryViewerState extends State<MemoryViewer> {
           const SizedBox(height: 2),
           Text(
             label,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
             style: TextStyle(
               color: InspectorColors.textSecondary,
               fontSize: 10,
