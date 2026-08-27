@@ -1,0 +1,65 @@
+name: Example iOS Build (manual verification)
+
+# 仅用于「手动」验证 iOS 原生编译（含插件 Swift 代码），不计入分支保护 required checks。
+# Manual-only verification of the iOS native build (including the plugin's Swift code).
+# This is NOT a required status check for branch protection.
+#
+# 为什么需要它 / Why this exists:
+#   插件的 CI（ci.yml）把 ios/Classes/*.swift 排除在 code 触发列表外，因此 Analyze & Test / Pana
+#   不会编译 iOS 原生代码，导致 Swift 编译错误（如 availableData 非可选、vm_info macOS-only 字段）
+#   只能在宿主项目 CI 才暴露，造成反复 bump 发版。
+#   The plugin CI (ci.yml) excludes ios/Classes/*.swift from its code trigger list, so Analyze & Test /
+#   Pana never compile the plugin's native Swift. Swift errors (e.g. non-optional availableData, macOS-only
+#   vm_info fields) only surfaced in the host app's CI, forcing repeated version bumps.
+#
+# 用法 / Usage:
+#   在 fix/* 等分支上 → Actions → 选本 workflow → "Run workflow"（默认用当前分支）。
+#   On a fix/* branch → Actions → select this workflow → "Run workflow" (uses the current branch by default).
+#   `flutter build ios --simulator` 会编译 example 与插件的原生 Swift，从而复现较新 Xcode 的编译错误。
+#   `flutter build ios --simulator` compiles both the example and the plugin's native Swift, reproducing
+#   compile errors that only newer Xcode toolchains flag.
+
+on:
+  # 手动触发 / Manual trigger only
+  workflow_dispatch:
+
+jobs:
+  ios-sim-build:
+    name: Build Example for iOS Simulator
+    runs-on: macos-latest
+    steps:
+      - name: Disable autocrlf on runner
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+          git config --global core.safecrlf false
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          # 与 ci.yml 保持一致，避免工具链漂移导致本地/CI 结果不一致
+          # Keep in sync with ci.yml so local vs CI results don't diverge due to toolchain drift
+          flutter-version: '3.41.7'
+          cache: true
+
+      - name: Print Flutter version
+        run: flutter --version
+
+      - name: Install plugin dependencies
+        run: flutter pub get
+
+      - name: Install example dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Build example for iOS simulator
+        # 此命令会编译 example 以及插件的原生 Swift 代码（ios/Classes/ZeroInspectorKitPlugin.swift），
+        # 从而暴露 availableData / vm_info 等仅在较新 Xcode 才报的编译错误。
+        # This compiles the example AND the plugin's native Swift, surfacing errors
+        # (e.g. availableData / vm_info) that only newer Xcode toolchains flag.
+        working-directory: example
+        run: flutter build ios --simulator

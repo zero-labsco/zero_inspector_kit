@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.5
+
+> **🐛 Fixes / 修复:** iOS build failure on newer Xcode/Swift toolchains where `FileHandle.availableData` is non-optional, causing a `if let` conditional-binding compile error in the log listener (`readabilityHandler`). No public API changes.
+> 修复了在较新 Xcode/Swift 工具链上构建失败的问题——`FileHandle.availableData` 为非可选类型，导致日志监听器（`readabilityHandler`）中的 `if let` 条件绑定编译报错。未改动公共 API。
+
+- iOS 原生 / iOS native
+  - 将 `readabilityHandler` 里 `if let data = handle.availableData` 改为 `let data = handle.availableData`（现代 Xcode 中 `availableData` 已是非可选 `Data`），仅对 `String(data:)` 做 Optional 绑定
+  - Changed `if let data = handle.availableData` to `let data = handle.availableData` in `readabilityHandler` (modern Xcode exposes `availableData` as non-optional `Data`); only `String(data:)` keeps the Optional binding
+
 ## 1.5.4
 
 > **🐛 Fixes / 修复:** iOS build failure caused by referencing macOS-only `vm_info` fields (`compressed_limit` / `internal_limit` / `phys_footprint_lifetime_max`) on iOS; they are now guarded with `#if os(macOS)`. No public API changes.

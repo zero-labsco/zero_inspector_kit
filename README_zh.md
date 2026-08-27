@@ -17,7 +17,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.5.4 修复了 iOS 因引用仅 macOS 才有的 `vm_info` 字段（`compressed_limit` / `internal_limit` / `phys_footprint_lifetime_max`）导致的编译失败问题，现用 `#if os(macOS)` 条件编译包裹。建议所有 1.5.3 用户升级到 `^1.5.4`。
+> **🔔 推荐升级：** v1.5.5 修复了在较新 Xcode/Swift 工具链上构建失败的问题——`FileHandle.availableData` 为非可选类型，导致日志监听器的 `if let` 绑定编译报错。建议所有 1.5.4 用户升级到 `^1.5.5`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -65,7 +65,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.5.4
+  zero_inspector_kit: ^1.5.5
 ```
 
 ### GitHub
@@ -75,7 +75,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.5.4   # 将 1.5.4 替换为你需要的版本号
+      ref: release/v1.5.5   # 将 1.5.5 替换为你需要的版本号
 ```
 
 ---

@@ -17,7 +17,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** v1.5.4 fixes an iOS build failure caused by macOS-only `vm_info` fields (`compressed_limit` / `internal_limit` / `phys_footprint_lifetime_max`) being referenced on iOS; they are now guarded with `#if os(macOS)`. All users on 1.5.3 are advised to upgrade to `^1.5.4`.
+> **🔔 Upgrade recommended:** v1.5.5 fixes an iOS build failure on newer Xcode/Swift toolchains where `FileHandle.availableData` is non-optional, causing a `if let` compile error in the log listener. All users on 1.5.4 are advised to upgrade to `^1.5.5`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -65,7 +65,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.5.4
+  zero_inspector_kit: ^1.5.5
 ```
 
 ### GitHub
@@ -75,7 +75,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.5.4   # replace 1.5.4 with the version you need
+      ref: release/v1.5.5   # replace 1.5.5 with the version you need
 ```
 
 ---
