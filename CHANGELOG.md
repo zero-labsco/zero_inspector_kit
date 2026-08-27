@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.4
+
+> **🐛 Fixes / 修复:** iOS build failure caused by referencing macOS-only `vm_info` fields (`compressed_limit` / `internal_limit` / `phys_footprint_lifetime_max`) on iOS; they are now guarded with `#if os(macOS)`. No public API changes.
+> 修复了 iOS 上引用仅 macOS 才有的 `vm_info` 字段（`compressed_limit` / `internal_limit` / `phys_footprint_lifetime_max`）导致的编译失败问题，改用 `#if os(macOS)` 条件编译包裹。未改动公共 API。
+
+- iOS 原生 / iOS native
+  - 用 `#if os(macOS)` 包裹 `compressed_limit` / `internal_limit` / `phys_footprint_lifetime_max` 三个仅 macOS SDK 存在的字段，iOS 上填 `0`，保持返回的 Map 结构一致
+  - Guarded the three macOS-only `vm_info` fields (`compressed_limit` / `internal_limit` / `phys_footprint_lifetime_max`) with `#if os(macOS)`; on iOS they are filled with `0` to keep the returned Map shape consistent
+
 ## 1.5.3
 
 > **🐛 Fixes / 修复:** Floating inspector button visibility and RenderFlex overflows across all viewers on every device size and system font scale. No public API changes.

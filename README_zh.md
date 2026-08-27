@@ -17,7 +17,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.5.3 修复了悬浮检查器按钮的可见性（华为 `trimMemory` 抑制 Timer 导致不显示），并解决了所有查看器在任意设备尺寸与系统字号下的 RenderFlex 溢出问题。建议所有 1.5.2 用户升级到 `^1.5.3`。
+> **🔔 推荐升级：** v1.5.4 修复了 iOS 因引用仅 macOS 才有的 `vm_info` 字段（`compressed_limit` / `internal_limit` / `phys_footprint_lifetime_max`）导致的编译失败问题，现用 `#if os(macOS)` 条件编译包裹。建议所有 1.5.3 用户升级到 `^1.5.4`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -65,7 +65,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.5.3
+  zero_inspector_kit: ^1.5.4
 ```
 
 ### GitHub
@@ -75,7 +75,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.5.3   # 将 1.5.3 替换为你需要的版本号
+      ref: release/v1.5.4   # 将 1.5.4 替换为你需要的版本号
 ```
 
 ---
