@@ -49,6 +49,20 @@ import 'src/services/widget_tree_service.dart';
 /// 提供一键初始化和应用包装功能，实现零侵入集成 / Provides one-click initialization and app wrapping for zero-invasion integration
 ///
 /// 使用方式 / Usage:
+///
+/// 方式一（推荐，一句搞定，能完整捕获 print() 日志）/
+/// Option 1 (recommended, one-liner; captures print() logs correctly via an inspector Zone):
+/// ```dart
+/// void main() {
+///   // runAppWithInspector 已自动调用 init()，MyApp 是 StatelessWidget 或
+///   // StatefulWidget 均可直接传入。/ runAppWithInspector already calls init();
+///   // MyApp can be either a StatelessWidget or a StatefulWidget.
+///   ZeroInspectorKit.runAppWithInspector(const MyApp());
+/// }
+/// ```
+///
+/// 方式二（两行式，需自行调用 runApp）/
+/// Option 2 (two lines, call runApp yourself):
 /// ```dart
 /// void main() {
 ///   ZeroInspectorKit.init();
@@ -56,12 +70,22 @@ import 'src/services/widget_tree_service.dart';
 /// }
 /// ```
 ///
-/// 以上两行代码即可启用所有检查器功能，无需修改项目其他代码 / The above two lines enable all inspector features without modifying other project code:
+/// 以上即可启用所有检查器功能，无需修改项目其他代码 /
+/// The above enables all inspector features without modifying other project code:
 /// - 自动捕获所有日志（print/debugPrint/Flutter错误）/ Auto-capture all logs (print/debugPrint/Flutter errors)
 /// - 自动拦截所有网络请求（http包/Dio）/ Auto-intercept all network requests (http package/Dio)
-/// - 自动扫描SQLite数据库 / Auto-scan SQLite databases
+/// - 自动扫描SQLite数据库（并可一行注册 SP / Hive 源）/ Auto-scan SQLite databases (register SP/Hive sources in one line)
 /// - 自动跟踪路由导航 / Auto-track route navigation
-/// - 自动显示悬浮检查器按钮 / Auto-show floating inspector button
+/// - 自动查看 Widget 树快照 / Auto-inspect Widget tree snapshots
+/// - 自动查看网络请求时间轴（瀑布图）/ Auto-inspect network timeline (waterfall)
+/// - 自动显示悬浮检查器按钮（release 模式自动隐藏）/ Auto-show floating inspector button (auto-hidden in release mode)
+///
+/// 注意 / Note:
+/// - 不要在 runAppWithInspector 之前调用 WidgetsFlutterBinding.ensureInitialized()
+///   或 await 会触发 platform channel 的插件（如 SharedPreferences），否则 binding 会在
+///   外层 Zone 初始化，触发 "Zone mismatch" 断言。/ Do NOT call ensureInitialized() or await
+///   platform-channel plugins before runAppWithInspector, or Flutter throws "Zone mismatch".
+/// - 各能力可通过 init() 的命名参数按需开关 / Each capability can be toggled via init()'s named params.
 class ZeroInspectorKit {
   static bool _initialized = false;
 
