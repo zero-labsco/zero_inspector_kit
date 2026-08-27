@@ -153,7 +153,8 @@ public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
         dup2(STDERR_FILENO, pipe.fileHandleForWriting.fileDescriptor)
 
         fileHandle.readabilityHandler = { [weak self] handle in
-            if let data = handle.availableData, let string = String(data: data, encoding: .utf8) {
+            let data = handle.availableData
+            if let string = String(data: data, encoding: .utf8) {
                 self?.logs.append(string.trimmingCharacters(in: .newlines))
             }
         }
