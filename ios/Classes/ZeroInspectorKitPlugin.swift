@@ -78,9 +78,18 @@ public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
             info["physicalFootprint"] = Int(vmInfo.phys_footprint)
             info["internalCompressed"] = Int(vmInfo.compressed)
             info["internalSize"] = Int(vmInfo.internal)
+            // compressed_limit / internal_limit / phys_footprint_lifetime_max 仅存在于 macOS SDK，
+            // iOS 上不存在该字段，填 0 保持 Map 结构一致
+            // These fields are macOS-only; fill 0 on iOS to keep Map structure consistent
+            #if os(macOS)
             info["internalCompressedLimit"] = Int(vmInfo.compressed_limit)
             info["internalSizeLimit"] = Int(vmInfo.internal_limit)
             info["physicalFootprintLifetimeMax"] = Int(vmInfo.phys_footprint_lifetime_max)
+            #else
+            info["internalCompressedLimit"] = 0
+            info["internalSizeLimit"] = 0
+            info["physicalFootprintLifetimeMax"] = 0
+            #endif
         }
 
         // 3. 通过 NSProcessInfo 获取设备物理内存
