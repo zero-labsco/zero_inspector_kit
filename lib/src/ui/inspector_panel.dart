@@ -310,7 +310,9 @@ class _InspectorPanelState extends State<InspectorPanel>
     );
 
     if (mounted) {
-      messenger.showSnackBar(const SnackBar(content: Text('Bug report shared')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Bug report shared')),
+      );
     }
   }
 

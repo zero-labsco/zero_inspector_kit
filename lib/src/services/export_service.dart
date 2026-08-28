@@ -305,18 +305,18 @@ class ExportService {
     }
 
     if (logs != null && logs.isNotEmpty) {
-      final sliced =
-          logs.length > maxLogs ? logs.sublist(logs.length - maxLogs) : logs;
+      final sliced = logs.length > maxLogs
+          ? logs.sublist(logs.length - maxLogs)
+          : logs;
       buf
         ..writeln()
         ..writeln(logsToText(sliced));
     }
 
     if (requests != null && requests.isNotEmpty) {
-      final sliced =
-          requests.length > maxRequests
-              ? requests.sublist(requests.length - maxRequests)
-              : requests;
+      final sliced = requests.length > maxRequests
+          ? requests.sublist(requests.length - maxRequests)
+          : requests;
       buf
         ..writeln()
         ..writeln('=== Recent Network (last ${sliced.length}) ===')

@@ -134,10 +134,9 @@ class _NetworkViewerState extends State<NetworkViewer> {
       final streamed = await client.send(request);
       final response = await http.Response.fromStream(streamed);
       final elapsed = DateTime.now().difference(stop);
-      final preview =
-          response.body.length > 200
-              ? '${response.body.substring(0, 200)}…'
-              : response.body;
+      final preview = response.body.length > 200
+          ? '${response.body.substring(0, 200)}…'
+          : response.body;
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
