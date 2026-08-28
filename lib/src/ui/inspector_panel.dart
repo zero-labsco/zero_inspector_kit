@@ -184,7 +184,7 @@ class _InspectorPanelState extends State<InspectorPanel>
               ],
             ),
             child: Icon(
-              Icons.bug_report_rounded,
+              Icons.terminal_rounded,
               color: InspectorColors.textPrimary,
               size: 20,
             ),
@@ -219,7 +219,7 @@ class _InspectorPanelState extends State<InspectorPanel>
           ),
           IconButton(
             onPressed: () => _shareBugReport(context),
-            tooltip: 'Share bug report',
+            tooltip: 'Share bug report (device + memory + logs + network)',
             icon: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -227,7 +227,7 @@ class _InspectorPanelState extends State<InspectorPanel>
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                Icons.share_rounded,
+                Icons.bug_report_rounded,
                 color: InspectorColors.textPrimary,
                 size: 18,
               ),
@@ -298,7 +298,9 @@ class _InspectorPanelState extends State<InspectorPanel>
       'Native memory: ${memory.isNativeSupported ? 'supported' : 'unsupported'}',
     ].join('\n');
 
-    final deviceInfo = DeviceInfoUtil.toReportString(DeviceInfoUtil.collect());
+    final deviceInfo = DeviceInfoUtil.toReportString(
+      await DeviceInfoUtil.collect(),
+    );
     final inspector = InspectorService.instance;
 
     await ExportService.instance.exportBugReportAndShare(
