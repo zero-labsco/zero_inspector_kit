@@ -17,7 +17,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.5.5 修复了在较新 Xcode/Swift 工具链上构建失败的问题——`FileHandle.availableData` 为非可选类型，导致日志监听器的 `if let` 绑定编译报错。建议所有 1.5.4 用户升级到 `^1.5.5`。
+> **🔔 推荐升级：** v1.6.0 新增一键 Bug 报告（面板头部分享设备信息 + 内存 + 最近日志/网络）、App 内网络请求重放，并减少内存页重建。建议所有用户升级到 `^1.6.0`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -54,6 +54,7 @@
 - **路由追踪器**：导航历史与当前路由。
 - **告警系统**：针对网络/日志/内存/FPS 的告警规则，带未读红点与节流。
 - **悬浮按钮**：呼吸动画的 Overlay 按钮，自动吸附屏幕边缘，避免返回手势冲突。
+- **一键 Bug 报告**：点击面板头部的虫子图标，即可一键生成并分享一份可直接贴进 issue 的快照（设备型号 + 系统 + 当前内存 + 最近日志 + 最近网络）。
 - **现代化 UI**：深色主题 + 渐变，集中式可定制配色。
 - **跨平台**：支持 Android 与 iOS。
 
@@ -65,7 +66,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.5.5
+  zero_inspector_kit: ^1.6.0
 ```
 
 ### GitHub
@@ -75,7 +76,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.5.5   # 将 1.5.5 替换为你需要的版本号
+      ref: release/v1.6.0   # 将 1.6.0 替换为你需要的版本号
 ```
 
 ---
@@ -294,9 +295,9 @@ class MyCustomDatabaseProvider implements DatabaseProvider {
 DatabaseRegistry.instance.registerProvider(MyCustomDatabaseProvider());
 ```
 
-### Widget 检查器与网络瀑布流（默认关闭）
+### Widget 检查器与网络瀑布流（默认开启）
 
-两项功能默认关闭，避免在不需要时产生开销。启动时预开启：
+两项功能默认开启。若不需要，可在面板顶部开关关闭。启动时预开启：
 
 ```dart
 ZeroInspectorKit.runAppWithInspector(
@@ -308,6 +309,21 @@ ZeroInspectorKit.runAppWithInspector(
 
 - **Widget Inspector**：开启后拍一次快照，以面包屑方式浏览（非实时；点「刷新」重新快照）。
 - **Network Timeline**：实时瀑布流，新请求自动流入，无需手动刷新。
+
+### Bug 报告（一键）
+
+点击面板头部的**虫子图标**，即可一键生成并分享一份 Bug 报告——非常适合 QA 在提 issue 时附上环境上下文。
+
+分享的文本快照包含：
+
+- **设备**：真实型号（如 `Pixel 8 Pro` / `iPhone (iPhone16,1)`）、系统及版本、区域、Dart 运行时、CPU 核心数。
+- **内存**：当前堆内存占用，以及是否支持 Native 内存。
+- **最近日志**：最近捕获的若干条日志。
+- **最近网络**：最近捕获的若干条请求。
+
+敏感请求头会与网络标签页一样被遮蔽（面板内可切换"敏感信息隐藏"）。除你选择的分享目标（邮件、IM 等）外，数据不会离开设备。
+
+> 无需任何额外配置——检查器运行后即可使用。
 
 ---
 

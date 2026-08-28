@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.6.0
+
+### Added / 新增
+- One-click bug report: share a snapshot (device info + current memory + recent logs + recent network) from the panel header via the system share sheet. / 一键 Bug 报告：通过面板头部的分享按钮，将设备信息 + 当前内存 + 最近日志 + 最近网络打包分享。
+- Network request replay: re-issue a captured request in-app from the network detail toolbar. / 网络请求重放：在网络详情工具栏一键在 App 内重发已捕获的请求。
+
+### Performance / 性能
+- Decoupled the 500ms memory data tick from the main `ChangeNotifier`; only the memory trend chart subscribes to it, so the rest of the memory page rebuilds far less often. / 将内存 500ms 高频数据 tick 从主 `ChangeNotifier` 拆分出来，仅趋势图订阅，内存页其余部分重建大幅减少。
+
+### Docs / 文档
+- Corrected the docs: Widget Inspector and Network Timeline are enabled by default (not off). / 修正文档：Widget 检查器与网络瀑布流默认开启（此前误写为默认关闭）。
+
 ## 1.5.5
 
 > **🐛 Fixes / 修复:** iOS build failure on newer Xcode/Swift toolchains where `FileHandle.availableData` is non-optional, causing a `if let` conditional-binding compile error in the log listener (`readabilityHandler`). No public API changes.

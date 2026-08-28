@@ -17,7 +17,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** v1.5.5 fixes an iOS build failure on newer Xcode/Swift toolchains where `FileHandle.availableData` is non-optional, causing a `if let` compile error in the log listener. All users on 1.5.4 are advised to upgrade to `^1.5.5`.
+> **🔔 Upgrade recommended:** v1.6.0 adds a one-click bug report (device info + memory + recent logs/network shared from the panel header), in-app network request replay, and reduces memory-page rebuilds. All users are advised to upgrade to `^1.6.0`.
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -36,6 +36,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
   - [Memory Monitor](#memory-monitor)
   - [FPS Monitor](#fps-monitor)
   - [Custom Database Provider](#custom-database-provider)
+  - [Bug Report](#bug-report)
   - [Widget Inspector & Network Timeline](#widget-inspector--network-timeline-off-by-default)
 - [API Reference](#api-reference)
 - [Contributing](#contributing)
@@ -54,6 +55,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 - **Route Tracker** — Navigation history and current route.
 - **Alert System** — Rule-based alerts on network/logs/memory/FPS with unread badge and throttling.
 - **Floating Button** — Breathing-animation overlay button that auto-docks to screen edges, avoiding back-gesture conflicts.
+- **One-Click Bug Report** — Tap the bug icon in the panel header to share a ready-to-file snapshot (device model + OS + current memory + recent logs + recent network) via the system share sheet.
 - **Modern UI** — Dark theme with gradients and centralized, customizable colors.
 - **Cross-Platform** — Android and iOS.
 
@@ -65,7 +67,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.5.5
+  zero_inspector_kit: ^1.6.0
 ```
 
 ### GitHub
@@ -75,7 +77,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.5.5   # replace 1.5.5 with the version you need
+      ref: release/v1.6.0   # replace 1.6.0 with the version you need
 ```
 
 ---
@@ -294,9 +296,9 @@ class MyCustomDatabaseProvider implements DatabaseProvider {
 DatabaseRegistry.instance.registerProvider(MyCustomDatabaseProvider());
 ```
 
-### Widget Inspector & Network Timeline (off by default)
+### Widget Inspector & Network Timeline (on by default)
 
-Both are **off by default** and toggled via a panel switch (like Memory), so no overhead until enabled. Pre-enable at startup:
+Both are **on by default**. You can toggle them off via the panel switch if you don't need them. Pre-enable at startup:
 
 ```dart
 ZeroInspectorKit.runAppWithInspector(
@@ -308,6 +310,21 @@ ZeroInspectorKit.runAppWithInspector(
 
 - **Widget Inspector:** one-shot snapshot browsed via breadcrumb navigation (not live; tap Refresh to re-snapshot).
 - **Network Timeline:** live waterfall of requests, no manual refresh.
+
+### Bug Report
+
+Tap the **bug icon** in the panel header to generate and share a bug report in one tap — ideal for QA to attach environment context when filing issues.
+
+The shared text snapshot includes:
+
+- **Device:** real model (e.g. `Pixel 8 Pro` / `iPhone (iPhone16,1)`), OS & version, locale, Dart runtime, CPU cores.
+- **Memory:** current heap usage and whether Native memory is supported.
+- **Recent logs:** the latest captured log entries.
+- **Recent network:** the latest captured requests.
+
+Sensitive headers are masked the same way as in the Network tab (toggle "Sensitive hidden" in the panel). No data leaves the device except through the share target you choose (mail, IM, etc.).
+
+> Requires no extra setup — it works as soon as the inspector is running.
 
 ---
 

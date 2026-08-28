@@ -80,7 +80,10 @@ class _MemoryViewerState extends State<MemoryViewer> {
             if (!enabled)
               _buildDisabledPlaceholder()
             else ...[
-              _buildTrendChartCard(),
+              ListenableBuilder(
+                listenable: service.liveNotifier,
+                builder: (context, _) => _buildTrendChartCard(),
+              ),
               const SizedBox(height: 12),
               _buildNativeOverviewCard(),
               const SizedBox(height: 12),

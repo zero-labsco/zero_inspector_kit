@@ -12,6 +12,11 @@ import 'fps_viewer.dart';
 import 'alerts_viewer.dart';
 import 'widget_tree_viewer.dart';
 
+import '../services/inspector_service.dart';
+import '../services/export_service.dart';
+import '../utils/device_info.dart';
+import '../utils/formatters.dart';
+
 /// 检查器面板 / Inspector panel
 /// 包含网络、日志、数据库、内存、FPS、路由、告警、Widget 八个查看器
 /// Contains eight viewers: network, logs, database, memory, FPS, routes, alerts, widgets
@@ -179,7 +184,7 @@ class _InspectorPanelState extends State<InspectorPanel>
               ],
             ),
             child: Icon(
-              Icons.bug_report_rounded,
+              Icons.terminal_rounded,
               color: InspectorColors.textPrimary,
               size: 20,
             ),
@@ -210,6 +215,22 @@ class _InspectorPanelState extends State<InspectorPanel>
                 const SizedBox(height: 3),
                 _buildStatusRow(),
               ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => _shareBugReport(context),
+            tooltip: 'Share bug report (device + memory + logs + network)',
+            icon: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.bug_report_rounded,
+                color: InspectorColors.textPrimary,
+                size: 18,
+              ),
             ),
           ),
           IconButton(
@@ -263,6 +284,38 @@ class _InspectorPanelState extends State<InspectorPanel>
         ),
       ],
     );
+  }
+
+  /// 一键生成并分享 Bug 报告（设备信息 + 当前内存 + 最近日志 + 最近网络）
+  /// One-click generate & share a bug report.
+  Future<void> _shareBugReport(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final memory = MemoryInspectorService.instance;
+    final memoryInfo = <String>[
+      '=== Memory (current) ===',
+      'Process RSS: ${InspectorFormatters.formatBytes(memory.currentProcessRss)}',
+      'Heap Usage: ${InspectorFormatters.formatBytes(memory.currentHeapUsage)}',
+      'Native memory: ${memory.isNativeSupported ? 'supported' : 'unsupported'}',
+    ].join('\n');
+
+    final deviceInfo = DeviceInfoUtil.toReportString(
+      await DeviceInfoUtil.collect(),
+    );
+    final inspector = InspectorService.instance;
+
+    await ExportService.instance.exportBugReportAndShare(
+      deviceInfo: deviceInfo,
+      memoryInfo: memoryInfo,
+      logs: inspector.logEntries.toList(),
+      requests: inspector.networkRequests.toList(),
+      maskSensitive: true,
+    );
+
+    if (mounted) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Bug report shared')),
+      );
+    }
   }
 
   /// 构建标签栏 / Build tab bar

@@ -121,6 +121,16 @@ class MemoryInspectorService extends ChangeNotifier {
   /// before determining whether it's a leak
   static const int _leakVerifyWaitMs = 3000;
 
+  /// 高频数据 tick 专用通知器：仅驱动趋势图等需要 500ms 刷新的视图，
+  /// 与主 [ChangeNotifier] 分离，避免每 500ms 触发整个内存页重建。
+  /// Dedicated notifier for high-frequency data ticks: drives only the trend
+  /// chart (needs 500ms refresh), decoupled from the main ChangeNotifier so the
+  /// whole memory page isn't rebuilt every 500ms.
+  final ChangeNotifier _liveNotifier = ChangeNotifier();
+
+  /// 高频数据 tick 专用通知器 / Notifier for high-frequency data ticks
+  ChangeNotifier get liveNotifier => _liveNotifier;
+
   // ==================== 监控状态 / Monitoring State ====================
 
   /// 是否正在监控 / Whether monitoring is active
@@ -627,7 +637,7 @@ class MemoryInspectorService extends ChangeNotifier {
     // 告警检测：以进程 RSS（MB）为准 / Alert: use process RSS in MB
     AlertService.instance.checkMemory(_currentProcessRss / (1024 * 1024));
 
-    notifyListeners();
+    _liveNotifier.notifyListeners();
   }
 
   /// 构建当前内存快照 / Build current memory snapshot
@@ -1508,6 +1518,7 @@ class MemoryInspectorService extends ChangeNotifier {
   @override
   void dispose() {
     stopMonitoring();
+    _liveNotifier.dispose();
     super.dispose();
   }
 }

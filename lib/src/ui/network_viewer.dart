@@ -10,6 +10,10 @@ import '../utils/formatters.dart';
 import 'theme/inspector_theme.dart';
 import 'widgets/widgets.dart';
 
+import 'package:http/http.dart' as http;
+
+import '../utils/network_replay.dart';
+
 /// 状态码分组（用于筛选维度，公开以便单测）/ Status-code groups (for the
 /// filter dimension; exposed publicly so it can be unit-tested).
 /// 定义在 [network_request.dart] 的 [StatusGroup]。
@@ -117,6 +121,39 @@ class _NetworkViewerState extends State<NetworkViewer> {
           );
       _showInterceptorPanel = true;
     });
+  }
+
+  /// 在 App 内重放该请求（用捕获的方法/URL/头/体重新发出一次）。
+  /// Replay the request in-app (re-issue with captured method/URL/headers/body).
+  Future<void> _replayRequest(NetworkRequest r) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final client = http.Client();
+    try {
+      final request = buildReplayRequest(r);
+      final stop = DateTime.now();
+      final streamed = await client.send(request);
+      final response = await http.Response.fromStream(streamed);
+      final elapsed = DateTime.now().difference(stop);
+      final preview = response.body.length > 200
+          ? '${response.body.substring(0, 200)}…'
+          : response.body;
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Replayed → ${response.statusCode} in ${elapsed.inMilliseconds}ms\n$preview',
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text('Replay failed: $e')));
+      }
+    } finally {
+      client.close();
+    }
   }
 
   void _saveRule(RequestInterceptorRule rule) {
@@ -283,6 +320,12 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         );
                       }
                     },
+                  ),
+                if (_selectedRequest != null)
+                  InspectorIconButton(
+                    icon: Icons.replay_rounded,
+                    tooltip: 'Replay request',
+                    onTap: () => _replayRequest(_selectedRequest!),
                   ),
                 InspectorIconButton(
                   icon: Icons.content_copy_rounded,

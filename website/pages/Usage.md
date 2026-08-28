@@ -44,6 +44,25 @@ The inspector panel contains **6 tabs**:
 >
 > Memory 和 FPS 面板**默认关闭**以避免性能开销。在各自面板顶部打开开关才会开始采集数据。
 
+## One-Click Bug Report / 一键 Bug 报告
+
+Tap the **bug icon** in the inspector panel header to generate and share a bug report in one tap — ideal for QA to attach environment context when filing issues.
+
+点击检查器面板头部的**虫子图标**，即可一键生成并分享一份 Bug 报告——非常适合 QA 在提 issue 时附上环境上下文。
+
+The shared text snapshot includes / 分享的文本快照包含：
+
+- **Device / 设备:** real model (e.g. `Pixel 8 Pro` / `iPhone (iPhone16,1)`), OS & version, locale, Dart runtime, CPU cores.
+- **Memory / 内存:** current heap usage and whether Native memory is supported.
+- **Recent logs / 最近日志:** the latest captured log entries.
+- **Recent network / 最近网络:** the latest captured requests.
+
+Sensitive headers are masked the same way as in the Network tab. No data leaves the device except through the share target you choose.
+
+敏感请求头会与网络标签页一样被遮蔽。除你选择的分享目标外，数据不会离开设备。
+
+> Requires no extra setup — it works as soon as the inspector is running. / 无需额外配置——检查器运行后即可使用。
+
 ## Floating Button / 悬浮按钮
 
 - The floating button appears after 1 second delay / 悬浮按钮延迟 1 秒出现
