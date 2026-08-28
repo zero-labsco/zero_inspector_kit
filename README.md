@@ -36,6 +36,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
   - [Memory Monitor](#memory-monitor)
   - [FPS Monitor](#fps-monitor)
   - [Custom Database Provider](#custom-database-provider)
+  - [Bug Report](#bug-report)
   - [Widget Inspector & Network Timeline](#widget-inspector--network-timeline-off-by-default)
 - [API Reference](#api-reference)
 - [Contributing](#contributing)
@@ -54,6 +55,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 - **Route Tracker** — Navigation history and current route.
 - **Alert System** — Rule-based alerts on network/logs/memory/FPS with unread badge and throttling.
 - **Floating Button** — Breathing-animation overlay button that auto-docks to screen edges, avoiding back-gesture conflicts.
+- **One-Click Bug Report** — Tap the bug icon in the panel header to share a ready-to-file snapshot (device model + OS + current memory + recent logs + recent network) via the system share sheet.
 - **Modern UI** — Dark theme with gradients and centralized, customizable colors.
 - **Cross-Platform** — Android and iOS.
 
@@ -308,6 +310,21 @@ ZeroInspectorKit.runAppWithInspector(
 
 - **Widget Inspector:** one-shot snapshot browsed via breadcrumb navigation (not live; tap Refresh to re-snapshot).
 - **Network Timeline:** live waterfall of requests, no manual refresh.
+
+### Bug Report
+
+Tap the **bug icon** in the panel header to generate and share a bug report in one tap — ideal for QA to attach environment context when filing issues.
+
+The shared text snapshot includes:
+
+- **Device:** real model (e.g. `Pixel 8 Pro` / `iPhone (iPhone16,1)`), OS & version, locale, Dart runtime, CPU cores.
+- **Memory:** current heap usage and whether Native memory is supported.
+- **Recent logs:** the latest captured log entries.
+- **Recent network:** the latest captured requests.
+
+Sensitive headers are masked the same way as in the Network tab (toggle "Sensitive hidden" in the panel). No data leaves the device except through the share target you choose (mail, IM, etc.).
+
+> Requires no extra setup — it works as soon as the inspector is running.
 
 ---
 
