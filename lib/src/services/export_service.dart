@@ -273,6 +273,82 @@ class ExportService {
     await shareFile(path, mimeType: mime);
   }
 
+  // ==================== 一键 Bug 报告 / One-click bug report ====================
+
+  /// 拼装一份面向 QA 报 bug 的快照报告：设备信息 + 当前内存 + 最近日志 + 最近网络。
+  /// Assemble a QA bug-report snapshot: device info + current memory + recent logs + recent network.
+  ///
+  /// [deviceInfo] 由调用方通过 [DeviceInfoUtil] 等拼装；[memoryInfo] 可选（当前内存快照文本）。
+  /// 日志与网络各取最近若干条（避免报告过长），[maskSensitive] 为 true 时遮蔽敏感头。
+  /// [deviceInfo] is assembled by the caller (e.g. DeviceInfoUtil); [memoryInfo] is optional
+  /// (current memory snapshot text). Logs/network are sliced to the most recent entries;
+  /// [maskSensitive] masks sensitive headers.
+  String buildBugReport({
+    required String deviceInfo,
+    String? memoryInfo,
+    List<LogEntry>? logs,
+    List<NetworkRequest>? requests,
+    bool maskSensitive = false,
+    int maxLogs = 200,
+    int maxRequests = 50,
+  }) {
+    final buf = StringBuffer()
+      ..writeln('# Zero Inspector Kit — Bug Report')
+      ..writeln('Generated: ${DateTime.now().toIso8601String()}')
+      ..writeln()
+      ..writeln(deviceInfo);
+
+    if (memoryInfo != null && memoryInfo.isNotEmpty) {
+      buf
+        ..writeln()
+        ..writeln(memoryInfo);
+    }
+
+    if (logs != null && logs.isNotEmpty) {
+      final sliced =
+          logs.length > maxLogs ? logs.sublist(logs.length - maxLogs) : logs;
+      buf
+        ..writeln()
+        ..writeln(logsToText(sliced));
+    }
+
+    if (requests != null && requests.isNotEmpty) {
+      final sliced =
+          requests.length > maxRequests
+              ? requests.sublist(requests.length - maxRequests)
+              : requests;
+      buf
+        ..writeln()
+        ..writeln('=== Recent Network (last ${sliced.length}) ===')
+        ..writeln(
+          sliced
+              .map((r) => toCurl(r, maskSensitive: maskSensitive))
+              .join('\n\n'),
+        );
+    }
+
+    return buf.toString();
+  }
+
+  /// 拼装并唤起系统分享面板 / Assemble and open the share sheet
+  Future<void> exportBugReportAndShare({
+    required String deviceInfo,
+    String? memoryInfo,
+    List<LogEntry>? logs,
+    List<NetworkRequest>? requests,
+    bool maskSensitive = false,
+  }) async {
+    final content = buildBugReport(
+      deviceInfo: deviceInfo,
+      memoryInfo: memoryInfo,
+      logs: logs,
+      requests: requests,
+      maskSensitive: maskSensitive,
+    );
+    final path = await writeToFile(content, 'zero_inspector_bug_report.txt');
+    await shareFile(path, mimeType: 'text/plain');
+  }
+
   // ==================== 复制方法 / Copy methods ====================
 
   /// 复制日志（格式可选）/ Copy logs (format optional)

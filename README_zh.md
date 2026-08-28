@@ -17,7 +17,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.5.5 修复了在较新 Xcode/Swift 工具链上构建失败的问题——`FileHandle.availableData` 为非可选类型，导致日志监听器的 `if let` 绑定编译报错。建议所有 1.5.4 用户升级到 `^1.5.5`。
+> **🔔 推荐升级：** v1.6.0 新增一键 Bug 报告（面板头部分享设备信息 + 内存 + 最近日志/网络）、App 内网络请求重放，并减少内存页重建。建议所有用户升级到 `^1.6.0`。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -65,7 +65,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.5.5
+  zero_inspector_kit: ^1.6.0
 ```
 
 ### GitHub
@@ -75,7 +75,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.5.5   # 将 1.5.5 替换为你需要的版本号
+      ref: release/v1.6.0   # 将 1.6.0 替换为你需要的版本号
 ```
 
 ---
@@ -294,9 +294,9 @@ class MyCustomDatabaseProvider implements DatabaseProvider {
 DatabaseRegistry.instance.registerProvider(MyCustomDatabaseProvider());
 ```
 
-### Widget 检查器与网络瀑布流（默认关闭）
+### Widget 检查器与网络瀑布流（默认开启）
 
-两项功能默认关闭，避免在不需要时产生开销。启动时预开启：
+两项功能默认开启。若不需要，可在面板顶部开关关闭。启动时预开启：
 
 ```dart
 ZeroInspectorKit.runAppWithInspector(
