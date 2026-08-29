@@ -197,9 +197,59 @@ class InspectorService extends ChangeNotifier {
     }
   }
 
+  /// 同一逻辑多行日志（第三方库逐行 print 的 box/缩进内容）在极短时间内
+  /// 合并为同一条，避免被拆成多段、且各段 ID 碰撞导致点击详情错乱。
+  /// Reassemble a logical multi-line log (e.g. a third-party lib printing a
+  /// box/indented block line-by-line) into a single entry within a tiny window,
+  /// so it is not fragmented and each segment stays independently clickable.
+  static const int _logReassembleWindowMs = 60;
+
+  /// 续行判定：以空白/制表符或 Box 绘制字符开头的行视为上一条日志的延续。
+  /// A line starting with whitespace/tab or a box-drawing glyph is treated as
+  /// a continuation of the previous log entry.
+  static const String _boxContinuationChars = '│├┌└┐┘─┤┴┬┼';
+
+  bool _isReassembleContinuation(String line) {
+    if (line.isEmpty) return false;
+    final c = line[0];
+    if (c == ' ' || c == '\t') return true;
+    return _boxContinuationChars.contains(c);
+  }
+
+  bool _isWithinReassembleWindow(DateTime prev, DateTime cur) {
+    return cur.difference(prev).abs().inMilliseconds < _logReassembleWindowMs;
+  }
+
   /// 添加日志条目 / Add log entry
   /// [entry] 日志条目对象 / Log entry object
   void addLogEntry(LogEntry entry) {
+    final last = _logEntries.isNotEmpty ? _logEntries.first : null;
+    if (last != null &&
+        _isWithinReassembleWindow(last.timestamp, entry.timestamp)) {
+      final msg = entry.message;
+      // 若新行已是上一条的子集（如 debugPrint 拆行/换行包裹产生的重复片段），
+      // 直接丢弃，避免与完整日志重复。
+      // If the new line is already a substring of the previous entry (e.g. a
+      // fragment produced by debugPrint line-splitting / wrap), drop it.
+      if (msg.isNotEmpty && last.message.contains(msg)) {
+        return;
+      }
+      // 续行则合并到上一条 / Merge continuation lines into the previous entry.
+      if (_isReassembleContinuation(msg)) {
+        final merged = LogEntry(
+          id: last.id,
+          level: last.level,
+          message: '${last.message}\n$msg',
+          timestamp: entry.timestamp,
+          tag: entry.tag ?? last.tag,
+        );
+        _logEntries.removeFirst();
+        _logEntries.addFirst(merged);
+        AlertService.instance.checkLog(merged);
+        _notifyThrottled();
+        return;
+      }
+    }
     _logEntries.addFirst(entry);
     _trimQueue(_logEntries, _maxLogItems);
     AlertService.instance.checkLog(entry);

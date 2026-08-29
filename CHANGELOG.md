@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.1
+
+### Fixed / 修复
+- 重新拼接被拆分的跨行日志，并为每条日志分配唯一 id，避免多行日志在面板中错位。 / Reassemble multi-line logs that were split across frames and assign a unique id per log entry, so multi-line logs no longer render out of order in the panel.
+
 ## 1.6.0
 
 ### Added / 新增

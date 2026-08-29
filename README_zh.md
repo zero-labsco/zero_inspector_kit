@@ -17,7 +17,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** v1.6.0 新增一键 Bug 报告（面板头部分享设备信息 + 内存 + 最近日志/网络）、App 内网络请求重放，并减少内存页重建。建议所有用户升级到 `^1.6.0`。
+> **🔔 推荐升级：** 本次更新修复了跨行日志的重新拼接，拆分/多行的日志不再在面板中错位显示。建议所有用户升级到最新版本（`^1.6.1`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -66,7 +66,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.6.0
+  zero_inspector_kit: ^1.6.1
 ```
 
 ### GitHub
@@ -76,7 +76,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.6.0   # 将 1.6.0 替换为你需要的版本号
+      ref: release/v1.6.1   # 将 1.6.1 替换为你需要的版本号
 ```
 
 ---

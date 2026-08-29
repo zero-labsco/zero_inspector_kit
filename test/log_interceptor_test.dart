@@ -401,4 +401,89 @@ void main() {
       },
     );
   });
+
+  /// =======================================================================
+  /// addLogEntry 重组与唯一 ID / addLogEntry reassembly & unique IDs
+  /// =======================================================================
+  group('addLogEntry reassembly & unique IDs', () {
+    test(
+      '同步捕获的多条日志拥有唯一 ID（不碰撞）/ Synchronous captures get unique IDs (no collision)',
+      () {
+        InspectorLogInterceptor.instance.start();
+        for (var i = 0; i < 20; i++) {
+          InspectorLogInterceptor.instance.captureLog('log-$i', LogLevel.info);
+        }
+        final logs = InspectorService.instance.logEntries;
+        final ids = logs.map((e) => e.id).toSet();
+        // 20 条独立日志，ID 全部唯一 / 20 distinct logs, all IDs unique
+        expect(ids.length, equals(20));
+        expect(logs.length, equals(20));
+      },
+    );
+
+    test(
+      '第三方库逐行 print 的 box 日志被重组为单条 / Line-by-line box log reassembled into one entry',
+      () {
+        InspectorLogInterceptor.instance.start();
+        // 模拟 RevenueCat 风格的逐行 print / Simulate RevenueCat-style line prints
+        InspectorLogInterceptor.instance.captureLog(
+          '│ 🐛 ===== RevenueCat 回调 =====',
+          LogLevel.info,
+        );
+        InspectorLogInterceptor.instance.captureLog(
+          '│ 🐛   | RevenueCat: isPro=false, expiry=2026-05-23T01:17:20.000Z',
+          LogLevel.info,
+        );
+        InspectorLogInterceptor.instance.captureLog(
+          '│ 🐛   | 实际状态: isPro=true, expiry=2026-09-05 06:29:08.964979',
+          LogLevel.info,
+        );
+        InspectorLogInterceptor.instance.captureLog(
+          '└──────────────────────────────────────────────────────────────',
+          LogLevel.info,
+        );
+        final logs = InspectorService.instance.logEntries;
+        // 仅 1 条，且包含全部 4 行 / Exactly one entry, containing all 4 lines
+        expect(logs.length, equals(1));
+        final msg = logs[0].message;
+        expect(msg, contains('RevenueCat 回调'));
+        expect(msg, contains('isPro=false'));
+        expect(msg, contains('实际状态: isPro=true'));
+        expect(msg, contains('└────'));
+        // 按顺序拼接（首行在前）/ Joined in order (header first)
+        expect(msg.split('\n').first, equals('│ 🐛 ===== RevenueCat 回调 ====='));
+      },
+    );
+
+    test(
+      'debugPrint 拆出的重复片段被丢弃（只保留完整一条）/ Duplicate debugPrint fragments dropped',
+      () {
+        InspectorLogInterceptor.instance.start();
+        // 完整多行日志先被捕获 / Full multi-line log captured first
+        InspectorLogInterceptor.instance.captureLog(
+          'line1\nline2\nline3',
+          LogLevel.info,
+        );
+        // 随后 debugPrint 拆出的片段（子集）到达 / Then a split fragment (subset) arrives
+        InspectorLogInterceptor.instance.captureLog('line2', LogLevel.info);
+        final logs = InspectorService.instance.logEntries;
+        // 片段是子集，应被丢弃，仅剩完整 1 条 / Fragment is a subset -> dropped, 1 remains
+        expect(logs.length, equals(1));
+        expect(logs[0].message, equals('line1\nline2\nline3'));
+      },
+    );
+
+    test('普通独立日志不被误合并（保留顺序）/ Plain independent logs are not merged', () {
+      InspectorLogInterceptor.instance.start();
+      InspectorLogInterceptor.instance.captureLog('first', LogLevel.info);
+      InspectorLogInterceptor.instance.captureLog('second', LogLevel.info);
+      InspectorLogInterceptor.instance.captureLog('third', LogLevel.info);
+      final logs = InspectorService.instance.logEntries;
+      // 非续行，保持 3 条且倒序 / Non-continuation -> 3 distinct, reversed
+      expect(logs.length, equals(3));
+      expect(logs[0].message, equals('third'));
+      expect(logs[1].message, equals('second'));
+      expect(logs[2].message, equals('first'));
+    });
+  });
 }
