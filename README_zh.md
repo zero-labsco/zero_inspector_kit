@@ -63,21 +63,23 @@
 
 ## 截图
 
-| 总览面板 | 网络检查器 |
-| --- | --- |
-| <img src="screenshots/overview.png" width="360" alt="总览面板" /> | <img src="screenshots/network.png" width="360" alt="网络检查器" /> |
+> 点击任意缩略图可查看原图大图。/ Click any thumbnail to open the full-size image.
 
-| 日志记录 | 数据库查看器 |
+| 网络检查器 | 数据库查看器 |
 | --- | --- |
-| <img src="screenshots/logs.png" width="360" alt="日志记录" /> | <img src="screenshots/database.png" width="360" alt="数据库查看器" /> |
+| <a href="image/screenshot/network.png"><img src="image/screenshot/network.png" width="240" alt="网络检查器" /></a> | <a href="image/screenshot/database.png"><img src="image/screenshot/database.png" width="240" alt="数据库查看器" /></a> |
 
-| 内存监控 | FPS 监控 |
+| 日志记录 | 内存监控 |
 | --- | --- |
-| <img src="screenshots/memory.png" width="360" alt="内存监控" /> | <img src="screenshots/fps.png" width="360" alt="FPS 监控" /> |
+| <a href="image/screenshot/logs.png"><img src="image/screenshot/logs.png" width="240" alt="日志记录" /></a> | <a href="image/screenshot/memory.png"><img src="image/screenshot/memory.png" width="240" alt="内存监控" /></a> |
 
-| 路由追踪器 |
-| --- |
-| <img src="screenshots/routes.png" width="360" alt="路由追踪器" /> |
+| FPS 监控 | 路由追踪器 |
+| --- | --- |
+| <a href="image/screenshot/fps.png"><img src="image/screenshot/fps.png" width="240" alt="FPS 监控" /></a> | <a href="image/screenshot/routes.png"><img src="image/screenshot/routes.png" width="240" alt="路由追踪器" /></a> |
+
+| 告警系统 | Widget 检查器 |
+| --- | --- |
+| <a href="image/screenshot/alerts.png"><img src="image/screenshot/alerts.png" width="240" alt="告警系统" /></a> | <a href="image/screenshot/widgets.png"><img src="image/screenshot/widgets.png" width="240" alt="Widget 检查器" /></a> |
 
 ---
 

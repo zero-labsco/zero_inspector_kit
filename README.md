@@ -64,21 +64,23 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 ## Screenshots
 
-| Overview | Network Inspector |
-| --- | --- |
-| <img src="screenshots/overview.png" width="360" alt="Overview" /> | <img src="screenshots/network.png" width="360" alt="Network Inspector" /> |
+> Click any thumbnail to open the full-size image. / 点击任意缩略图可查看原图大图。
 
-| Logging | Database Viewer |
+| Network Inspector | Database Viewer |
 | --- | --- |
-| <img src="screenshots/logs.png" width="360" alt="Logging" /> | <img src="screenshots/database.png" width="360" alt="Database Viewer" /> |
+| <a href="image/screenshot/network.png"><img src="image/screenshot/network.png" width="240" alt="Network Inspector" /></a> | <a href="image/screenshot/database.png"><img src="image/screenshot/database.png" width="240" alt="Database Viewer" /></a> |
 
-| Memory Monitor | FPS Monitor |
+| Logging | Memory Monitor |
 | --- | --- |
-| <img src="screenshots/memory.png" width="360" alt="Memory Monitor" /> | <img src="screenshots/fps.png" width="360" alt="FPS Monitor" /> |
+| <a href="image/screenshot/logs.png"><img src="image/screenshot/logs.png" width="240" alt="Logging" /></a> | <a href="image/screenshot/memory.png"><img src="image/screenshot/memory.png" width="240" alt="Memory Monitor" /></a> |
 
-| Route Tracker |
-| --- |
-| <img src="screenshots/routes.png" width="360" alt="Route Tracker" /> |
+| FPS Monitor | Route Tracker |
+| --- | --- |
+| <a href="image/screenshot/fps.png"><img src="image/screenshot/fps.png" width="240" alt="FPS Monitor" /></a> | <a href="image/screenshot/routes.png"><img src="image/screenshot/routes.png" width="240" alt="Route Tracker" /></a> |
+
+| Alerts | Widget Inspector |
+| --- | --- |
+| <a href="image/screenshot/alerts.png"><img src="image/screenshot/alerts.png" width="240" alt="Alerts" /></a> | <a href="image/screenshot/widgets.png"><img src="image/screenshot/widgets.png" width="240" alt="Widget Inspector" /></a> |
 
 ---
 
