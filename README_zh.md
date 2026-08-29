@@ -26,6 +26,7 @@
 ## 目录
 
 - [功能特性](#功能特性)
+- [截图](#截图)
 - [安装](#安装)
 - [使用方法](#使用方法)
   - [零侵入集成](#零侵入集成推荐)
@@ -57,6 +58,28 @@
 - **一键 Bug 报告**：点击面板头部的虫子图标，即可一键生成并分享一份可直接贴进 issue 的快照（设备型号 + 系统 + 当前内存 + 最近日志 + 最近网络）。
 - **现代化 UI**：深色主题 + 渐变，集中式可定制配色。
 - **跨平台**：支持 Android 与 iOS。
+
+---
+
+## 截图
+
+> 点击任意缩略图可查看原图大图。/ Click any thumbnail to open the full-size image.
+
+| 网络检查器 | 数据库查看器 |
+| --- | --- |
+| <a href="image/screenshot/network.png"><img src="image/screenshot/network.png" width="240" alt="网络检查器" /></a> | <a href="image/screenshot/database.png"><img src="image/screenshot/database.png" width="240" alt="数据库查看器" /></a> |
+
+| 日志记录 | 内存监控 |
+| --- | --- |
+| <a href="image/screenshot/logs.png"><img src="image/screenshot/logs.png" width="240" alt="日志记录" /></a> | <a href="image/screenshot/memory.png"><img src="image/screenshot/memory.png" width="240" alt="内存监控" /></a> |
+
+| FPS 监控 | 路由追踪器 |
+| --- | --- |
+| <a href="image/screenshot/fps.png"><img src="image/screenshot/fps.png" width="240" alt="FPS 监控" /></a> | <a href="image/screenshot/routes.png"><img src="image/screenshot/routes.png" width="240" alt="路由追踪器" /></a> |
+
+| 告警系统 | Widget 检查器 |
+| --- | --- |
+| <a href="image/screenshot/alerts.png"><img src="image/screenshot/alerts.png" width="240" alt="告警系统" /></a> | <a href="image/screenshot/widgets.png"><img src="image/screenshot/widgets.png" width="240" alt="Widget 检查器" /></a> |
 
 ---
 

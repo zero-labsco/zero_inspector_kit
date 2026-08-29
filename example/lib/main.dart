@@ -176,6 +176,15 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
   }
 
   Future<void> _initInspectorData() async {
+    // 演示 SQLite 数据库查看（写入两个示例库并注册提供者）。
+    // 独立 try/catch：即使下方 Hive / SharedPreferences 在 iOS 上初始化失败，
+    // 也不会阻断示例库的建立，避免 iOS 模拟器里数据库查看器为空。
+    try {
+      await _seedExampleDatabases();
+    } catch (error, stack) {
+      debugPrint('Seed example databases failed: $error\n$stack');
+    }
+
     try {
       // 演示「自定义数据库源」一行注册 API（SharedPreferences / Hive）。
       final prefs = await SharedPreferences.getInstance();
@@ -197,9 +206,6 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
         'settings': HiveBoxAdapter(settingsBox),
         'cache': HiveBoxAdapter(cacheBox),
       });
-
-      // 演示 SQLite 数据库查看（写入两个示例库并注册提供者）。
-      await _seedExampleDatabases();
     } catch (error, stack) {
       debugPrint('Inspector data init failed: $error\n$stack');
     }

@@ -26,6 +26,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 ## Table of Contents
 
 - [Features](#features)
+- [Screenshots](#screenshots)
 - [Installation](#installation)
 - [Usage](#usage)
   - [Zero-Invasion Integration](#zero-invasion-integration-recommended)
@@ -58,6 +59,28 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 - **One-Click Bug Report** — Tap the bug icon in the panel header to share a ready-to-file snapshot (device model + OS + current memory + recent logs + recent network) via the system share sheet.
 - **Modern UI** — Dark theme with gradients and centralized, customizable colors.
 - **Cross-Platform** — Android and iOS.
+
+---
+
+## Screenshots
+
+> Click any thumbnail to open the full-size image. / 点击任意缩略图可查看原图大图。
+
+| Network Inspector | Database Viewer |
+| --- | --- |
+| <a href="image/screenshot/network.png"><img src="image/screenshot/network.png" width="240" alt="Network Inspector" /></a> | <a href="image/screenshot/database.png"><img src="image/screenshot/database.png" width="240" alt="Database Viewer" /></a> |
+
+| Logging | Memory Monitor |
+| --- | --- |
+| <a href="image/screenshot/logs.png"><img src="image/screenshot/logs.png" width="240" alt="Logging" /></a> | <a href="image/screenshot/memory.png"><img src="image/screenshot/memory.png" width="240" alt="Memory Monitor" /></a> |
+
+| FPS Monitor | Route Tracker |
+| --- | --- |
+| <a href="image/screenshot/fps.png"><img src="image/screenshot/fps.png" width="240" alt="FPS Monitor" /></a> | <a href="image/screenshot/routes.png"><img src="image/screenshot/routes.png" width="240" alt="Route Tracker" /></a> |
+
+| Alerts | Widget Inspector |
+| --- | --- |
+| <a href="image/screenshot/alerts.png"><img src="image/screenshot/alerts.png" width="240" alt="Alerts" /></a> | <a href="image/screenshot/widgets.png"><img src="image/screenshot/widgets.png" width="240" alt="Widget Inspector" /></a> |
 
 ---
 
