@@ -26,6 +26,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 ## Table of Contents
 
 - [Features](#features)
+- [Screenshots](#screenshots)
 - [Installation](#installation)
 - [Usage](#usage)
   - [Zero-Invasion Integration](#zero-invasion-integration-recommended)
@@ -58,6 +59,26 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 - **One-Click Bug Report** — Tap the bug icon in the panel header to share a ready-to-file snapshot (device model + OS + current memory + recent logs + recent network) via the system share sheet.
 - **Modern UI** — Dark theme with gradients and centralized, customizable colors.
 - **Cross-Platform** — Android and iOS.
+
+---
+
+## Screenshots
+
+| Overview | Network Inspector |
+| --- | --- |
+| <img src="screenshots/overview.png" width="360" alt="Overview" /> | <img src="screenshots/network.png" width="360" alt="Network Inspector" /> |
+
+| Logging | Database Viewer |
+| --- | --- |
+| <img src="screenshots/logs.png" width="360" alt="Logging" /> | <img src="screenshots/database.png" width="360" alt="Database Viewer" /> |
+
+| Memory Monitor | FPS Monitor |
+| --- | --- |
+| <img src="screenshots/memory.png" width="360" alt="Memory Monitor" /> | <img src="screenshots/fps.png" width="360" alt="FPS Monitor" /> |
+
+| Route Tracker |
+| --- |
+| <img src="screenshots/routes.png" width="360" alt="Route Tracker" /> |
 
 ---
 

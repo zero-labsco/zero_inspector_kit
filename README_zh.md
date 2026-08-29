@@ -26,6 +26,7 @@
 ## 目录
 
 - [功能特性](#功能特性)
+- [截图](#截图)
 - [安装](#安装)
 - [使用方法](#使用方法)
   - [零侵入集成](#零侵入集成推荐)
@@ -57,6 +58,26 @@
 - **一键 Bug 报告**：点击面板头部的虫子图标，即可一键生成并分享一份可直接贴进 issue 的快照（设备型号 + 系统 + 当前内存 + 最近日志 + 最近网络）。
 - **现代化 UI**：深色主题 + 渐变，集中式可定制配色。
 - **跨平台**：支持 Android 与 iOS。
+
+---
+
+## 截图
+
+| 总览面板 | 网络检查器 |
+| --- | --- |
+| <img src="screenshots/overview.png" width="360" alt="总览面板" /> | <img src="screenshots/network.png" width="360" alt="网络检查器" /> |
+
+| 日志记录 | 数据库查看器 |
+| --- | --- |
+| <img src="screenshots/logs.png" width="360" alt="日志记录" /> | <img src="screenshots/database.png" width="360" alt="数据库查看器" /> |
+
+| 内存监控 | FPS 监控 |
+| --- | --- |
+| <img src="screenshots/memory.png" width="360" alt="内存监控" /> | <img src="screenshots/fps.png" width="360" alt="FPS 监控" /> |
+
+| 路由追踪器 |
+| --- |
+| <img src="screenshots/routes.png" width="360" alt="路由追踪器" /> |
 
 ---
 
