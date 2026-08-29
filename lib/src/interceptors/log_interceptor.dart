@@ -29,6 +29,9 @@ class InspectorLogInterceptor {
   /// 是否正在捕获日志（防止递归调用）/ Whether currently capturing logs (prevents recursive calls)
   bool _isCapturing = false;
 
+  /// 全局单调递增计数器，用于生成唯一日志 ID / Monotonic counter for unique log IDs
+  static int _logIdCounter = 0;
+
   /// 当前是否已启动日志捕获 / Whether log capture has been started
   bool get isRunning => _isStarted;
 
@@ -174,8 +177,15 @@ class InspectorLogInterceptor {
   }
 
   /// 生成唯一的日志 ID / Generate unique log ID
+  ///
+  /// 使用单调递增计数器而非时间戳：第三方库同步逐行 print 的多行日志会在
+  /// 同一毫秒内产生多条 captureLog 调用，若以毫秒时间戳作 ID 会碰撞，导致按
+  /// ID 查找详情时总是命中第一条（点击任意分段都显示表头）。
+  /// Uses a monotonic counter instead of a timestamp: synchronous multi-line
+  /// captures can share the same millisecond and collide, breaking ID-based
+  /// detail lookup (tapping any segment would show the first one).
   String _generateId() {
-    return 'log_${DateTime.now().millisecondsSinceEpoch}';
+    return 'log_${_logIdCounter++}';
   }
 
   /// 根据日志内容自动识别日志级别 / Automatically detect log level based on message content
