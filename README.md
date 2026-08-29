@@ -17,7 +17,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** v1.6.0 adds a one-click bug report (device info + memory + recent logs/network shared from the panel header), in-app network request replay, and reduces memory-page rebuilds. All users are advised to upgrade to `^1.6.0`.
+> **🔔 Upgrade recommended:** This release fixes multi-line log reassembly so split/multi-line logs no longer render out of order in the panel. All users are encouraged to upgrade to the latest version (`^1.6.1`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -67,7 +67,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.6.0
+  zero_inspector_kit: ^1.6.1
 ```
 
 ### GitHub
@@ -77,7 +77,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.6.0   # replace 1.6.0 with the version you need
+      ref: release/v1.6.1   # replace 1.6.1 with the version you need
 ```
 
 ---
