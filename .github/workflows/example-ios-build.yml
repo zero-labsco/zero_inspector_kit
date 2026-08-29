@@ -62,4 +62,18 @@ jobs:
         # This compiles the example AND the plugin's native Swift, surfacing errors
         # (e.g. availableData / vm_info) that only newer Xcode toolchains flag.
         working-directory: example
-        run: flutter build ios --simulator
+        run: flutter build ios --simulator --no-codesign
+
+      - name: Create iOS simulator archive
+        # 打包模拟器 .app 为 zip，供 Appetize 等云端 iOS 模拟器使用（Appetize 要求 zip 根目录直接包含 .app）。
+        # Package the simulator .app as a zip for cloud iOS simulators like Appetize
+        # (Appetize requires the zip to contain the .app at its root).
+        working-directory: example/build/ios/iphonesimulator
+        run: |
+          zip -r ../../../../zero_inspector_kit_example_simulator.zip Runner.app
+
+      - name: Upload iOS simulator build
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios-simulator-build
+          path: zero_inspector_kit_example_simulator.zip
