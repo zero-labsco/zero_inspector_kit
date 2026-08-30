@@ -17,7 +17,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release fixes multi-line log reassembly so split/multi-line logs no longer render out of order in the panel. All users are encouraged to upgrade to the latest version (`^1.6.1`).
+> **🔔 Upgrade recommended:** This release adds opt-in WebSocket/gRPC capture, an error boundary for each inspector tab, and widget/responsive tests. All users are encouraged to upgrade to the latest version (`^1.7.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -32,6 +32,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
   - [Zero-Invasion Integration](#zero-invasion-integration-recommended)
   - [Logging](#logging)
   - [Network Requests](#network-requests)
+  - [WebSocket / gRPC Capture](#websocket--grpc-capture-off-by-default)
   - [Network Interceptor](#network-request-interceptor)
   - [Database Provider](#database-provider)
   - [Memory Monitor](#memory-monitor)
@@ -49,6 +50,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 - **Zero-Invasion Integration** — One line of code, no changes to existing project code.
 - **Network Inspector** — Real-time capture of all HTTP (http & Dio) requests; modify bodies/headers via interceptor rules; batch cURL copy; sensitive-header masking; filterable by method/status/interception.
+- **WebSocket / gRPC Capture** — Opt-in streaming-protocol capture (off by default, runtime toggle like Memory/FPS); WebSocket frames and gRPC calls appear in the Network list.
 - **Logging System** — Auto-captures `print()`, Flutter errors, and custom logs across multiple levels; integrates with third-party log libraries; auto-scroll (pausable), regex search, tag filtering and one-tap copy of a single log entry.
 - **Database Viewer** — Inspect SQLite and other databases via custom providers.
 - **Memory Monitor** — Trend chart, Dart Heap, Native memory breakdown, leak detection, image-cache & storage stats (master switch to avoid overhead).
@@ -90,7 +92,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.6.1
+  zero_inspector_kit: ^1.7.0
 ```
 
 ### GitHub
@@ -100,7 +102,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.6.1   # replace 1.6.1 with the version you need
+      ref: release/v1.7.0   # replace 1.7.0 with the version you need
 ```
 
 ---
@@ -241,6 +243,35 @@ final r = await dio.get('https://api.example.com/data'); // captured
 ```
 
 > **Note:** Dio uses `IOHttpClientAdapter` (which uses `dart:io`'s `HttpClient`), so it is captured automatically without extra config.
+
+### WebSocket / gRPC Capture (Off by Default)
+
+WebSocket, gRPC, and other streaming protocols are captured **opt-in** — off by default and toggled at runtime like the Memory/FPS monitors, so apps that don't use them pay nothing.
+
+**WebSocket:** replace `WebSocket.connect` with `InspectorWebSocket.connect`. Enable capture first by tapping the `WS` switch in the Network tab.
+
+```dart
+import 'dart:io';
+import 'package:zero_inspector_kit/zero_inspector_kit.dart';
+
+final ws = await InspectorWebSocket.connect('wss://example.com/socket');
+ws.listen((message) {
+  // incoming frames are auto-captured while capture is enabled
+});
+ws.add('ping'); // outgoing frames are auto-captured too
+```
+
+Captured frames appear in the **Network** list (method `WS`), reusing the timeline & detail view. When capture is off, `InspectorWebSocket.connect` behaves exactly like `WebSocket.connect` with zero overhead.
+
+**gRPC / web_socket_channel / other stacks:** these can't be transparently intercepted by `dart:io`, so use the manual hook:
+
+```dart
+WsInspectorService.instance.recordCall(
+  name: 'UserService/GetUser',
+  request: requestJson,
+  response: responseJson,
+);
+```
 
 ### Network Request Interceptor
 

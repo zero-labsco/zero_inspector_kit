@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/network_request.dart';
 import '../models/interceptor_rule.dart';
 import '../services/inspector_service.dart';
+import '../services/ws_inspector_service.dart';
 import '../services/export_service.dart';
 import '../utils/formatters.dart';
 import 'theme/inspector_theme.dart';
@@ -287,6 +288,9 @@ class _NetworkViewerState extends State<NetworkViewer> {
                 // 拦截总开关 / Interceptor master switch（仅列表页显示）
                 if (_selectedRequest == null)
                   _buildInterceptorSwitch(interceptorOn),
+                // WebSocket/gRPC 抓取开关（默认关闭，运行时切换，与 Memory/FPS 一致）
+                // WS/gRPC capture switch (off by default, toggled at runtime, like Memory/FPS)
+                if (_selectedRequest == null) _buildWsCaptureSwitch(),
                 if (_selectedRequest != null &&
                     interceptorOn &&
                     _selectedRequest!.method.toUpperCase() != 'GET')
@@ -453,6 +457,62 @@ class _NetworkViewerState extends State<NetworkViewer> {
           ),
         ),
       ),
+    );
+  }
+
+  /// 构建 WebSocket/gRPC 抓取开关（默认关闭，运行时切换，与 Memory/FPS 一致）。
+  /// Build the WebSocket/gRPC capture switch (off by default, toggled at runtime,
+  /// consistent with Memory/FPS monitors).
+  Widget _buildWsCaptureSwitch() {
+    return ListenableBuilder(
+      listenable: WsInspectorService.instance,
+      builder: (context, _) {
+        final enabled = WsInspectorService.instance.isEnabled;
+        return Tooltip(
+          message: enabled ? 'WS/gRPC capture: ON' : 'WS/gRPC capture: OFF',
+          child: GestureDetector(
+            onTap: () => WsInspectorService.instance.toggle(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: enabled
+                    ? InspectorColors.accent.withValues(alpha: 0.15)
+                    : InspectorColors.card,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: enabled
+                      ? InspectorColors.accent
+                      : InspectorColors.border,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    enabled ? Icons.sync_rounded : Icons.sync_disabled,
+                    size: 14,
+                    color: enabled
+                        ? InspectorColors.accent
+                        : InspectorColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'WS',
+                    style: TextStyle(
+                      color: enabled
+                          ? InspectorColors.accent
+                          : InspectorColors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1258,6 +1318,10 @@ class _NetworkViewerState extends State<NetworkViewer> {
         return InspectorColors.methodDelete;
       case 'PATCH':
         return InspectorColors.methodPatch;
+      case 'WS':
+        return InspectorColors.accent;
+      case 'GRPC':
+        return InspectorColors.methodPut;
       default:
         return InspectorColors.textSecondary;
     }

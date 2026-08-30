@@ -11,8 +11,10 @@ import 'route_viewer.dart';
 import 'fps_viewer.dart';
 import 'alerts_viewer.dart';
 import 'widget_tree_viewer.dart';
+import 'widgets/inspector_error_boundary.dart';
 
 import '../services/inspector_service.dart';
+import '../services/ws_inspector_service.dart';
 import '../services/export_service.dart';
 import '../utils/device_info.dart';
 import '../utils/formatters.dart';
@@ -40,15 +42,39 @@ class _InspectorPanelState extends State<InspectorPanel>
 
   /// 各个标签页的内容 / Contents of each tab
   /// 使用 IndexedStack + ValueKey 保持各页面状态 / Use IndexedStack + ValueKey to preserve state of each page
-  late final List<Widget> _pages = const [
-    NetworkViewer(key: ValueKey('network')),
-    LogViewer(key: ValueKey('logs')),
-    DatabaseViewer(key: ValueKey('database')),
-    MemoryViewer(key: ValueKey('memory')),
-    FpsViewer(key: ValueKey('fps')),
-    RouteViewer(key: ValueKey('routes')),
-    AlertsViewer(key: ValueKey('alerts')),
-    WidgetTreeInspector(key: ValueKey('widgets')),
+  late final List<Widget> _pages = [
+    InspectorErrorBoundary(
+      label: 'Network',
+      child: NetworkViewer(key: ValueKey('network')),
+    ),
+    InspectorErrorBoundary(
+      label: 'Logs',
+      child: LogViewer(key: ValueKey('logs')),
+    ),
+    InspectorErrorBoundary(
+      label: 'Database',
+      child: DatabaseViewer(key: ValueKey('database')),
+    ),
+    InspectorErrorBoundary(
+      label: 'Memory',
+      child: MemoryViewer(key: ValueKey('memory')),
+    ),
+    InspectorErrorBoundary(
+      label: 'FPS',
+      child: FpsViewer(key: ValueKey('fps')),
+    ),
+    InspectorErrorBoundary(
+      label: 'Routes',
+      child: RouteViewer(key: ValueKey('routes')),
+    ),
+    InspectorErrorBoundary(
+      label: 'Alerts',
+      child: AlertsViewer(key: ValueKey('alerts')),
+    ),
+    InspectorErrorBoundary(
+      label: 'Widgets',
+      child: WidgetTreeInspector(key: ValueKey('widgets')),
+    ),
   ];
 
   /// 标签页标题 / Tab titles
@@ -82,6 +108,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     _tabController.addListener(_onTabChanged);
     FpsService.instance.addListener(_onMonitorChanged);
     MemoryInspectorService.instance.addListener(_onMonitorChanged);
+    WsInspectorService.instance.addListener(_onMonitorChanged);
   }
 
   @override
@@ -89,6 +116,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     _tabController.removeListener(_onTabChanged);
     FpsService.instance.removeListener(_onMonitorChanged);
     MemoryInspectorService.instance.removeListener(_onMonitorChanged);
+    WsInspectorService.instance.removeListener(_onMonitorChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -112,6 +140,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     final list = <String>[];
     if (FpsService.instance.isRunning) list.add('FPS');
     if (MemoryInspectorService.instance.isEnabled) list.add('Memory');
+    if (WsInspectorService.instance.isEnabled) list.add('WebSocket');
     return list;
   }
 

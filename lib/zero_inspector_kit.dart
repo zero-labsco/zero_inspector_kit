@@ -1,10 +1,12 @@
 export 'src/ui/floating_button.dart';
 export 'src/ui/conditional_inspector.dart';
+export 'src/ui/widgets/inspector_error_boundary.dart';
 export 'src/interceptors/log_interceptor.dart';
 export 'src/interceptors/http_interceptor.dart';
 export 'src/interceptors/dio_interceptor.dart';
 export 'src/interceptors/route_observer.dart';
 export 'src/services/inspector_service.dart';
+export 'src/services/ws_inspector_service.dart';
 export 'src/services/database_service.dart';
 export 'src/services/sqlite_provider.dart';
 export 'src/services/database_provider.dart';
