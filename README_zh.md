@@ -2,9 +2,9 @@
 
 <div align="center" style="display: flex; align-items: center; justify-content: center; gap: 16px;">
 
-<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Zee.png" width="96" style="border-radius: 22%;" />
+<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Zee.png" width="96" />
 <span style="font-size: 1.1em;"><strong>简体中文</strong> &nbsp;|&nbsp; <a href="README.md">English</a></span>
-<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Amber.png" width="96" style="border-radius: 22%;" />
+<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Amber.png" width="96" />
 
 </div>
 
