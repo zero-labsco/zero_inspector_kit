@@ -172,15 +172,25 @@ class _InspectorPanelState extends State<InspectorPanel>
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(InspectorDimensions.panelRadius),
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildTabBar(),
-            Expanded(
-              // IndexedStack 保持所有页面状态不丢失 / IndexedStack preserves state of all pages
-              child: IndexedStack(index: _currentIndex, children: _pages),
-            ),
-          ],
+        // 透明 Material 祖先：面板作为浮层（Overlay）渲染，宿主不一定提供
+        // Material，而搜索框(Switch/TextField 等)需要 Material 祖先，否则 debug
+        // 模式会抛 "No Material widget found"。用透明 Material 既满足断言又不影响外观。
+        // Transparent Material ancestor: the panel is rendered as an Overlay, so the
+        // host may not provide a Material. Material widgets (TextField/Switch/…) need
+        // one, else debug builds throw "No Material widget found". A transparent
+        // Material satisfies the assertion without changing the appearance.
+        child: Material(
+          type: MaterialType.transparency,
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildTabBar(),
+              Expanded(
+                // IndexedStack 保持所有页面状态不丢失 / IndexedStack preserves state of all pages
+                child: IndexedStack(index: _currentIndex, children: _pages),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -301,14 +311,21 @@ class _InspectorPanelState extends State<InspectorPanel>
           ),
         ),
         const SizedBox(width: 6),
-        Text(
-          active.isEmpty
-              ? 'No live monitor'
-              : 'Monitoring: ${active.join(' · ')}',
-          style: TextStyle(
-            color: InspectorColors.textSecondary,
-            fontSize: 10,
-            fontWeight: FontWeight.w400,
+        // Expanded + 省略号：窄屏或系统大字号下文本过长时收缩并省略，
+        // 避免状态行 Row 在右侧溢出（实测窄屏溢出 12px、大字号溢出 47px）。
+        // Expanded + ellipsis: on narrow screens / large system fonts the text can
+        // outgrow the row; shrink-and-ellipsize instead of overflowing on the right.
+        Expanded(
+          child: Text(
+            active.isEmpty
+                ? 'No live monitor'
+                : 'Monitoring: ${active.join(' · ')}',
+            style: TextStyle(
+              color: InspectorColors.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w400,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
