@@ -73,7 +73,7 @@ jobs:
           zip -r ../../../../zero_inspector_kit_example_simulator.zip Runner.app
 
       - name: Upload iOS simulator build
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ios-simulator-build
           path: zero_inspector_kit_example_simulator.zip
