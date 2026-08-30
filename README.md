@@ -70,19 +70,19 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 | Network Inspector | Database Viewer |
 | --- | --- |
-| <a href="image/screenshot/network.png"><img src="image/screenshot/network.png" width="240" alt="Network Inspector" /></a> | <a href="image/screenshot/database.png"><img src="image/screenshot/database.png" width="240" alt="Database Viewer" /></a> |
+| <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/network.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/network.png" width="240" alt="Network Inspector" /></a> | <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/database.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/database.png" width="240" alt="Database Viewer" /></a> |
 
 | Logging | Memory Monitor |
 | --- | --- |
-| <a href="image/screenshot/logs.png"><img src="image/screenshot/logs.png" width="240" alt="Logging" /></a> | <a href="image/screenshot/memory.png"><img src="image/screenshot/memory.png" width="240" alt="Memory Monitor" /></a> |
+| <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/logs.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/logs.png" width="240" alt="Logging" /></a> | <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/memory.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/memory.png" width="240" alt="Memory Monitor" /></a> |
 
 | FPS Monitor | Route Tracker |
 | --- | --- |
-| <a href="image/screenshot/fps.png"><img src="image/screenshot/fps.png" width="240" alt="FPS Monitor" /></a> | <a href="image/screenshot/routes.png"><img src="image/screenshot/routes.png" width="240" alt="Route Tracker" /></a> |
+| <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/fps.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/fps.png" width="240" alt="FPS Monitor" /></a> | <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/routes.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/routes.png" width="240" alt="Route Tracker" /></a> |
 
 | Alerts | Widget Inspector |
 | --- | --- |
-| <a href="image/screenshot/alerts.png"><img src="image/screenshot/alerts.png" width="240" alt="Alerts" /></a> | <a href="image/screenshot/widgets.png"><img src="image/screenshot/widgets.png" width="240" alt="Widget Inspector" /></a> |
+| <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/alerts.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/alerts.png" width="240" alt="Alerts" /></a> | <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/widgets.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/widgets.png" width="240" alt="Widget Inspector" /></a> |
 
 ---
 

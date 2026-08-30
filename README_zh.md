@@ -69,19 +69,19 @@
 
 | 网络检查器 | 数据库查看器 |
 | --- | --- |
-| <a href="image/screenshot/network.png"><img src="image/screenshot/network.png" width="240" alt="网络检查器" /></a> | <a href="image/screenshot/database.png"><img src="image/screenshot/database.png" width="240" alt="数据库查看器" /></a> |
+| <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/network.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/network.png" width="240" alt="网络检查器" /></a> | <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/database.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/database.png" width="240" alt="数据库查看器" /></a> |
 
 | 日志记录 | 内存监控 |
 | --- | --- |
-| <a href="image/screenshot/logs.png"><img src="image/screenshot/logs.png" width="240" alt="日志记录" /></a> | <a href="image/screenshot/memory.png"><img src="image/screenshot/memory.png" width="240" alt="内存监控" /></a> |
+| <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/logs.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/logs.png" width="240" alt="日志记录" /></a> | <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/memory.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/memory.png" width="240" alt="内存监控" /></a> |
 
 | FPS 监控 | 路由追踪器 |
 | --- | --- |
-| <a href="image/screenshot/fps.png"><img src="image/screenshot/fps.png" width="240" alt="FPS 监控" /></a> | <a href="image/screenshot/routes.png"><img src="image/screenshot/routes.png" width="240" alt="路由追踪器" /></a> |
+| <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/fps.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/fps.png" width="240" alt="FPS 监控" /></a> | <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/routes.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/routes.png" width="240" alt="路由追踪器" /></a> |
 
 | 告警系统 | Widget 检查器 |
 | --- | --- |
-| <a href="image/screenshot/alerts.png"><img src="image/screenshot/alerts.png" width="240" alt="告警系统" /></a> | <a href="image/screenshot/widgets.png"><img src="image/screenshot/widgets.png" width="240" alt="Widget 检查器" /></a> |
+| <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/alerts.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/alerts.png" width="240" alt="告警系统" /></a> | <a href="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/widgets.png"><img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/screenshot/widgets.png" width="240" alt="Widget 检查器" /></a> |
 
 ---
 
