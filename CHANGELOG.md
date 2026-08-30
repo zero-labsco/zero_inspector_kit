@@ -11,6 +11,9 @@
 ### Tests / 测试
 - 补充数据库后端单测（sqlite_provider / database_service / database_provider）与各 Viewer 的 widget/响应式测试，覆盖窄屏与大系统字体的溢出回归。 / Added database backend unit tests and widget/responsive tests for the viewers, guarding against overflow regressions on narrow screens and large system fonts.
 
+### Fixed / 修复
+- 修复网络查看器搜索框失效：此前 `InspectorSearchField` 的 `onChanged` 未接入，输入关键词不会更新 `_searchKeyword`，列表始终不过滤；现在已按 URL / Method 实时过滤（与日志查看器行为一致）。 / Fixed the network viewer search box being inert: `InspectorSearchField`'s `onChanged` was never wired, so typing never updated `_searchKeyword` and the list never filtered; it now filters live by URL / Method (matching the log viewer).
+
 ## 1.6.1
 
 ### Fixed / 修复
