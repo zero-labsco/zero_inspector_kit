@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/network_request.dart';
 import '../models/interceptor_rule.dart';
 import '../services/inspector_service.dart';
+import '../services/ws_inspector_service.dart';
 import '../services/export_service.dart';
 import '../utils/formatters.dart';
 import 'theme/inspector_theme.dart';
@@ -226,181 +227,202 @@ class _NetworkViewerState extends State<NetworkViewer> {
             color: InspectorColors.surface,
             border: Border(bottom: BorderSide(color: InspectorColors.border)),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              // 在横向滚动视图（unbounded 宽度）内必须用 min，否则 Flexible
-              // 与 shrink-wrap 冲突导致整条布局链崩溃。
-              // Inside a horizontal scroll view (unbounded width) we must use
-              // min, otherwise Flexible conflicts with shrink-wrap and crashes
-              // the whole layout chain.
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_selectedRequest != null)
-                  InspectorIconButton(
-                    icon: Icons.arrow_back_rounded,
-                    tooltip: 'Back',
-                    onTap: () {
-                      setState(() {
-                        _selectedRequestId = null;
-                        _showInterceptorPanel = false;
-                      });
-                    },
-                  ),
-                InspectorCountBadge(
-                  '${InspectorService.instance.networkRequests.length}',
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _selectedRequest != null ? 'Request Detail' : 'Requests',
-                  style: TextStyle(
-                    color: InspectorColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                // 列表页：敏感字段遮蔽开关 + 批量选择入口
-                // List page: sensitive-field mask toggle + batch-select entry
-                if (_selectedRequest == null) ...[
-                  InspectorIconButton(
-                    icon: _maskSensitive
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
-                    tooltip: _maskSensitive
-                        ? 'Sensitive hidden'
-                        : 'Sensitive visible',
-                    color: _maskSensitive ? InspectorColors.accent : null,
-                    onTap: () =>
-                        setState(() => _maskSensitive = !_maskSensitive),
-                  ),
-                  InspectorIconButton(
-                    icon: Icons.checklist_rounded,
-                    tooltip: _selectionMode ? 'Exit selection' : 'Select',
-                    color: _selectionMode ? InspectorColors.accent : null,
-                    onTap: () => setState(() {
-                      _selectionMode = !_selectionMode;
-                      if (!_selectionMode) _selectedIds.clear();
-                    }),
-                  ),
-                ],
-                // 拦截总开关 / Interceptor master switch（仅列表页显示）
-                if (_selectedRequest == null)
-                  _buildInterceptorSwitch(interceptorOn),
-                if (_selectedRequest != null &&
-                    interceptorOn &&
-                    _selectedRequest!.method.toUpperCase() != 'GET')
-                  InspectorIconButton(
-                    icon: Icons.edit_note_rounded,
-                    tooltip: 'Interceptor',
-                    onTap: () => _showInterceptorEditor(),
-                    color: InspectorColors.accent,
-                  ),
-                if (_selectedRequest != null)
-                  InspectorIconButton(
-                    icon: Icons.terminal_rounded,
-                    tooltip: 'Copy as cURL',
-                    onTap: () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      await ExportService.instance.copy(
-                        ExportService.instance.toCurl(
-                          _selectedRequest!,
-                          maskSensitive: _maskSensitive,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: Row(
+                    // 内容不足视口宽度时让按钮均分撑满（spaceBetween），右侧不再留白；
+                    // 内容超出时 Row 自然变宽、由外层横向滚动接管，保证窄屏不溢出。
+                    // When content is narrower than the viewport, spread the
+                    // buttons (spaceBetween) so the bar looks filled; when it
+                    // overflows, the Row grows and the outer scroll view handles
+                    // it, so narrow screens never overflow.
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (_selectedRequest != null)
+                        InspectorIconButton(
+                          icon: Icons.arrow_back_rounded,
+                          tooltip: 'Back',
+                          onTap: () {
+                            setState(() {
+                              _selectedRequestId = null;
+                              _showInterceptorPanel = false;
+                            });
+                          },
                         ),
-                      );
-                      if (mounted) {
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              _maskSensitive
-                                  ? 'Copied as cURL (sensitive hidden)'
-                                  : 'Copied as cURL',
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                if (_selectedRequest != null)
-                  InspectorIconButton(
-                    icon: Icons.replay_rounded,
-                    tooltip: 'Replay request',
-                    onTap: () => _replayRequest(_selectedRequest!),
-                  ),
-                InspectorIconButton(
-                  icon: Icons.content_copy_rounded,
-                  tooltip: 'Copy as JSON',
-                  onTap: () async {
-                    final requests = InspectorService.instance.networkRequests;
-                    if (requests.isEmpty) return;
-                    final messenger = ScaffoldMessenger.of(context);
-                    await ExportService.instance.copyNet(
-                      requests,
-                      maskSensitive: _maskSensitive,
-                    );
-                    if (mounted) {
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Copied ${requests.length} requests as JSON'
-                            '${_maskSensitive ? ' (sensitive hidden)' : ''}',
+                      InspectorCountBadge(
+                        '${InspectorService.instance.networkRequests.length}',
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _selectedRequest != null
+                            ? 'Request Detail'
+                            : 'Requests',
+                        style: TextStyle(
+                          color: InspectorColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // 列表页：敏感字段遮蔽开关 + 批量选择入口
+                      // List page: sensitive-field mask toggle + batch-select entry
+                      if (_selectedRequest == null) ...[
+                        InspectorIconButton(
+                          icon: _maskSensitive
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
+                          tooltip: _maskSensitive
+                              ? 'Sensitive hidden'
+                              : 'Sensitive visible',
+                          color: _maskSensitive ? InspectorColors.accent : null,
+                          onTap: () =>
+                              setState(() => _maskSensitive = !_maskSensitive),
+                        ),
+                        InspectorIconButton(
+                          icon: Icons.checklist_rounded,
+                          tooltip: _selectionMode ? 'Exit selection' : 'Select',
+                          color: _selectionMode ? InspectorColors.accent : null,
+                          onTap: () => setState(() {
+                            _selectionMode = !_selectionMode;
+                            if (!_selectionMode) _selectedIds.clear();
+                          }),
+                        ),
+                      ],
+                      // 拦截总开关 / Interceptor master switch（仅列表页显示）
+                      if (_selectedRequest == null)
+                        _buildInterceptorSwitch(interceptorOn),
+                      // WebSocket/gRPC 抓取开关（默认关闭，运行时切换，与 Memory/FPS 一致）
+                      // WS/gRPC capture switch (off by default, toggled at runtime, like Memory/FPS)
+                      if (_selectedRequest == null) _buildWsCaptureSwitch(),
+                      if (_selectedRequest != null &&
+                          interceptorOn &&
+                          _selectedRequest!.method.toUpperCase() != 'GET')
+                        InspectorIconButton(
+                          icon: Icons.edit_note_rounded,
+                          tooltip: 'Interceptor',
+                          onTap: () => _showInterceptorEditor(),
+                          color: InspectorColors.accent,
+                        ),
+                      if (_selectedRequest != null)
+                        InspectorIconButton(
+                          icon: Icons.terminal_rounded,
+                          tooltip: 'Copy as cURL',
+                          onTap: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            await ExportService.instance.copy(
+                              ExportService.instance.toCurl(
+                                _selectedRequest!,
+                                maskSensitive: _maskSensitive,
+                              ),
+                            );
+                            if (mounted) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    _maskSensitive
+                                        ? 'Copied as cURL (sensitive hidden)'
+                                        : 'Copied as cURL',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      if (_selectedRequest != null)
+                        InspectorIconButton(
+                          icon: Icons.replay_rounded,
+                          tooltip: 'Replay request',
+                          onTap: () => _replayRequest(_selectedRequest!),
+                        ),
+                      InspectorIconButton(
+                        icon: Icons.content_copy_rounded,
+                        tooltip: 'Copy as JSON',
+                        onTap: () async {
+                          final requests =
+                              InspectorService.instance.networkRequests;
+                          if (requests.isEmpty) return;
+                          final messenger = ScaffoldMessenger.of(context);
+                          await ExportService.instance.copyNet(
+                            requests,
+                            maskSensitive: _maskSensitive,
+                          );
+                          if (mounted) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Copied ${requests.length} requests as JSON'
+                                  '${_maskSensitive ? ' (sensitive hidden)' : ''}',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      InspectorIconButton(
+                        icon: Icons.share_rounded,
+                        tooltip: 'Share as JSON',
+                        onTap: () async {
+                          final requests =
+                              InspectorService.instance.networkRequests;
+                          if (requests.isEmpty) return;
+                          final messenger = ScaffoldMessenger.of(context);
+                          await ExportService.instance.exportNetAndShare(
+                            requests,
+                            maskSensitive: _maskSensitive,
+                          );
+                          if (mounted) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Sharing ${requests.length} requests as JSON'
+                                  '${_maskSensitive ? ' (sensitive hidden)' : ''}',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      if (_selectionMode)
+                        InspectorIconButton(
+                          icon: Icons.copy_all_rounded,
+                          tooltip: 'Copy selected as cURL',
+                          onTap: () => _copySelectedCurl(context),
+                        ),
+                      InspectorIconButton(
+                        icon: Icons.delete_outline_rounded,
+                        tooltip: _selectionMode
+                            ? 'Delete selected'
+                            : 'Clear all',
+                        onTap: () {
+                          if (_selectionMode) {
+                            _deleteSelected();
+                          } else {
+                            InspectorService.instance.clearNetworkRequests();
+                          }
+                        },
+                      ),
+                      // 筛选漏斗（仅列表页显示）/ Filter funnel (list page only)
+                      if (_selectedRequest == null)
+                        InspectorIconButton(
+                          icon: Icons.filter_alt_rounded,
+                          tooltip: 'Filter',
+                          color: _hasActiveFilter
+                              ? InspectorColors.accent
+                              : null,
+                          onTap: () => setState(
+                            () => _filterExpanded = !_filterExpanded,
                           ),
                         ),
-                      );
-                    }
-                  },
-                ),
-                InspectorIconButton(
-                  icon: Icons.share_rounded,
-                  tooltip: 'Share as JSON',
-                  onTap: () async {
-                    final requests = InspectorService.instance.networkRequests;
-                    if (requests.isEmpty) return;
-                    final messenger = ScaffoldMessenger.of(context);
-                    await ExportService.instance.exportNetAndShare(
-                      requests,
-                      maskSensitive: _maskSensitive,
-                    );
-                    if (mounted) {
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Sharing ${requests.length} requests as JSON'
-                            '${_maskSensitive ? ' (sensitive hidden)' : ''}',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                if (_selectionMode)
-                  InspectorIconButton(
-                    icon: Icons.copy_all_rounded,
-                    tooltip: 'Copy selected as cURL',
-                    onTap: () => _copySelectedCurl(context),
+                    ],
                   ),
-                InspectorIconButton(
-                  icon: Icons.delete_outline_rounded,
-                  tooltip: _selectionMode ? 'Delete selected' : 'Clear all',
-                  onTap: () {
-                    if (_selectionMode) {
-                      _deleteSelected();
-                    } else {
-                      InspectorService.instance.clearNetworkRequests();
-                    }
-                  },
                 ),
-                // 筛选漏斗（仅列表页显示）/ Filter funnel (list page only)
-                if (_selectedRequest == null)
-                  InspectorIconButton(
-                    icon: Icons.filter_alt_rounded,
-                    tooltip: 'Filter',
-                    color: _hasActiveFilter ? InspectorColors.accent : null,
-                    onTap: () =>
-                        setState(() => _filterExpanded = !_filterExpanded),
-                  ),
-              ],
-            ),
+              );
+            },
           ),
         );
       },
@@ -456,6 +478,62 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
   }
 
+  /// 构建 WebSocket/gRPC 抓取开关（默认关闭，运行时切换，与 Memory/FPS 一致）。
+  /// Build the WebSocket/gRPC capture switch (off by default, toggled at runtime,
+  /// consistent with Memory/FPS monitors).
+  Widget _buildWsCaptureSwitch() {
+    return ListenableBuilder(
+      listenable: WsInspectorService.instance,
+      builder: (context, _) {
+        final enabled = WsInspectorService.instance.isEnabled;
+        return Tooltip(
+          message: enabled ? 'WS/gRPC capture: ON' : 'WS/gRPC capture: OFF',
+          child: GestureDetector(
+            onTap: () => WsInspectorService.instance.toggle(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: enabled
+                    ? InspectorColors.accent.withValues(alpha: 0.15)
+                    : InspectorColors.card,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: enabled
+                      ? InspectorColors.accent
+                      : InspectorColors.border,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    enabled ? Icons.sync_rounded : Icons.sync_disabled,
+                    size: 14,
+                    color: enabled
+                        ? InspectorColors.accent
+                        : InspectorColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'WS',
+                    style: TextStyle(
+                      color: enabled
+                          ? InspectorColors.accent
+                          : InspectorColors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildSearchBar() {
     if (_selectedRequest != null) return const SizedBox.shrink();
 
@@ -464,6 +542,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
       child: InspectorSearchField(
         controller: _searchController,
         hint: 'Search URL, method...',
+        onChanged: (value) => setState(() => _searchKeyword = value),
         onClear: () {
           _searchController.clear();
           setState(() => _searchKeyword = '');
@@ -1258,6 +1337,10 @@ class _NetworkViewerState extends State<NetworkViewer> {
         return InspectorColors.methodDelete;
       case 'PATCH':
         return InspectorColors.methodPatch;
+      case 'WS':
+        return InspectorColors.accent;
+      case 'GRPC':
+        return InspectorColors.methodPut;
       default:
         return InspectorColors.textSecondary;
     }

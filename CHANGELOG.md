@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.7.0
+
+### Added / 新增
+- WebSocket / gRPC 等流式协议抓取（默认关闭，运行时开关，与 Memory/FPS 一致）：用 `InspectorWebSocket.connect` 替换 `WebSocket.connect` 即可自动记录收发帧；gRPC、web_socket_channel 等无法被 `dart:io` 透明拦截的栈可用 `WsInspectorService.recordCall` 手动 hook。抓取数据进入现有「网络」列表（method 标 `WS` / `gRPC`），复用时间轴与详情页。 / Streaming-protocol capture for WebSocket / gRPC etc. (off by default, toggled at runtime like Memory/FPS): replace `WebSocket.connect` with `InspectorWebSocket.connect` to auto-record frames; use `WsInspectorService.recordCall` as a manual hook for gRPC / web_socket_channel stacks that can't be transparently intercepted. Captured data lands in the existing Network list (method `WS` / `gRPC`), reusing the timeline & detail view.
+
+### Changed / 变更
+- 检查器面板每个 Tab 增加错误兜底（`InspectorErrorBoundary`），单个 Tab 渲染异常时仅该 Tab 显示错误卡片，不再拖垮整个面板。 / Added an error boundary per inspector tab so a single tab's render error shows a contained card instead of crashing the whole panel.
+
+### Tests / 测试
+- 补充数据库后端单测（sqlite_provider / database_service / database_provider）与各 Viewer 的 widget/响应式测试，覆盖窄屏与大系统字体的溢出回归。 / Added database backend unit tests and widget/responsive tests for the viewers, guarding against overflow regressions on narrow screens and large system fonts.
+
+### Fixed / 修复
+- 修复网络查看器搜索框失效：此前 `InspectorSearchField` 的 `onChanged` 未接入，输入关键词不会更新 `_searchKeyword`，列表始终不过滤；现在已按 URL / Method 实时过滤（与日志查看器行为一致）。 / Fixed the network viewer search box being inert: `InspectorSearchField`'s `onChanged` was never wired, so typing never updated `_searchKeyword` and the list never filtered; it now filters live by URL / Method (matching the log viewer).
+
 ## 1.6.1
 
 ### Fixed / 修复

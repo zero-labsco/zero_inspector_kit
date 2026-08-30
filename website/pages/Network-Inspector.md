@@ -16,6 +16,67 @@ The inspector uses Flutter's `HttpOverrides` to intercept all HTTP traffic at th
 - **Dio**: Auto-captured (uses IOHttpClientAdapter → HttpClient) ✅ / 自动捕获 ✅
 - No manual interceptor setup needed / 无需手动添加拦截器
 
+## WebSocket & gRPC Capture / WebSocket 与 gRPC 抓取
+
+> **Available since v1.7.0** (opt-in, off by default)
+>
+> **v1.7.0 起可用**（可选开启，默认关闭）
+
+HTTP/HTTPS traffic is captured automatically, but the `HttpOverrides` interceptor does **not** cover streaming protocols like **WebSocket** and **gRPC**. For those, enable the opt-in capture so frames and calls show up as `WS` / `gRPC` rows in the Network tab.
+
+HTTP/HTTPS 流量会自动捕获，但 `HttpOverrides` 拦截器**无法覆盖** WebSocket、gRPC 这类流式协议。针对它们需开启可选的抓取，开启后收发帧/调用会以 `WS` / `gRPC` 行的形式出现在 Network 标签页。
+
+### Enable / 开启方式
+
+- Toggle the **WS** switch in the Network tab toolbar, or / 在 Network 标签页工具栏点击 **WS** 开关，或
+- Set it programmatically: / 通过代码开启：
+
+```dart
+// on / 开启
+WsInspectorService.instance.enable();
+// off / 关闭
+WsInspectorService.instance.disable();
+```
+
+Capture is **off by default** and only records while enabled — apps that don't use these protocols pay nothing.
+
+抓取**默认关闭**，且只在开启时记录；不使用这类协议的应用零开销。
+
+### Two Usage Modes / 两种使用方式
+
+**1. Transparent wrapper — `InspectorWebSocket`**
+
+Replace `WebSocket.connect` with `InspectorWebSocket.connect`. Frames are auto-recorded (`→` out, `←` in) when capture is on; when off it passes through with zero overhead.
+
+将 `WebSocket.connect` 替换为 `InspectorWebSocket.connect`。开启抓取时会自动记录收发帧（`→` 出站、`←` 入站）；关闭时零开销透传。
+
+```dart
+final ws = await InspectorWebSocket.connect('wss://echo.websocket.events');
+ws.listen((msg) => print('received: $msg'));
+ws.add('hello'); // recorded as an outgoing frame / 记录为出站帧
+```
+
+**2. Manual hook — `recordCall`**
+
+For stacks not transparently interceptable by `dart:io` (gRPC, `web_socket_channel`, custom protocols), call `recordCall` to log a request/response pair. No-ops when capture is disabled.
+
+对于无法被 `dart:io` 透明拦截的栈（gRPC、`web_socket_channel`、自定义协议），调用 `recordCall` 记录一次请求/响应。关闭抓取时为空操作。
+
+```dart
+WsInspectorService.instance.recordCall(
+  name: 'user.UserService/GetUser',
+  request: '{ "id": 1 }',
+  response: '{ "name": "Ada" }',
+  protocol: 'gRPC', // appears in the method column / 显示在 method 列
+);
+```
+
+### What You See / 查看方式
+
+- Network tab lists a `WS` (or `gRPC`) entry per connection/call / Network 标签页按连接/调用列出 `WS`（或 `gRPC`）记录
+- Open the detail view to see the frame log (outgoing `→` / incoming `←`), accumulated in the response body / 进入详情页查看帧日志（出站 `→` / 入站 `←`），累积显示在响应体中
+- A `[connection closed]` marker is appended when the socket closes / 连接关闭后会追加 `[connection closed]` 标记
+
 ## Captured Information / 捕获的信息
 
 | Field | Description |

@@ -30,6 +30,7 @@ This project is licensed under GPL-3.0. By participating, you are expected to up
 
 - Flutter >= 3.3.0 (stable channel)
 - Dart >= 3.11.0
+- Node.js (required by the pre-commit `docs-sync` hook; without it `git commit` fails the hook)
 - Android Studio / Xcode (for platform-specific testing)
 - Git
 

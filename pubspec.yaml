@@ -1,6 +1,6 @@
 name: zero_inspector_kit
 description: A Flutter plugin for in-app developer console with network request viewing, logging, database inspection, memory monitoring, FPS monitoring, and route tracking.
-version: 1.6.1
+version: 1.7.0
 homepage: https://github.com/zero-labsco/zero_inspector_kit
 repository: https://github.com/zero-labsco/zero_inspector_kit
 documentation: https://zero-labsco.github.io/zero_inspector_kit/
@@ -24,6 +24,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: '6.0.0'
+  sqflite_common_ffi: ^2.4.0
 
 flutter:
   plugin:

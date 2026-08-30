@@ -17,7 +17,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本次更新修复了跨行日志的重新拼接，拆分/多行的日志不再在面板中错位显示。建议所有用户升级到最新版本（`^1.6.1`）。
+> **🔔 推荐升级：** 本次更新新增可选的 WebSocket/gRPC 抓取、各检查器 Tab 的错误兜底，以及 widget/响应式测试。建议所有用户升级到最新版本（`^1.7.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -32,6 +32,7 @@
   - [零侵入集成](#零侵入集成推荐)
   - [日志记录](#日志记录)
   - [网络请求](#网络请求)
+  - [WebSocket / gRPC 抓取（默认关闭）](#websocket--grpc-抓取)
   - [网络请求拦截修改](#网络请求拦截修改)
   - [数据库提供者](#数据库提供者)
   - [内存监控](#内存监控)
@@ -48,6 +49,7 @@
 
 - **零侵入集成**：一行代码，无需改动现有项目代码。
 - **网络检查器**：实时捕获所有 HTTP（http & Dio）请求；通过拦截规则修改请求体/请求头；批量复制 cURL；敏感请求头遮蔽；可按方法/状态码/拦截状态筛选。
+- **WebSocket / gRPC 抓取**：可选的流式协议抓取（默认关闭，运行时开关，与 Memory/FPS 一致）；WebSocket 帧与 gRPC 调用出现在 Network 列表中。
 - **日志系统**：自动捕获 `print()`、Flutter 错误及自定义日志，支持多级别与第三方日志库集成；新增自动滚动（可暂停）、正则搜索、按标签过滤与单条日志一键复制。
 - **数据库查看器**：支持 SQLite 及其他数据库，可自定义提供者。
 - **内存监控**：趋势图、Dart Heap、Native 内存分项、泄漏检测、图片缓存与存储统计（总开关避免开销）。
@@ -89,7 +91,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.6.1
+  zero_inspector_kit: ^1.7.0
 ```
 
 ### GitHub
@@ -99,7 +101,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.6.1   # 将 1.6.1 替换为你需要的版本号
+      ref: release/v1.7.0   # 将 1.7.0 替换为你需要的版本号
 ```
 
 ---
@@ -240,6 +242,36 @@ final r = await dio.get('https://api.example.com/data'); // 自动捕获
 ```
 
 > **注意：** Dio 默认使用 `IOHttpClientAdapter`（内部使用 `dart:io` 的 `HttpClient`），因此可被检查器自动捕获，无需额外配置。
+
+### WebSocket / gRPC 抓取（默认关闭）
+
+WebSocket、gRPC 等流式协议采用**可选**抓取——默认关闭，运行时开关，与 Memory/FPS 监控一致；不使用这类协议的应用零开销。
+
+**WebSocket：** 用 `InspectorWebSocket.connect` 替换 `WebSocket.connect`，并先在 Network 标签页点击 `WS` 开关开启抓取。
+
+```dart
+import 'dart:io';
+import 'package:zero_inspector_kit/zero_inspector_kit.dart';
+
+final ws = await InspectorWebSocket.connect('wss://example.com/socket');
+ws.listen((message) {
+  // 开启抓取时，入站帧会被自动记录
+});
+ws.add('ping'); // 出站帧也会被自动记录
+```
+
+抓取到的帧出现在 **Network** 列表（method 标 `WS`），复用时间轴与详情页。关闭抓取时，`InspectorWebSocket.connect` 与 `WebSocket.connect` 行为完全一致，零开销。
+
+**gRPC / web_socket_channel / 其他协议栈：** 这些无法被 `dart:io` 透明拦截，请使用手动 hook：
+
+```dart
+WsInspectorService.instance.recordCall(
+  name: 'user.UserService/GetUser',
+  request: '{ "id": 1 }',
+  response: '{ "name": "Ada" }',
+  protocol: 'gRPC',
+);
+```
 
 ### 网络请求拦截修改
 
