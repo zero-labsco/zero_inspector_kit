@@ -542,6 +542,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
       child: InspectorSearchField(
         controller: _searchController,
         hint: 'Search URL, method...',
+        onChanged: (value) => setState(() => _searchKeyword = value),
         onClear: () {
           _searchController.clear();
           setState(() => _searchKeyword = '');
