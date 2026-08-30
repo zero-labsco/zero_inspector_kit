@@ -166,9 +166,15 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
   // into unrelated log captures.
   bool _forwardingToLogger = false;
 
+  // ── WebSocket / gRPC 抓取演示状态 / WS/gRPC capture demo state ──
+  bool _wsCaptureOn = false;
+  InspectorWebSocket? _activeWs;
+  int _wsFramesReceived = 0;
+
   @override
   void initState() {
     super.initState();
+    _wsCaptureOn = WsInspectorService.instance.isEnabled;
     // 在 zone 内（runApp 之后）初始化插件，确保 binding 也在同一 zone。
     // Initialize plugins inside the zone (after runApp) so the binding is in
     // the same zone as runApp.
@@ -345,6 +351,82 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
     }
   }
 
+  // ── WebSocket / gRPC 抓取演示方法 / WS/gRPC capture demo methods ──
+  /// 切换 WS/gRPC 抓取开关（与检查器 Network 标签页里的 WS 开关是同一个状态）。
+  /// Toggle WS/gRPC capture. This is the same state as the WS switch in the
+  /// inspector's Network tab.
+  void _toggleWsCapture() {
+    WsInspectorService.instance.toggle();
+    if (mounted) {
+      setState(() => _wsCaptureOn = WsInspectorService.instance.isEnabled);
+    }
+  }
+
+  /// 打开一个真实 WebSocket（echo 服务器）并收发几帧；开启抓取时这些帧会出现在
+  /// 检查器 Network 标签页的 "WS" 记录里。再次点击可关闭连接。
+  /// Open a real WebSocket (echo server) and exchange a few frames. With capture
+  /// ON, those frames appear as a "WS" entry in the inspector's Network tab.
+  /// Tapping again closes the connection.
+  Future<void> _openWsDemo() async {
+    if (_activeWs != null) {
+      await _closeWsDemo();
+      return;
+    }
+    try {
+      final ws = await InspectorWebSocket.connect(
+        'wss://echo.websocket.events',
+      );
+      if (mounted) setState(() => _activeWs = ws);
+      ws.listen(
+        (data) {
+          if (mounted) setState(() => _wsFramesReceived++);
+          debugPrint('WS received: $data');
+        },
+        onDone: () {
+          if (mounted) setState(() => _activeWs = null);
+        },
+      );
+      for (var i = 0; i < 3; i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        ws.add('hello $i from zero_inspector_kit');
+      }
+      await Future.delayed(const Duration(seconds: 3));
+      if (_activeWs == ws) await _closeWsDemo();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('WebSocket demo failed: $e')));
+      }
+    }
+  }
+
+  /// 关闭当前 WebSocket 连接 / Close the active WebSocket connection
+  Future<void> _closeWsDemo() async {
+    final ws = _activeWs;
+    if (mounted) setState(() => _activeWs = null);
+    await ws?.close();
+  }
+
+  /// 模拟一次 gRPC 调用（抓取开启时才会被记录）。
+  /// Simulate a gRPC call (only recorded when capture is enabled).
+  void _simulateGrpc() {
+    WsInspectorService.instance.recordCall(
+      name: 'helloworld.Greeter/SayHello',
+      request: '{"name":"zero"}',
+      response: '{"message":"Hello, zero!"}',
+      protocol: 'gRPC',
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Logged a gRPC call (visible when WS capture is ON)'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   /// 触发一次强制掉帧：在 UI 线程做一段同步重计算，制造可见的 jank，
   /// 让 FPS 监控页能看到掉帧标记与 FPS 抖动。
   /// Force a jank: a blocking synchronous computation on the UI thread so the
@@ -433,6 +515,74 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
             onPressed: () => Navigator.of(context).pushNamed('/detail'),
             icon: const Icon(Icons.arrow_forward),
             label: const Text('Open detail page (route demo)'),
+          ),
+          const SizedBox(height: 16),
+          // WebSocket / gRPC 抓取演示：开启抓取后开一个真实 WebSocket 或模拟一次
+          // gRPC 调用，即可在检查器的 Network 标签页看到 WS / gRPC 记录。
+          // WS/gRPC capture demo: turn capture on, then open a real socket or
+          // simulate a gRPC call to see WS / gRPC entries in the Network tab.
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'WebSocket / gRPC capture demo',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Open the inspector → Network tab and flip the WS switch ON, '
+                  'then open a socket below to see a "WS" entry with frames. '
+                  'Or simulate a gRPC call (logged when capture is ON).',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _openWsDemo,
+                        icon: Icon(
+                          _activeWs == null ? Icons.cable : Icons.stop,
+                        ),
+                        label: Text(
+                          _activeWs == null
+                              ? 'Open WebSocket echo'
+                              : 'Close WebSocket',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _simulateGrpc,
+                        icon: const Icon(Icons.bolt),
+                        label: const Text('Simulate gRPC'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text('WS capture: ${_wsCaptureOn ? 'ON' : 'OFF'}'),
+                    const SizedBox(width: 8),
+                    Switch(
+                      value: _wsCaptureOn,
+                      onChanged: (_) => _toggleWsCapture(),
+                    ),
+                    const Spacer(),
+                    Text('Frames received: $_wsFramesReceived'),
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           // Widget 检查器演示：带 Key 的嵌套组件树，打开 Widget 检查器即可查看
