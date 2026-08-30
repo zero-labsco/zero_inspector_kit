@@ -1,8 +1,10 @@
 # Zero Inspector Kit
 
-<div align="center">
+<div align="center" style="display: flex; align-items: center; justify-content: center; gap: 16px;">
 
-**English** &nbsp;|&nbsp; [简体中文](README_zh.md)
+<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Zee.png" width="96" style="border-radius: 22%;" />
+<span style="font-size: 1.1em;"><strong>English</strong> &nbsp;|&nbsp; <a href="README_zh.md">简体中文</a></span>
+<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Amber.png" width="96" style="border-radius: 22%;" />
 
 </div>
 
