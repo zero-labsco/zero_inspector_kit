@@ -14,7 +14,9 @@ void _noop() {}
 /// overflow regressions fixed across earlier releases.
 void main() {
   testWidgets('常规尺寸下无异常 / no exceptions at normal size', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: InspectorPanel(onClose: _noop)));
+    await tester.pumpWidget(
+      const MaterialApp(home: InspectorPanel(onClose: _noop)),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -23,7 +25,9 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(const MaterialApp(home: InspectorPanel(onClose: _noop)));
+    await tester.pumpWidget(
+      const MaterialApp(home: InspectorPanel(onClose: _noop)),
+    );
     expect(tester.takeException(), isNull);
   });
 

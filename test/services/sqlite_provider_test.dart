@@ -23,7 +23,9 @@ void main() {
       dbPath,
       version: 1,
       onCreate: (db, version) async {
-        await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)');
+        await db.execute(
+          'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)',
+        );
         await db.insert('users', {'id': 1, 'name': 'alice'});
         await db.insert('users', {'id': 2, 'name': 'bob'});
       },
@@ -45,19 +47,33 @@ void main() {
     expect(result.rows.length, 2);
   });
 
-  test('queryTable 支持 limit 与 offset 分页 / queryTable honors limit and offset',
-      () async {
-    final page1 = await provider.queryTable(dbPath, 'users', limit: 1, offset: 0);
-    final page2 = await provider.queryTable(dbPath, 'users', limit: 1, offset: 1);
-    expect(page1.rows.length, 1);
-    expect(page2.rows.length, 1);
-    expect(page1.rows.first['id'], 1);
-    expect(page2.rows.first['id'], 2);
-  });
+  test(
+    'queryTable 支持 limit 与 offset 分页 / queryTable honors limit and offset',
+    () async {
+      final page1 = await provider.queryTable(
+        dbPath,
+        'users',
+        limit: 1,
+        offset: 0,
+      );
+      final page2 = await provider.queryTable(
+        dbPath,
+        'users',
+        limit: 1,
+        offset: 1,
+      );
+      expect(page1.rows.length, 1);
+      expect(page2.rows.length, 1);
+      expect(page1.rows.first['id'], 1);
+      expect(page2.rows.first['id'], 2);
+    },
+  );
 
-  test('queryTable 暴露错误而非伪装成空列表 / queryTable surfaces errors instead of an empty list',
-      () async {
-    final result = await provider.queryTable(dbPath, 'missing_table');
-    expect(result.hasError, isTrue);
-  });
+  test(
+    'queryTable 暴露错误而非伪装成空列表 / queryTable surfaces errors instead of an empty list',
+    () async {
+      final result = await provider.queryTable(dbPath, 'missing_table');
+      expect(result.hasError, isTrue);
+    },
+  );
 }

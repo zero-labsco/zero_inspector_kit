@@ -21,8 +21,7 @@ class _FakeDatabaseProvider implements DatabaseProvider {
     String? orderBy,
     bool desc = false,
     String? whereKeyword,
-  }) async =>
-      QueryResult(rows: const [], columns: const []);
+  }) async => QueryResult(rows: const [], columns: const []);
 }
 
 void main() {
