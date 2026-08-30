@@ -43,6 +43,7 @@ jobs:
             --timeout 20
             --retry-wait-time 2
             --max-retries 2
+            --exclude "https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/.*"
             README.md README_zh.md CHANGELOG.md "docs/**"
           fail: true
         env:
