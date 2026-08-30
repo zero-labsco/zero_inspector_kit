@@ -292,6 +292,7 @@ class InspectorWebSocket extends Stream<dynamic>
   // ==================== 透传常用成员 / Forward common members ====================
 
   /// 连接关闭 Future / Future resolved when the connection closes
+  @override
   Future<void> get done => _inner.done;
 
   /// 协商的协议 / Negotiated protocol

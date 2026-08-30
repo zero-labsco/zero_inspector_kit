@@ -13,6 +13,7 @@ export 'src/services/database_provider.dart';
 export 'src/services/shared_prefs_provider.dart';
 export 'src/services/hive_provider.dart';
 export 'src/services/widget_tree_service.dart';
+export 'src/models/database_info.dart';
 export 'src/services/fps_service.dart';
 export 'src/services/export_service.dart';
 export 'src/ui/inspector_panel.dart';
