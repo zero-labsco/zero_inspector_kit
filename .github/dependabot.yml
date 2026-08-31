@@ -17,14 +17,14 @@ updates:
       # 运行时依赖（http、sqflite 等）的 minor/patch 合并到一个 PR
       # Runtime deps (http, sqflite, ...) minor/patch grouped into one PR
       pub-runtime:
-        dependency-type: "direct:production"
+        dependency-type: "production"
         update-types:
           - "minor"
           - "patch"
       # 开发依赖（flutter_lints 等）单独一组，更新频率与风险不同
       # Dev deps (flutter_lints, ...) in their own group
       pub-dev:
-        dependency-type: "direct:development"
+        dependency-type: "development"
         update-types:
           - "minor"
           - "patch"
@@ -61,13 +61,13 @@ updates:
     groups:
       # example 运行时依赖 minor/patch 合并 / Example runtime deps minor/patch grouped
       example-runtime:
-        dependency-type: "direct:production"
+        dependency-type: "production"
         update-types:
           - "minor"
           - "patch"
       # example 开发依赖单独一组 / Example dev deps in own group
       example-dev:
-        dependency-type: "direct:development"
+        dependency-type: "development"
         update-types:
           - "minor"
           - "patch"
