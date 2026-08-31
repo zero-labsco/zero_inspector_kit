@@ -184,27 +184,27 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
             onPanUpdate: _handlePanUpdate,
             onPanEnd: _handlePanEnd,
             child: Container(
-                width: _buttonSize,
-                height: _buttonSize,
-                decoration: BoxDecoration(
-                  color: InspectorColors.primary,
-                  borderRadius: BorderRadius.circular(_buttonSize / 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  // 未读告警 > 0 时把数字直接画进球体中心（吸附边缘时角标会被裁切，
-                  // 内嵌数字始终可见）。未读为 0 时显示原图标。
-                  // When there are unread alerts, render the count inside the ball
-                  // itself (a corner badge gets clipped when docked at the edge).
-                  child: _buildCenter(),
-                ),
+              width: _buttonSize,
+              height: _buttonSize,
+              decoration: BoxDecoration(
+                color: InspectorColors.primary,
+                borderRadius: BorderRadius.circular(_buttonSize / 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
+              child: Center(
+                // 未读告警 > 0 时把数字直接画进球体中心（吸附边缘时角标会被裁切，
+                // 内嵌数字始终可见）。未读为 0 时显示原图标。
+                // When there are unread alerts, render the count inside the ball
+                // itself (a corner badge gets clipped when docked at the edge).
+                child: _buildCenter(),
+              ),
+            ),
           ),
         ),
       ),
