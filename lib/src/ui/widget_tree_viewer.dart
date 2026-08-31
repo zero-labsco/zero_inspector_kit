@@ -237,6 +237,7 @@ class _LevelRow extends StatelessWidget {
                 node.name,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: InspectorColors.textPrimary,
+                  fontFamily: 'monospace',
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -367,6 +368,7 @@ class _FieldRow extends StatelessWidget {
               text: value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: InspectorColors.textPrimary,
+                fontFamily: 'monospace',
               ),
             ),
           ],
@@ -439,6 +441,7 @@ class _PropertyRow extends StatelessWidget {
               property.value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: InspectorColors.textPrimary,
+                fontFamily: 'monospace',
               ),
               maxLines: 4,
               overflow: TextOverflow.ellipsis,

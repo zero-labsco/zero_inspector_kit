@@ -500,6 +500,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                       color: InspectorColors.accent,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
+                      fontFamily: 'monospace',
                     ),
                   ),
                 ),
@@ -559,6 +560,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                     color: InspectorColors.accent,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
+                    fontFamily: 'monospace',
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -578,6 +580,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                     color: InspectorColors.textSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
+                    fontFamily: 'monospace',
                   ),
                 ),
               ),
@@ -691,6 +694,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                       color: InspectorColors.accent,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
+                      fontFamily: 'monospace',
                     ),
                   ),
                   if (isSorted)
@@ -714,6 +718,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
                           ? InspectorColors.accent
                           : InspectorColors.textPrimary,
                       fontSize: 11.5,
+                      fontFamily: 'monospace',
                     ),
                   ),
                 );

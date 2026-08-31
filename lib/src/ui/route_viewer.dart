@@ -145,6 +145,7 @@ class _RouteViewerState extends State<RouteViewer> {
                         color: InspectorColors.textPrimary,
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
+                        fontFamily: 'monospace',
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -163,6 +164,7 @@ class _RouteViewerState extends State<RouteViewer> {
                 style: TextStyle(
                   color: InspectorColors.textSecondary,
                   fontSize: 11,
+                  fontFamily: 'monospace',
                 ),
               ),
             ],

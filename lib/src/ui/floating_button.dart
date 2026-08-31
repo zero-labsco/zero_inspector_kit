@@ -71,12 +71,6 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
   /// 拖动开始时的Y坐标 / Y coordinate at drag start
   double? _startY;
 
-  /// 呼吸动画控制器 / Breathing animation controller
-  late final AnimationController _breathController;
-
-  /// 呼吸动画 / Breathing animation
-  late final Animation<double> _breathAnimation;
-
   /// 边缘吸附动画控制器 / Dock animation controller
   late final AnimationController _dockController;
 
@@ -102,13 +96,6 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
   void initState() {
     super.initState();
     AlertService.instance.unreadCount.addListener(_onUnreadChanged);
-    _breathController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    )..repeat(reverse: true);
-    _breathAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
-    );
 
     _dockController = AnimationController(
       duration: const Duration(milliseconds: 250),
@@ -131,7 +118,6 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
   @override
   void dispose() {
     AlertService.instance.unreadCount.removeListener(_onUnreadChanged);
-    _breathController.dispose();
     _dockController.dispose();
     super.dispose();
   }
@@ -197,25 +183,17 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
             onPanStart: _handlePanStart,
             onPanUpdate: _handlePanUpdate,
             onPanEnd: _handlePanEnd,
-            child: ScaleTransition(
-              scale: _breathAnimation,
-              child: Container(
+            child: Container(
                 width: _buttonSize,
                 height: _buttonSize,
                 decoration: BoxDecoration(
-                  gradient: InspectorGradients.primary,
+                  color: InspectorColors.primary,
                   borderRadius: BorderRadius.circular(_buttonSize / 2),
                   boxShadow: [
                     BoxShadow(
-                      color: InspectorColors.primary.withValues(alpha: 0.4),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 4),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(2, 2),
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
@@ -227,7 +205,6 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
                   child: _buildCenter(),
                 ),
               ),
-            ),
           ),
         ),
       ),
