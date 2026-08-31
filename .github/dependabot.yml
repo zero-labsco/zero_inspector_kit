@@ -37,7 +37,6 @@ updates:
     # 版本约束策略：保留既有 caret(^) 风格，仅提升版本号 / Preserve caret style, bump version only
     versioning-strategy: "increase"
     labels:
-      - "dependencies"
       - "pub"
     commit-message:
       prefix: "chore(deps)"
@@ -82,7 +81,6 @@ updates:
     # 与根项目一致：保留 caret 约束 / Same as root: preserve caret constraints
     versioning-strategy: "increase"
     labels:
-      - "dependencies"
       - "pub"
       - "example"
     commit-message:
@@ -104,9 +102,6 @@ updates:
         patterns:
           - "*"
     open-pull-requests-limit: 3
-    labels:
-      - "dependencies"
-      - "github-actions"
     commit-message:
       prefix: "chore(ci)"
       include: "scope"
