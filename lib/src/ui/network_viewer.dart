@@ -848,27 +848,9 @@ class _NetworkViewerState extends State<NetworkViewer> {
           decoration: BoxDecoration(
             color: InspectorColors.card,
             borderRadius: BorderRadius.circular(InspectorDimensions.cardRadius),
-            border: Border(
-              left: BorderSide(
-                color: request.statusCode != null && request.statusCode! >= 400
-                    ? _getStatusColor(request.status)
-                    : InspectorColors.border,
-                width: request.statusCode != null && request.statusCode! >= 400
-                    ? 2
-                    : 0.5,
-              ),
-              top: BorderSide(
-                color: _getStatusColor(request.status).withValues(alpha: 0.35),
-                width: 0.5,
-              ),
-              right: BorderSide(
-                color: _getStatusColor(request.status).withValues(alpha: 0.35),
-                width: 0.5,
-              ),
-              bottom: BorderSide(
-                color: _getStatusColor(request.status).withValues(alpha: 0.35),
-                width: 0.5,
-              ),
+            border: Border.all(
+              color: _getStatusColor(request.status).withValues(alpha: 0.35),
+              width: 0.5,
             ),
             boxShadow: [
               BoxShadow(
@@ -956,7 +938,6 @@ class _NetworkViewerState extends State<NetworkViewer> {
                     style: TextStyle(
                       color: InspectorColors.textSecondary,
                       fontSize: 11,
-                      fontFamily: 'monospace',
                     ),
                   ),
                 ],
@@ -1100,6 +1081,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
                       style: TextStyle(
                         color: InspectorColors.textSecondary,
                         fontSize: 11,
+                        fontFamily: 'monospace',
                       ),
                     ),
                   ),
