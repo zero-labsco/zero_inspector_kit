@@ -1,10 +1,10 @@
 # Zero Inspector Kit
 
-<div align="center" style="display: flex; align-items: center; justify-content: center; gap: 16px;">
+<div align="center" style="display: flex; align-items: center; justify-content: center; gap: 36px;">
 
-<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Zee.png" width="96" />
-<span style="font-size: 1.1em;"><strong>English</strong> &nbsp;|&nbsp; <a href="README_zh.md">简体中文</a></span>
-<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Amber.png" width="96" />
+<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Zee.png" width="88" alt="Zee mascot" />
+<span style="font-size: 1.1em; padding: 0 8px;"><strong>English</strong> &nbsp;|&nbsp; <a href="README_zh.md">简体中文</a></span>
+<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Amber.png" width="88" alt="Amber mascot" />
 
 </div>
 
@@ -19,7 +19,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release adds opt-in WebSocket/gRPC capture, an error boundary for each inspector tab, and widget/responsive tests. All users are encouraged to upgrade to the latest version (`^1.7.0`).
+> **🔔 Upgrade recommended:** This release refreshes the inspector UI with a neutral graphite + teal palette (no gradients or glow), monospaced data text (URLs, status codes, JSON, logs, memory bytes, FPS numbers), and 2px left bars on error/warning rows; it also tightens the README language-switch header. All users are encouraged to upgrade to the latest version (`^1.7.1`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -94,7 +94,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.7.0
+  zero_inspector_kit: ^1.7.1
 ```
 
 ### GitHub
@@ -104,7 +104,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.7.0   # replace 1.7.0 with the version you need
+      ref: release/v1.7.1   # replace 1.7.1 with the version you need
 ```
 
 ---

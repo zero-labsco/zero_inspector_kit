@@ -1,10 +1,10 @@
 # Zero Inspector Kit
 
-<div align="center" style="display: flex; align-items: center; justify-content: center; gap: 16px;">
+<div align="center" style="display: flex; align-items: center; justify-content: center; gap: 36px;">
 
-<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Zee.png" width="96" />
-<span style="font-size: 1.1em;"><strong>简体中文</strong> &nbsp;|&nbsp; <a href="README.md">English</a></span>
-<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Amber.png" width="96" />
+<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Zee.png" width="88" alt="Zee mascot" />
+<span style="font-size: 1.1em; padding: 0 8px;"><strong>简体中文</strong> &nbsp;|&nbsp; <a href="README.md">English</a></span>
+<img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Amber.png" width="88" alt="Amber mascot" />
 
 </div>
 
@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本次更新新增可选的 WebSocket/gRPC 抓取、各检查器 Tab 的错误兜底，以及 widget/响应式测试。建议所有用户升级到最新版本（`^1.7.0`）。
+> **🔔 推荐升级：** 本次更新重做检查器 UI：采用中性石墨灰 + Teal 配色（移除渐变与光晕），数据文本（URL、状态码、JSON、日志、内存字节、FPS 数字）改用等宽字体，错误/告警行加 2px 左侧色条；并收紧 README 语言切换头部间距。建议所有用户升级到最新版本（`^1.7.1`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -93,7 +93,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.7.0
+  zero_inspector_kit: ^1.7.1
 ```
 
 ### GitHub
@@ -103,7 +103,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.7.0   # 将 1.7.0 替换为你需要的版本号
+      ref: release/v1.7.1   # 将 1.7.1 替换为你需要的版本号
 ```
 
 ---

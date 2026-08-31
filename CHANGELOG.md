@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.1
+
+### Changed / 变更
+- 配色方案改为中性石墨灰底 + Teal 信号色（#1FB8A6），移除所有渐变与光晕，圆角收紧。 / Switched the color scheme to a neutral graphite base with a teal signal color (#1FB8A6); removed all gradients and glow, and tightened corner radii.
+- 悬浮球移除「呼吸缩放」动画，改为纯色 Teal + 中性阴影。 / Removed the floating button's breathing-scale animation; it is now a solid teal with a neutral shadow.
+- 数据类文本（URL、状态码、JSON、日志、内存字节、FPS 数字、SQL）改用等宽字体。 / Data text (URLs, status codes, JSON, logs, memory bytes, FPS numbers, SQL) now uses a monospaced font.
+- 错误/告警行左侧加 2px 色条。 / Added a 2px left color bar on error/warning rows.
+
 ## 1.7.0
 
 ### Added / 新增

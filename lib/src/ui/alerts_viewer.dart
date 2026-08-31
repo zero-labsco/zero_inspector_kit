@@ -77,6 +77,12 @@ class _AlertsViewerState extends State<AlertsViewer> {
                     final e = alerts[index];
                     return ListTile(
                       dense: true,
+                      shape: const Border(
+                        left: BorderSide(
+                          color: InspectorColors.error,
+                          width: 2,
+                        ),
+                      ),
                       leading: Icon(
                         Icons.warning_amber_rounded,
                         color: InspectorColors.error,
@@ -97,6 +103,7 @@ class _AlertsViewerState extends State<AlertsViewer> {
                         style: TextStyle(
                           color: InspectorColors.textSecondary,
                           fontSize: 11,
+                          fontFamily: 'monospace',
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -106,6 +113,7 @@ class _AlertsViewerState extends State<AlertsViewer> {
                         style: TextStyle(
                           color: InspectorColors.textHint,
                           fontSize: 10,
+                          fontFamily: 'monospace',
                         ),
                       ),
                     );

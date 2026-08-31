@@ -158,15 +158,15 @@ class _InspectorPanelState extends State<InspectorPanel>
       width: MediaQuery.of(context).size.width * 0.92,
       height: MediaQuery.of(context).size.height * 0.88,
       decoration: BoxDecoration(
-        gradient: InspectorGradients.background,
+        color: InspectorColors.surface,
         borderRadius: BorderRadius.circular(InspectorDimensions.panelRadius),
         border: Border.all(color: InspectorColors.border, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
-            spreadRadius: -5,
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+            spreadRadius: -6,
           ),
         ],
       ),
@@ -201,7 +201,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
       decoration: BoxDecoration(
-        gradient: InspectorGradients.header,
+        color: InspectorColors.surface,
         border: Border(
           bottom: BorderSide(color: InspectorColors.border, width: 1),
         ),
@@ -212,19 +212,12 @@ class _InspectorPanelState extends State<InspectorPanel>
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              gradient: InspectorGradients.primary,
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: [
-                BoxShadow(
-                  color: InspectorColors.primary.withValues(alpha: 0.4),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              color: InspectorColors.primary,
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               Icons.terminal_rounded,
-              color: InspectorColors.textPrimary,
+              color: Colors.black87,
               size: 20,
             ),
           ),
@@ -383,7 +376,7 @@ class _InspectorPanelState extends State<InspectorPanel>
         isScrollable: true,
         tabAlignment: TabAlignment.start,
         indicator: BoxDecoration(
-          gradient: InspectorGradients.tabIndicator,
+          color: InspectorColors.primary,
           borderRadius: BorderRadius.circular(InspectorDimensions.chipRadius),
         ),
         // 始终使用 tab 宽度作为指示器大小，确保选中指示器填满整个 Tab
