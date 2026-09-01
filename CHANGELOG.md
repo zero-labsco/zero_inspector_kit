@@ -8,7 +8,7 @@
 - 网络 / 日志查看器过滤结果记忆化，避免每次通知做全表遍历。 / Network / Log viewer filter results are now memoized, avoiding a full-list scan on every notification.
 
 ### Fixed / 修复
-- WebSocket 识别由「path 以 /ws 结尾」改为综合 `Upgrade` / `Sec-WebSocket-Key` / `Connection` 头判断，避免 socket.io、graphql-ws 等端点被当作普通请求完整抓取而泄露鉴权信息。 / WebSocket detection now checks the `Upgrade` / `Sec-WebSocket-Key` / `Connection` headers instead of relying on a `/ws` path suffix, preventing endpoints like socket.io / graphql-ws from being captured as plain requests (which could leak auth tokens).
+- WebSocket 识别改用 URL scheme（ws/wss）判定：此前依赖 `Upgrade` 头，但 `WebSocket.connect` 在 `openUrl` 返回之后才写入该头，导致判定恒为 false，握手被当作普通 GET 请求登记、失败握手漏成网络列表里 `OS Error status -1` 的 GET；socket.io、graphql-ws 等端点也不会被当作普通请求完整抓取而泄露鉴权信息。 / WebSocket detection now uses the URL scheme (ws/wss). The previous header check failed because `WebSocket.connect` sets the `Upgrade` header only AFTER `openUrl` resolves (so the check was always false), which logged handshakes as plain GET requests and leaked failed handshakes into the Network list as `OS Error status -1` GETs. Endpoints like socket.io / graphql-ws are no longer captured as plain requests (avoiding auth-token leaks).
 - `HttpOverrides` 改为链式包裹宿主已有 overrides，不再静默覆盖。 / `HttpOverrides` now wraps any existing overrides instead of silently replacing them.
 - 请求体设全局内存预算，超阈值只保留截断预览，降低大下载场景的内存峰值。 / Request bodies now respect a global memory budget; over-budget bodies keep only a truncated preview.
 - Dio 并发同 URL 请求的响应匹配更可靠，避免错配。 / More reliable Dio response matching for concurrent same-URL requests.
