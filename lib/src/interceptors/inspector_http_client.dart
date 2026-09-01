@@ -53,9 +53,21 @@ class _InspectorHttpClient implements HttpClient {
     return request.uri.path.endsWith('/ws');
   }
 
+  /// 通过 URL 判定是否为 WebSocket 握手（scheme ws/wss，或 path 以 /ws 结尾）。
+  /// 注意：在 openUrl 阶段 header 尚未被 WebSocket.connect 写入 Upgrade 头
+  /// （它在 openUrl 返回之后才设置），因此必须用 URL scheme 判定，而非 upgrade 头。
+  /// Detect a WebSocket handshake via URL (ws/wss scheme, or /ws path). Note: at
+  /// openUrl time the Upgrade header is not set yet (WebSocket.connect writes it
+  /// AFTER openUrl resolves), so we rely on the URL scheme, not the header.
+  bool _isWebSocketRequest(Uri url) {
+    final scheme = url.scheme.toLowerCase();
+    if (scheme == 'ws' || scheme == 'wss') return true;
+    return url.path.endsWith('/ws');
+  }
+
   @override
   Future<HttpClientRequest> openUrl(String method, Uri url) {
-    final likelyWs = url.path.endsWith('/ws');
+    final likelyWs = _isWebSocketRequest(url);
 
     String? requestId;
     if (!likelyWs) {

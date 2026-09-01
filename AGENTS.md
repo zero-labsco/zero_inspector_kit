@@ -112,6 +112,7 @@ Notes / 说明:
    **Website (Nextra docs site):** `website/` is built and synced to `docs/` automatically by the `pre-commit` hook (`website/scripts/sync-docs.mjs`). Version references in `website/pages/*.md` use the `__ZIK_VERSION__` placeholder, which is filled from `pubspec.yaml` at build time — bumping `pubspec.yaml` propagates to the site automatically. Never edit `docs/` by hand; it is regenerated on every commit that touches `website/`.
 2. Update `README.md` / `CHANGELOG.md` as needed.
 3. Locally verify before pushing:
+   - `dart format .` — must report no changes. The `dart-format-fix.yml` CI workflow auto-commits any formatting diff back to the PR branch, so keep the tree formatted locally to avoid surprise commits.
    - `flutter analyze` — must pass with no errors.
    - `flutter test` — all unit tests green.
    - `flutter pub publish --dry-run` — confirm the package scores well on `pana` and no files are unintentionally excluded.

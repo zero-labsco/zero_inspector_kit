@@ -151,7 +151,8 @@ class ExampleHomePage extends StatefulWidget {
   State<ExampleHomePage> createState() => _ExampleHomePageState();
 }
 
-class _ExampleHomePageState extends State<ExampleHomePage> {
+class _ExampleHomePageState extends State<ExampleHomePage>
+    with SingleTickerProviderStateMixin {
   final _httpClient = HttpClient();
   int _requestCount = 0;
 
@@ -171,6 +172,10 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
   InspectorWebSocket? _activeWs;
   int _wsFramesReceived = 0;
 
+  // ── FPS 动画测试状态 / FPS animation test state ──
+  late final AnimationController _fpsAnim;
+  bool _fpsAnimPlaying = false;
+
   @override
   void initState() {
     super.initState();
@@ -178,7 +183,17 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
     // 在 zone 内（runApp 之后）初始化插件，确保 binding 也在同一 zone。
     // Initialize plugins inside the zone (after runApp) so the binding is in
     // the same zone as runApp.
+    _fpsAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    );
     _initInspectorData();
+  }
+
+  @override
+  void dispose() {
+    _fpsAnim.dispose();
+    super.dispose();
   }
 
   Future<void> _initInspectorData() async {
@@ -442,6 +457,23 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
     debugPrint('jank workload done (result=$sink)');
   }
 
+  /// FPS 动画测试：开关一个持续旋转的动画。旋转时引擎每帧都渲染，FPS 监控应读到
+  /// ~60（或设备刷新率）；停止后页面静止，FPS 会因无帧可渲染而掉到个位数/0。
+  /// FPS animation test: toggle a continuously spinning widget. While spinning, the
+  /// engine renders every frame so the FPS monitor should read ~60 (or the device
+  /// refresh rate); once stopped the page is static and FPS drops because no frames
+  /// are produced.
+  void _toggleFpsAnim() {
+    setState(() {
+      _fpsAnimPlaying = !_fpsAnimPlaying;
+      if (_fpsAnimPlaying) {
+        _fpsAnim.repeat();
+      } else {
+        _fpsAnim.stop();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -509,6 +541,72 @@ class _ExampleHomePageState extends State<ExampleHomePage> {
             onPressed: _triggerJank,
             icon: const Icon(Icons.speed),
             label: const Text('Trigger a jank (see FPS monitor)'),
+          ),
+          const SizedBox(height: 12),
+          // FPS 动画测试：开关一个持续旋转的方块。旋转时引擎每帧渲染，FPS 监控应
+          // 读到 ~60；停止后页面静止，FPS 会因无帧可渲染而掉到个位数/0。
+          // FPS animation test: toggle a continuously spinning box. While spinning the
+          // engine renders every frame (FPS ~60); stopped, the page is idle and FPS
+          // drops because no frames are produced.
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.purple.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'FPS animation test',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Open the inspector → FPS tab, then toggle the spin below. '
+                  'While spinning, FPS should read ~60; once stopped (page idle) '
+                  'FPS drops — there is nothing left to render.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    RotationTransition(
+                      turns: _fpsAnim,
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.purple,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.autorenew,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _toggleFpsAnim,
+                        icon: Icon(
+                          _fpsAnimPlaying
+                              ? Icons.pause_circle_outline
+                              : Icons.play_circle_outline,
+                        ),
+                        label: Text(
+                          _fpsAnimPlaying ? 'Stop spinning' : 'Start spinning',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           ElevatedButton.icon(
