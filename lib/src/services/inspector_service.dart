@@ -10,6 +10,16 @@ import '../models/route_entry.dart';
 import '../models/interceptor_rule.dart';
 import 'alert_service.dart';
 
+/// Zone 标记键：当前连接是 WebSocket 握手。
+/// 由 [InspectorWebSocket.connect] 在调用 `WebSocket.connect` 时用 `runZoned` 设置，
+/// 拦截器的 [openUrl] 据此跳过对握手原始 HTTP GET 的记录（它由 WsInspectorService
+/// 以 WS 条目单独记录，避免成功时刷屏、失败时漏成 OS Error status -1 的 GET）。
+/// Zone key marking the current connection as a WebSocket handshake. Set by
+/// [InspectorWebSocket.connect] via runZoned around `WebSocket.connect`, so the
+/// interceptor's openUrl skips recording the raw handshake GET (it is recorded
+/// separately as a WS entry by WsInspectorService).
+final Object wsHandshakeZoneKey = Object();
+
 /// 检查器服务，用于管理所有收集的数据 / Inspector service for managing all collected data
 ///
 /// 该服务继承自 ChangeNotifier，当数据发生变化时会自动通知监听者更新UI。

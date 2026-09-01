@@ -217,11 +217,18 @@ class InspectorWebSocket extends Stream<dynamic>
     HttpClient? customClient,
     CompressionOptions compression = CompressionOptions.compressionDefault,
   }) async {
-    final ws = await WebSocket.connect(
-      url,
-      protocols: protocols,
-      customClient: customClient,
-      compression: compression,
+    // 用 runZoned 标记当前连接为 WebSocket 握手，让 HttpOverrides 拦截器跳过
+    // 对底层 HTTP GET 握手的记录（它由本服务以 WS 条目单独呈现）。
+    // Wrap in a zone flagged as a WS handshake so the HttpOverrides interceptor
+    // skips recording the underlying HTTP GET (this service shows it as a WS entry).
+    final ws = await runZoned(
+      () => WebSocket.connect(
+        url,
+        protocols: protocols,
+        customClient: customClient,
+        compression: compression,
+      ),
+      zoneValues: {wsHandshakeZoneKey: true},
     );
     // 未开启抓取时不创建会话，后续 add/listen 均为空操作（零开销）。
     // When capture is off, no session is created, so add/listen become no-ops.

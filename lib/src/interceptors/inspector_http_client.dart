@@ -67,7 +67,12 @@ class _InspectorHttpClient implements HttpClient {
 
   @override
   Future<HttpClientRequest> openUrl(String method, Uri url) {
-    final likelyWs = _isWebSocketRequest(url);
+    // WebSocket 握手由 InspectorWebSocket.connect 用 runZoned 标记，直接跳过记录；
+    // 否则它会被当成普通 GET 抓进网络列表（成功刷屏、失败漏成 OS Error status -1）。
+    // WebSocket handshakes are flagged by InspectorWebSocket.connect via runZoned;
+    // skip recording so they never appear as plain GETs (clutter / false OS errors).
+    final likelyWs =
+        _isWebSocketRequest(url) || Zone.current[wsHandshakeZoneKey] == true;
 
     String? requestId;
     if (!likelyWs) {
