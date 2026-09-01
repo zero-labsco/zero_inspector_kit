@@ -45,17 +45,20 @@ class _InspectorHttpClient implements HttpClient {
   /// which gets intercepted by HttpOverrides and floods the network list.
   /// 这里通过 URL path 以 `/ws` 结尾进行过滤（覆盖 VM Service 等常见端点）
   /// Filters by URL path ending with `/ws` (covers common VM Service endpoints)
-  bool _isWebSocketHandshake(Uri url) {
-    final path = url.path;
-    return path.endsWith('/ws');
+  bool _isWebSocketHandshake(HttpClientRequest request) {
+    final upgrade = request.headers.value('upgrade');
+    if (upgrade != null && upgrade.toLowerCase().contains('websocket')) {
+      return true;
+    }
+    return request.uri.path.endsWith('/ws');
   }
 
   @override
   Future<HttpClientRequest> openUrl(String method, Uri url) {
-    final isWs = _isWebSocketHandshake(url);
+    final likelyWs = url.path.endsWith('/ws');
 
     String? requestId;
-    if (!isWs) {
+    if (!likelyWs) {
       try {
         // 格式：req_<微秒时间戳>_<8位随机>_<自增计数器>
         // 计数器确保即使随机源在同一 tick 内重复，ID 也仍然唯一
@@ -75,9 +78,9 @@ class _InspectorHttpClient implements HttpClient {
           if (dioRequestId != null) {
             return _InspectorRequestProxy(request, dioRequestId);
           }
-          // 跳过 WebSocket 握手请求，避免网络列表被 VM Service 等连接刷屏
-          // Skip WebSocket handshake requests to avoid flooding the network list
-          if (isWs) {
+          // 综合请求头判定 WebSocket 升级握手（Upgrade: websocket），
+          // 避免 socket.io / graphql-ws / 自定义端点被当作普通请求完整抓取而泄露 token。
+          if (_isWebSocketHandshake(request)) {
             return _InspectorRequestProxy(request, null);
           }
           try {
@@ -425,7 +428,8 @@ class _InspectorRequestProxy implements HttpClientRequest {
     final forwardFut = _request.addStream(controller.stream);
     try {
       await for (final chunk in stream) {
-        if (_bodyBytes.length < _maxRequestCaptureBytes) {
+        if (_bodyBytes.length < _maxRequestCaptureBytes &&
+            InspectorService.instance.globalBodyRemaining > 0) {
           final remaining = _maxRequestCaptureBytes - _bodyBytes.length;
           if (chunk.length <= remaining) {
             _bodyBytes.addAll(chunk);

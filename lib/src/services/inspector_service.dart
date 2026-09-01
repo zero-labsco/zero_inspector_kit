@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../models/network_request.dart';
 import '../models/log_entry.dart';
@@ -56,8 +57,8 @@ class InspectorService extends ChangeNotifier {
   /// body 预览字节上限，超出部分截断（仅保留头部预览）/ Body preview cap; longer bodies are truncated
   int _maxBodyPreviewBytes = 32 * 1024;
 
-  /// notify 节流定时器 / notify throttling timer
-  Timer? _notifyTimer;
+  /// 是否已排程下一帧的 notify（帧对齐合并标志）/ whether a frame-aligned notify is already scheduled
+  bool _frameScheduled = false;
 
   /// 缓存的只读视图，避免每次访问都拷贝 List / Cached read-only views to avoid copying per access
   late final UnmodifiableListView<NetworkRequest> _networkRequestsView =
@@ -69,6 +70,32 @@ class InspectorService extends ChangeNotifier {
   late final UnmodifiableListView<RequestInterceptorRule>
   _interceptorRulesView = UnmodifiableListView(_interceptorRules);
 
+  /// 全局 body 内存预算（所有请求累计缓冲上限）。超过后代理侧停止继续缓冲 body，
+  /// 已落库的 body 在请求被淘汰 / 清除时释放，从而把总内存控制在可预期范围内。
+  /// Global body memory budget (total buffered across all requests). When exceeded the
+  /// proxies stop buffering more body; stored bodies are released on eviction/clear so
+  /// total memory stays bounded and predictable.
+  static const int _defaultMaxGlobalBodyBytes = 16 * 1024 * 1024; // 16 MB
+
+  /// 当前全局 body 预算上限 / Current global body budget cap
+  int _maxGlobalBodyBytes = _defaultMaxGlobalBodyBytes;
+
+  /// 当前已缓冲的 body 字节数（近似值，按字符串长度估算）/ Currently buffered body bytes (approx, by string length)
+  int _globalBodyBytes = 0;
+
+  /// 剩余可用全局 body 预算 / Remaining global body budget
+  int get globalBodyRemaining => _maxGlobalBodyBytes - _globalBodyBytes < 0
+      ? 0
+      : _maxGlobalBodyBytes - _globalBodyBytes;
+
+  /// 估算一条请求的 body 字节占用（字符数近似）/ Estimate a request's buffered body bytes (char-count approximation)
+  static int _bodyBytesOf(NetworkRequest r) {
+    var n = 0;
+    if (r.body != null) n += r.body.toString().length;
+    if (r.responseBody != null) n += r.responseBody.toString().length;
+    return n;
+  }
+
   /// 配置容量上限与 body 预览截断长度 / Configure capacities and body preview cap
   /// 应在 [ZeroInspectorKit.init] 中调用，向后兼容（全部命名可选）。
   /// Call from [ZeroInspectorKit.init]; all params are optional and backward compatible.
@@ -77,6 +104,7 @@ class InspectorService extends ChangeNotifier {
     int? maxLogItems,
     int? maxRouteItems,
     int? maxBodyPreviewBytes,
+    int? maxGlobalBodyBytes,
   }) {
     if (maxNetworkItems != null && maxNetworkItems > 0) {
       _maxNetworkItems = maxNetworkItems;
@@ -89,6 +117,9 @@ class InspectorService extends ChangeNotifier {
     }
     if (maxBodyPreviewBytes != null && maxBodyPreviewBytes > 0) {
       _maxBodyPreviewBytes = maxBodyPreviewBytes;
+    }
+    if (maxGlobalBodyBytes != null && maxGlobalBodyBytes > 0) {
+      _maxGlobalBodyBytes = maxGlobalBodyBytes;
     }
   }
 
@@ -133,7 +164,8 @@ class InspectorService extends ChangeNotifier {
   /// [request] 网络请求对象 / Network request object
   void addNetworkRequest(NetworkRequest request) {
     _networkRequests.addFirst(request);
-    _trimQueue(_networkRequests, _maxNetworkItems);
+    _trimNetworkRequests();
+    _globalBodyBytes += _bodyBytesOf(request);
     AlertService.instance.checkNetwork(request);
     _notifyThrottled();
   }
@@ -189,6 +221,11 @@ class InspectorService extends ChangeNotifier {
             : request.isModifiedByInterceptor,
         maxBodyBytes: _maxBodyPreviewBytes,
       );
+      final oldSize = _bodyBytesOf(request);
+      final newSize = _bodyBytesOf(updated);
+      _globalBodyBytes = _globalBodyBytes - oldSize + newSize < 0
+          ? 0
+          : _globalBodyBytes - oldSize + newSize;
       _networkRequests
         ..remove(request)
         ..addFirst(updated);
@@ -308,12 +345,14 @@ class InspectorService extends ChangeNotifier {
     _logEntries.clear();
     _routeEntries.clear();
     _interceptorRules.clear();
+    _globalBodyBytes = 0;
     notifyListeners();
   }
 
   /// 清空网络请求记录 / Clear network request records
   void clearNetworkRequests() {
     _networkRequests.clear();
+    _globalBodyBytes = 0;
     notifyListeners();
   }
 
@@ -335,25 +374,52 @@ class InspectorService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 释放资源：取消节流定时器 / Dispose: cancel throttling timer
+  /// 释放资源：重置帧排程标志 / Dispose: reset the frame-scheduling flag
   void disposeService() {
-    _notifyTimer?.cancel();
-    _notifyTimer = null;
+    _frameScheduled = false;
   }
 
-  /// 节流版 notifyListeners：16ms（约一帧）内合并多次通知。
-  /// Throttled notifyListeners: coalesces multiple notifications within ~one frame (16ms).
+  /// 帧对齐版 notifyListeners：把同一帧内的多次通知合并为一次，在下一帧绘制后触发，
+  /// 避免每帧多次重建，也不在每次变更都分配 Timer。
+  /// Frame-aligned notifyListeners: coalesces multiple notifications in the same frame
+  /// into one fired after the next frame paint — avoids per-frame rebuild storms and
+  /// per-change Timer allocations.
   void _notifyThrottled() {
-    if (_notifyTimer != null && _notifyTimer!.isActive) return;
-    _notifyTimer = Timer(const Duration(milliseconds: 16), () {
-      notifyListeners();
-    });
+    if (_frameScheduled) return;
+    _frameScheduled = true;
+    try {
+      final binding = SchedulerBinding.instance;
+      binding.scheduleFrame();
+      binding.addPostFrameCallback((_) {
+        _frameScheduled = false;
+        notifyListeners();
+      });
+    } catch (_) {
+      // 无绑定可用：退回 Timer 兜底。
+      // No binding available: fall back to a Timer.
+      Timer(const Duration(milliseconds: 16), () {
+        _frameScheduled = false;
+        notifyListeners();
+      });
+    }
   }
 
   /// 裁剪 Queue 到最大条目数（从尾部移除，O(1)）/ Trim Queue to max items (removes from tail, O(1))
   void _trimQueue<T>(ListQueue<T> queue, int max) {
     while (queue.length > max) {
       queue.removeLast();
+    }
+  }
+
+  /// 裁剪网络请求队列到最大条目数，并从全局 body 预算中释放被淘汰请求的占用。
+  /// Trim network request queue to the cap, releasing evicted requests' body budget.
+  void _trimNetworkRequests() {
+    while (_networkRequests.length > _maxNetworkItems) {
+      final removed = _networkRequests.removeLast();
+      final freed = _bodyBytesOf(removed);
+      _globalBodyBytes = _globalBodyBytes - freed < 0
+          ? 0
+          : _globalBodyBytes - freed;
     }
   }
 

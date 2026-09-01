@@ -28,21 +28,28 @@ class InspectorHttpInterceptor {
   static final InspectorHttpInterceptor instance = InspectorHttpInterceptor._();
 
   bool _started = false;
+  HttpOverrides? _previousOverrides;
 
   /// 启动全局 HTTP 请求拦截 / Start global HTTP request interception
-  /// 通过 HttpOverrides 机制，自动捕获应用中所有使用 HttpClient 的网络请求
-  /// Auto-capture all network requests using HttpClient via HttpOverrides mechanism
+  /// 链式包裹宿主已有的 HttpOverrides（若存在），避免静默覆盖代理 / 证书固定等配置。
+  /// Chains over any existing HttpOverrides (if present) instead of silently
+  /// replacing it, preserving host proxy / cert-pinning configurations.
   void start() {
     if (_started) return;
     _started = true;
-    HttpOverrides.global = _InspectorHttpOverrides();
+    _previousOverrides = HttpOverrides.current;
+    HttpOverrides.global = _InspectorHttpOverrides(_previousOverrides);
   }
 
   /// 停止全局 HTTP 请求拦截 / Stop global HTTP request interception
+  /// 恢复被包裹前的 HttpOverrides（而非置 null，避免丢弃宿主配置）。
+  /// Restores the previous HttpOverrides (instead of nulling it out, which
+  /// would discard host configurations).
   void stop() {
     if (!_started) return;
     _started = false;
-    HttpOverrides.global = null;
+    HttpOverrides.global = _previousOverrides;
+    _previousOverrides = null;
   }
 
   /// 是否已启动全局拦截 / Whether global interception has started
@@ -52,8 +59,13 @@ class InspectorHttpInterceptor {
 /// HTTP 请求覆盖类 / HTTP request override class
 /// 通过 HttpOverrides 机制实现全局 HTTP 请求拦截 / Implement global HTTP request interception via HttpOverrides mechanism
 class _InspectorHttpOverrides extends HttpOverrides {
+  final HttpOverrides? _delegate;
+  _InspectorHttpOverrides(this._delegate);
+
   @override
   HttpClient createHttpClient(SecurityContext? context) {
-    return _InspectorHttpClient(super.createHttpClient(context));
+    final client =
+        _delegate?.createHttpClient(context) ?? super.createHttpClient(context);
+    return _InspectorHttpClient(client);
   }
 }

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.7.2
+
+### Changed / 变更
+- 优化 UI 刷新节流：改用 `addPostFrameCallback` 合并通知，去掉每帧 `new Timer()`，避免密集更新时丢通知。 / Optimized UI refresh throttling: notifications are now coalesced via `addPostFrameCallback` instead of per-frame `Timer`s, eliminating dropped updates under heavy load.
+- 内存查看器不再每 500ms 全量重绘整页，非趋势卡片仅在开关 / VM 状态变化时刷新。 / The Memory viewer no longer rebuilds the entire page every 500ms; non-trend cards refresh only on toggle / VM-state changes.
+- 网络 / 日志查看器过滤结果记忆化，避免每次通知做全表遍历。 / Network / Log viewer filter results are now memoized, avoiding a full-list scan on every notification.
+
+### Fixed / 修复
+- WebSocket 识别由「path 以 /ws 结尾」改为综合 `Upgrade` / `Sec-WebSocket-Key` / `Connection` 头判断，避免 socket.io、graphql-ws 等端点被当作普通请求完整抓取而泄露鉴权信息。 / WebSocket detection now checks the `Upgrade` / `Sec-WebSocket-Key` / `Connection` headers instead of relying on a `/ws` path suffix, preventing endpoints like socket.io / graphql-ws from being captured as plain requests (which could leak auth tokens).
+- `HttpOverrides` 改为链式包裹宿主已有 overrides，不再静默覆盖。 / `HttpOverrides` now wraps any existing overrides instead of silently replacing them.
+- 请求体设全局内存预算，超阈值只保留截断预览，降低大下载场景的内存峰值。 / Request bodies now respect a global memory budget; over-budget bodies keep only a truncated preview.
+- Dio 并发同 URL 请求的响应匹配更可靠，避免错配。 / More reliable Dio response matching for concurrent same-URL requests.
+
+### Added / 新增
+- 公开导出更多能力（内存 / 告警服务、Widget 树服务等）以便外部直接引用。 / Exported additional public capabilities (memory / alert services, widget-tree service, etc.) for direct external use.
+- 路由注入降级时打印一次调试警告，便于排查路由追踪失效。 / Route-injection fallback now prints a one-time debug warning when it degrades.
+
 ## 1.7.1
 
 ### Changed / 变更

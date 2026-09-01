@@ -85,11 +85,20 @@ class _MemoryViewerState extends State<MemoryViewer> {
                 builder: (context, _) => _buildTrendChartCard(),
               ),
               const SizedBox(height: 12),
-              _buildNativeOverviewCard(),
+              ListenableBuilder(
+                listenable: service.liveNotifier,
+                builder: (context, _) => _buildNativeOverviewCard(),
+              ),
               const SizedBox(height: 12),
-              _buildHeapOverviewCard(),
+              ListenableBuilder(
+                listenable: service.liveNotifier,
+                builder: (context, _) => _buildHeapOverviewCard(),
+              ),
               const SizedBox(height: 12),
-              _buildHeapDetailsCard(),
+              ListenableBuilder(
+                listenable: service.liveNotifier,
+                builder: (context, _) => _buildHeapDetailsCard(),
+              ),
               const SizedBox(height: 12),
               _buildLeakDetectionCard(),
               const SizedBox(height: 12),

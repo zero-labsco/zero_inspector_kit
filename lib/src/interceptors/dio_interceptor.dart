@@ -127,24 +127,39 @@ class InspectorDioInterceptor extends InspectorDioInterceptorBase {
   /// 优先按 ID 匹配（精确），回退按 URL + 未响应匹配（模糊，兼容旧行为）
   /// Prefer matching by ID (exact), fall back to URL + no responseTime (fuzzy, backward compatible)
   NetworkRequest _findRequestByIdOrUrl(String? requestId, String url) {
-    // 1. 精确匹配：通过 request ID / Exact match: by request ID
+    // 1. 精确匹配：通过 request ID（正常路径，Dio 会把 onRequest 注入的
+    //    x-inspector-request-id 透传到 response / error 的 requestOptions）。
+    // Exact match by request ID (the normal path: Dio carries the request ID
+    // injected in onRequest through to response / error requestOptions).
     if (requestId != null) {
       final requests = InspectorService.instance.networkRequests;
       final byId = requests.where((r) => r.id == requestId);
       if (byId.isNotEmpty) return byId.first;
     }
 
-    // 2. 模糊匹配：通过 URL + 未响应（兼容旧逻辑）/ Fuzzy: URL + no responseTime
-    final request = InspectorService.instance.networkRequests.firstWhere(
-      (r) => r.url == url && r.responseTime == null,
-      orElse: () => NetworkRequest(
-        id: requestId ?? _generateId(),
-        method: 'GET',
-        url: url,
-        requestTime: DateTime.now().millisecondsSinceEpoch,
-      ),
-    );
-    return request;
+    // 2. 模糊匹配（仅当 request ID 缺失时，兼容旧 / 异常集成）：
+    //    选 URL 相同且尚未响应、且「挂起最久」的那条，以缓解并发同 URL 轮询的错配
+    //    （首条匹配会命中最新插入的请求，反而更易错配）。
+    // Fuzzy match (only when request ID is missing, backward-compat): pick the
+    // longest-pending same-URL request without a response, reducing mis-association
+    // under concurrent same-URL polling (firstWhere would match the newest insert).
+    NetworkRequest? fallback;
+    var oldestTime = 0x7fffffffffffffff;
+    for (final r in InspectorService.instance.networkRequests) {
+      if (r.url == url &&
+          r.responseTime == null &&
+          r.requestTime < oldestTime) {
+        oldestTime = r.requestTime;
+        fallback = r;
+      }
+    }
+    return fallback ??
+        NetworkRequest(
+          id: requestId ?? _generateId(),
+          method: 'GET',
+          url: url,
+          requestTime: DateTime.now().millisecondsSinceEpoch,
+        );
   }
 
   /// 生成唯一请求ID / Generate unique request ID

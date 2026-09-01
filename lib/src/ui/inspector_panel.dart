@@ -41,7 +41,11 @@ class _InspectorPanelState extends State<InspectorPanel>
   int _currentIndex = 0;
 
   /// 各个标签页的内容 / Contents of each tab
-  /// 使用 IndexedStack + ValueKey 保持各页面状态 / Use IndexedStack + ValueKey to preserve state of each page
+  /// 仅当前激活页会被挂载到组件树（其余只构造、不监听全局 notifier），
+  /// 因此每次 notify 只重建当前页；代价是切换标签会重建对应页面、瞬时状态（搜索词/筛选）重置。
+  /// Only the active page is mounted into the tree (others are only constructed, not
+  /// listening to the global notifier), so each notify rebuilds just the current page.
+  /// Trade-off: switching tabs rebuilds the page and resets its transient state.
   late final List<Widget> _pages = [
     InspectorErrorBoundary(
       label: 'Network',
@@ -186,8 +190,10 @@ class _InspectorPanelState extends State<InspectorPanel>
               _buildHeader(),
               _buildTabBar(),
               Expanded(
-                // IndexedStack 保持所有页面状态不丢失 / IndexedStack preserves state of all pages
-                child: IndexedStack(index: _currentIndex, children: _pages),
+                // 仅挂载当前激活的页面，避免非激活 viewer 也监听全局 notifier 造成叠加重建。
+                // Only mount the active page so inactive viewers don't also listen to the
+                // global notifier and pile up rebuilds on every notify.
+                child: _pages[_currentIndex],
               ),
             ],
           ),

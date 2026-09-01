@@ -19,7 +19,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release refreshes the inspector UI with a neutral graphite + teal palette (no gradients or glow), monospaced data text (URLs, status codes, JSON, logs, memory bytes, FPS numbers), and 2px left bars on error/warning rows; it also tightens the README language-switch header. All users are encouraged to upgrade to the latest version (`^1.7.1`).
+> **🔔 Upgrade recommended:** This release optimizes performance and robustness — smarter UI refresh throttling (no dropped updates), lighter rebuilds in the Memory / Network / Log viewers, more accurate WebSocket detection (no token leakage into plain requests), safe chaining of an existing `HttpOverrides`, bounded request-body memory, and more reliable Dio response matching. All users are encouraged to upgrade to the latest version (`^1.7.2`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -68,7 +68,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 ## Screenshots
 
-> Click any thumbnail to open the full-size image. / 点击任意缩略图可查看原图大图。
+> Click any thumbnail to open the full-size image.
 
 | Network Inspector | Database Viewer |
 | --- | --- |
@@ -94,7 +94,7 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.7.1
+  zero_inspector_kit: ^1.7.2
 ```
 
 ### GitHub
@@ -104,7 +104,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.7.1   # replace 1.7.1 with the version you need
+      ref: release/v1.7.2   # replace 1.7.2 with the version you need
 ```
 
 ---
