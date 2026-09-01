@@ -172,6 +172,12 @@ class _ExampleHomePageState extends State<ExampleHomePage>
   InspectorWebSocket? _activeWs;
   int _wsFramesReceived = 0;
 
+  // 本地回显服务器：离线也能跑通 WS 抓取验证，不依赖外网 echo 服务
+  // / Local echo server: lets the WS capture demo work fully offline, without
+  // relying on any external echo service (which may be unreachable on-device).
+  HttpServer? _wsEchoServer;
+  int _wsEchoPort = 0;
+
   // ── FPS 动画测试状态 / FPS animation test state ──
   late final AnimationController _fpsAnim;
   bool _fpsAnimPlaying = false;
@@ -188,11 +194,36 @@ class _ExampleHomePageState extends State<ExampleHomePage>
       duration: const Duration(seconds: 3),
     );
     _initInspectorData();
+    _startWsEchoServer();
+  }
+
+  /// 启动一个本地 WebSocket 回显服务器（绑定 127.0.0.1 随机端口），用于离线验证
+  /// WS 抓取：开启抓取开关后，示例用 [InspectorWebSocket.connect] 连它，收发帧会出现
+  /// 在网络列表的 "WS" 条目里。不依赖任何外网 echo 服务，iOS 上也能稳定跑通。
+  /// Start a local WebSocket echo server (loopback, random port) for offline WS
+  /// capture validation: with capture ON, the demo connects via InspectorWebSocket
+  /// and the echoed frames show up as a "WS" entry. No external network needed.
+  Future<void> _startWsEchoServer() async {
+    try {
+      _wsEchoServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      _wsEchoPort = _wsEchoServer!.port;
+      _wsEchoServer!.transform(WebSocketTransformer()).listen((WebSocket ws) {
+        ws.listen(
+          (data) => ws.add('echo: $data'),
+          onDone: () => ws.close(),
+          onError: (_) => ws.close(),
+        );
+      });
+      debugPrint('Local WS echo server on ws://127.0.0.1:$_wsEchoPort');
+    } catch (e) {
+      debugPrint('Failed to start local WS echo server: $e');
+    }
   }
 
   @override
   void dispose() {
     _fpsAnim.dispose();
+    _wsEchoServer?.close();
     super.dispose();
   }
 
@@ -388,9 +419,13 @@ class _ExampleHomePageState extends State<ExampleHomePage>
       return;
     }
     try {
-      final ws = await InspectorWebSocket.connect(
-        'wss://echo.websocket.events',
-      );
+      // 优先连本地回显服务器（离线可用）；若未启动则回退到公网 echo 服务。
+      // Prefer the local echo server (works offline); fall back to the public
+      // echo service only if the local server didn't start.
+      final url = _wsEchoPort != 0
+          ? 'ws://127.0.0.1:$_wsEchoPort'
+          : 'wss://echo.websocket.events';
+      final ws = await InspectorWebSocket.connect(url);
       if (mounted) setState(() => _activeWs = ws);
       ws.listen(
         (data) {
