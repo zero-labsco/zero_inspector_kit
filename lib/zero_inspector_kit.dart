@@ -27,6 +27,20 @@ export 'src/utils/inspector_internal_log.dart';
 export 'src/utils/inspector_log.dart';
 export 'src/utils/memory_leak_tracking.dart';
 
+// 暴露更多公共能力，便于外部直接引用（无需 import 内部 lib/src/ 路径）。
+// Expose additional public capabilities so consumers can reference them directly
+// without importing internal lib/src/ paths.
+export 'src/services/memory_inspector_service.dart';
+export 'src/services/alert_service.dart';
+export 'src/models/network_request.dart';
+export 'src/models/log_entry.dart';
+export 'src/models/route_entry.dart';
+export 'src/models/interceptor_rule.dart';
+export 'src/ui/memory_viewer.dart';
+export 'src/ui/widget_tree_viewer.dart';
+export 'src/ui/alerts_viewer.dart';
+export 'src/ui/network_timeline.dart';
+
 export 'zero_inspector_kit_platform_interface.dart';
 
 import 'dart:async';
@@ -469,6 +483,20 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   Widget _wrapAppWithRouteObserver(Widget app) {
     final injected = _tryInjectRouteObserver(app);
     if (injected != null) return injected;
+    // 降级：无法安全穿透壳注入观察者，新建外层 MaterialApp 包裹。
+    // 此时路由追踪可能失效，打印一次调试警告便于排查。
+    // Degraded: cannot safely penetrate the shell; falling back to a new outer
+    // MaterialApp. Route tracking may be unreliable — emit a debug warning.
+    assert(() {
+      debugPrint(
+        '[ZeroInspectorKit] Route observer injection fell back to wrapping a new '
+        'outer MaterialApp, so route tracking may be unreliable. This typically '
+        'happens when the root widget is a StatefulWidget or its build depends on '
+        'an InheritedWidget. Prefer ZeroInspectorKit.wrapApp(app) where `app` is a '
+        'MaterialApp (or is wrapped only by StatelessWidget / single-child shells).',
+      );
+      return true;
+    }());
     return _fallbackWrap(app);
   }
 

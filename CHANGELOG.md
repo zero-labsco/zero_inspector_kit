@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.7.2
+
+### Changed / 变更
+- 优化 UI 刷新节流：改用 `addPostFrameCallback` 合并通知，去掉每帧 `new Timer()`，避免密集更新时丢通知。 / Optimized UI refresh throttling: notifications are now coalesced via `addPostFrameCallback` instead of per-frame `Timer`s, eliminating dropped updates under heavy load.
+- 内存查看器不再每 500ms 全量重绘整页，非趋势卡片仅在开关 / VM 状态变化时刷新。 / The Memory viewer no longer rebuilds the entire page every 500ms; non-trend cards refresh only on toggle / VM-state changes.
+- 网络 / 日志查看器过滤结果记忆化，避免每次通知做全表遍历。 / Network / Log viewer filter results are now memoized, avoiding a full-list scan on every notification.
+
+### Fixed / 修复
+- WebSocket 握手不再进网络列表：此前因 `WebSocket.connect` 在 `openUrl` 阶段已把 `wss://` 转成 `https://`，基于 URL scheme 的判定恒为 false，握手被当普通 GET 登记、失败握手漏成网络列表里 `OS Error status -1` 的 GET。现由 `InspectorWebSocket.connect` 用 `runZoned` 标记握手连接，拦截器据此跳过原始 HTTP GET 记录；socket.io、graphql-ws 等端点也不会被完整抓取而泄露鉴权信息，抓取开启时改由 `WsInspectorService` 以 `WS` 条目呈现。 / WebSocket handshakes are no longer logged as plain requests: `WebSocket.connect` rewrites `wss://` to `https://` before `openUrl`, so the previous scheme-based check always failed and handshakes (and failed ones) leaked into the Network list as `OS Error status -1` GETs. `InspectorWebSocket.connect` now flags the handshake via `runZoned`, and the interceptor skips the raw HTTP GET; endpoints like socket.io / graphql-ws are no longer captured wholesale (no auth-token leaks), and when capture is on the frames appear as a `WS` entry instead.
+- `HttpOverrides` 改为链式包裹宿主已有 overrides，不再静默覆盖。 / `HttpOverrides` now wraps any existing overrides instead of silently replacing them.
+- 请求体设全局内存预算，超阈值只保留截断预览，降低大下载场景的内存峰值。 / Request bodies now respect a global memory budget; over-budget bodies keep only a truncated preview.
+- Dio 并发同 URL 请求的响应匹配更可靠，避免错配。 / More reliable Dio response matching for concurrent same-URL requests.
+
+### Added / 新增
+- 公开导出更多能力（内存 / 告警服务、Widget 树服务等）以便外部直接引用。 / Exported additional public capabilities (memory / alert services, widget-tree service, etc.) for direct external use.
+- 路由注入降级时打印一次调试警告，便于排查路由追踪失效。 / Route-injection fallback now prints a one-time debug warning when it degrades.
+
 ## 1.7.1
 
 ### Changed / 变更

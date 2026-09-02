@@ -177,8 +177,33 @@ class _LogViewerState extends State<LogViewer> {
     );
   }
 
+  // 过滤结果缓存：避免每次重建都全表扫描 + 正则匹配。
+  // Filter cache: avoids a full scan + regex matching on every rebuild.
+  // 失效条件 = 数据源引用变化 / 列表长度变化 / 任一过滤条件变化。
+  List<LogEntry>? _filteredLogsCache;
+  List<LogEntry>? _filteredLogsSource;
+  int _filteredLogsLength = -1;
+  LogLevel? _filteredLevel;
+  String? _filteredTag;
+  String _filteredKeyword = '';
+  bool _filteredUseRegex = false;
+  RegExp? _filteredRegex;
+
   /// 模糊/正则搜索 + 级别 + 标签过滤日志 / Filter logs
   List<LogEntry> _filterLogs(List<LogEntry> logs) {
+    final filtersUnchanged =
+        _filteredLevel == _filterLevel &&
+        _filteredTag == _filterTag &&
+        _filteredKeyword == _searchKeyword &&
+        _filteredUseRegex == _useRegex &&
+        identical(_filteredRegex, _regex);
+    if (_filteredLogsCache != null &&
+        identical(logs, _filteredLogsSource) &&
+        logs.length == _filteredLogsLength &&
+        filtersUnchanged) {
+      return _filteredLogsCache!;
+    }
+
     var result = logs;
 
     if (_filterLevel != null) {
@@ -194,12 +219,13 @@ class _LogViewerState extends State<LogViewer> {
         // 正则模式下无效正则不匹配任何结果，避免崩溃。
         // In regex mode an invalid pattern matches nothing instead of crashing.
         if (_regexInvalid || _regex == null) {
-          return const [];
+          result = const <LogEntry>[];
+        } else {
+          result = result.where((e) {
+            return _regex!.hasMatch(e.message) ||
+                (e.tag != null && _regex!.hasMatch(e.tag!));
+          }).toList();
         }
-        result = result.where((e) {
-          return _regex!.hasMatch(e.message) ||
-              (e.tag != null && _regex!.hasMatch(e.tag!));
-        }).toList();
       } else {
         final keyword = _searchKeyword.toLowerCase();
         result = result.where((e) {
@@ -209,6 +235,14 @@ class _LogViewerState extends State<LogViewer> {
       }
     }
 
+    _filteredLogsCache = result;
+    _filteredLogsSource = logs;
+    _filteredLogsLength = logs.length;
+    _filteredLevel = _filterLevel;
+    _filteredTag = _filterTag;
+    _filteredKeyword = _searchKeyword;
+    _filteredUseRegex = _useRegex;
+    _filteredRegex = _regex;
     return result;
   }
 

@@ -108,10 +108,12 @@ Notes / 说明:
      - [ ] `README_zh.md`: same spots as `README.md` (`^X.Y.Z`, `` `X.Y.Z` `` placeholder, `ref: release/vX.Y.Z`, and the "🔔 推荐升级：" callout). The callout should briefly summarize what the current release changed and recommend the latest version; it must not reference previous versions.
    - [ ] `website/pages/*.md`: the install snippet uses the `__ZIK_VERSION__` placeholder; it is auto-filled from `pubspec.yaml` by `website/scripts/sync-docs.mjs`, so bumping `pubspec.yaml` alone is enough (do NOT hardcode a version there).
    - [ ] `CHANGELOG.md`: add a new `## X.Y.Z` section at the top describing the changes.
+   - **Changelog scope rule / 变更日志范围规则:** Only changes to `lib/` (i.e. published-package runtime behavior) earn a CHANGELOG entry. Pure documentation updates (`README*.md`, `website/`, `docs/`) and `example/` changes must NOT get a CHANGELOG entry — they do not change the released package's runtime behavior. The single exception is a **pure version-bump commit**: bumping the version legitimately updates the CHANGELOG (and the doc version strings) as part of cutting the release, which is allowed. / 只有 `lib/` 的改动（即已发布包的运行行为）才进 CHANGELOG；纯文档（`README*.md`、`website/`、`docs/`）与 `example/` 的改动不应写进 CHANGELOG——它们不改变发布包的运行行为。唯一的例外是「单纯 bump 版本」的提交：为发版而更新 CHANGELOG（及文档版本号）是允许的。
    - Grep sanity check before committing: `grep -rn "old_version" README.md README_zh.md website/pages` must return NOTHING (only legitimate historical prose may remain; the `__ZIK_VERSION__` placeholder is expected and is not a real version).
    **Website (Nextra docs site):** `website/` is built and synced to `docs/` automatically by the `pre-commit` hook (`website/scripts/sync-docs.mjs`). Version references in `website/pages/*.md` use the `__ZIK_VERSION__` placeholder, which is filled from `pubspec.yaml` at build time — bumping `pubspec.yaml` propagates to the site automatically. Never edit `docs/` by hand; it is regenerated on every commit that touches `website/`.
 2. Update `README.md` / `CHANGELOG.md` as needed.
 3. Locally verify before pushing:
+   - `dart format .` — must report no changes. The `dart-format-fix.yml` CI workflow auto-commits any formatting diff back to the PR branch, so keep the tree formatted locally to avoid surprise commits.
    - `flutter analyze` — must pass with no errors.
    - `flutter test` — all unit tests green.
    - `flutter pub publish --dry-run` — confirm the package scores well on `pana` and no files are unintentionally excluded.

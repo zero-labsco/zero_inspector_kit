@@ -197,7 +197,8 @@ class _InspectorResponseProxy implements HttpClientResponse {
       StreamTransformer<List<int>, List<int>>.fromHandlers(
         handleData: (chunk, sink) {
           if (!_captureExceeded &&
-              _bodyBytes.length + chunk.length <= _maxCaptureBytes) {
+              _bodyBytes.length + chunk.length <= _maxCaptureBytes &&
+              InspectorService.instance.globalBodyRemaining > 0) {
             _bodyBytes.addAll(chunk);
           } else if (!_captureExceeded) {
             // 超过限制，截断到最大值并标记 / Exceeded limit, truncate to max and mark

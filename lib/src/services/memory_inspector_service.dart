@@ -569,7 +569,12 @@ class MemoryInspectorService extends ChangeNotifier {
         _currentProcessRss = nativeRss;
       }
 
-      notifyListeners();
+      // 通过 liveNotifier 通知（500ms tick 已合并最新 Native 数据），
+      // 不再触发主 ChangeNotifier，避免内存页整页每 3s 重建。
+      // Notify via liveNotifier (latest Native data is already merged into the
+      // snapshot every 500ms), not the main ChangeNotifier, so the memory page
+      // is no longer fully rebuilt every 3s.
+      _liveNotifier.notifyListeners();
     } catch (_) {}
   }
 

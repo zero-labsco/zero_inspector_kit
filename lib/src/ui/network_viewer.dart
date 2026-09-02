@@ -683,7 +683,31 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
   }
 
+  // 过滤结果缓存：避免每次重建都对全量列表做 4 次全扫描。
+  // Filter cache: avoids running a full 4-pass scan on every rebuild.
+  // 失效条件 = 数据源引用变化 / 列表长度变化 / 任一过滤条件变化。
+  // Invalidated when the source, its length, or any filter criterion changes.
+  List<NetworkRequest>? _filteredRequestsCache;
+  List<NetworkRequest>? _filteredRequestsSource;
+  int _filteredRequestsLength = -1;
+  String _filteredKeyword = '';
+  Set<String> _filteredMethods = const {};
+  Set<StatusGroup> _filteredStatus = const {};
+  bool? _filteredModified;
+
   List<NetworkRequest> _filterRequests(List<NetworkRequest> requests) {
+    final filtersUnchanged =
+        _filteredKeyword == _searchKeyword &&
+        _sameSet(_filteredMethods, _methodFilters) &&
+        _sameSet(_filteredStatus, _statusFilters) &&
+        _filteredModified == _modifiedFilter;
+    if (_filteredRequestsCache != null &&
+        identical(requests, _filteredRequestsSource) &&
+        requests.length == _filteredRequestsLength &&
+        filtersUnchanged) {
+      return _filteredRequestsCache!;
+    }
+
     var result = requests;
 
     // 关键词搜索（URL / method）/ Keyword search (URL / method)
@@ -716,8 +740,19 @@ class _NetworkViewerState extends State<NetworkViewer> {
           .toList();
     }
 
+    _filteredRequestsCache = result;
+    _filteredRequestsSource = requests;
+    _filteredRequestsLength = requests.length;
+    _filteredKeyword = _searchKeyword;
+    _filteredMethods = {..._methodFilters};
+    _filteredStatus = {..._statusFilters};
+    _filteredModified = _modifiedFilter;
     return result;
   }
+
+  /// 集合相等判定（长度相同且互相包含）/ Set equality (same length and mutual containment)
+  bool _sameSet<T>(Set<T> a, Set<T> b) =>
+      a.length == b.length && a.containsAll(b);
 
   Widget _buildRequestList() {
     final requests = _filterRequests(InspectorService.instance.networkRequests);

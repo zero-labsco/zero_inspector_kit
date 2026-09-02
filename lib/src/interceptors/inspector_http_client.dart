@@ -45,17 +45,37 @@ class _InspectorHttpClient implements HttpClient {
   /// which gets intercepted by HttpOverrides and floods the network list.
   /// 这里通过 URL path 以 `/ws` 结尾进行过滤（覆盖 VM Service 等常见端点）
   /// Filters by URL path ending with `/ws` (covers common VM Service endpoints)
-  bool _isWebSocketHandshake(Uri url) {
-    final path = url.path;
-    return path.endsWith('/ws');
+  bool _isWebSocketHandshake(HttpClientRequest request) {
+    final upgrade = request.headers.value('upgrade');
+    if (upgrade != null && upgrade.toLowerCase().contains('websocket')) {
+      return true;
+    }
+    return request.uri.path.endsWith('/ws');
+  }
+
+  /// 通过 URL 判定是否为 WebSocket 握手（scheme ws/wss，或 path 以 /ws 结尾）。
+  /// 注意：在 openUrl 阶段 header 尚未被 WebSocket.connect 写入 Upgrade 头
+  /// （它在 openUrl 返回之后才设置），因此必须用 URL scheme 判定，而非 upgrade 头。
+  /// Detect a WebSocket handshake via URL (ws/wss scheme, or /ws path). Note: at
+  /// openUrl time the Upgrade header is not set yet (WebSocket.connect writes it
+  /// AFTER openUrl resolves), so we rely on the URL scheme, not the header.
+  bool _isWebSocketRequest(Uri url) {
+    final scheme = url.scheme.toLowerCase();
+    if (scheme == 'ws' || scheme == 'wss') return true;
+    return url.path.endsWith('/ws');
   }
 
   @override
   Future<HttpClientRequest> openUrl(String method, Uri url) {
-    final isWs = _isWebSocketHandshake(url);
+    // WebSocket 握手由 InspectorWebSocket.connect 用 runZoned 标记，直接跳过记录；
+    // 否则它会被当成普通 GET 抓进网络列表（成功刷屏、失败漏成 OS Error status -1）。
+    // WebSocket handshakes are flagged by InspectorWebSocket.connect via runZoned;
+    // skip recording so they never appear as plain GETs (clutter / false OS errors).
+    final likelyWs =
+        _isWebSocketRequest(url) || Zone.current[wsHandshakeZoneKey] == true;
 
     String? requestId;
-    if (!isWs) {
+    if (!likelyWs) {
       try {
         // 格式：req_<微秒时间戳>_<8位随机>_<自增计数器>
         // 计数器确保即使随机源在同一 tick 内重复，ID 也仍然唯一
@@ -75,9 +95,9 @@ class _InspectorHttpClient implements HttpClient {
           if (dioRequestId != null) {
             return _InspectorRequestProxy(request, dioRequestId);
           }
-          // 跳过 WebSocket 握手请求，避免网络列表被 VM Service 等连接刷屏
-          // Skip WebSocket handshake requests to avoid flooding the network list
-          if (isWs) {
+          // 综合请求头判定 WebSocket 升级握手（Upgrade: websocket），
+          // 避免 socket.io / graphql-ws / 自定义端点被当作普通请求完整抓取而泄露 token。
+          if (_isWebSocketHandshake(request)) {
             return _InspectorRequestProxy(request, null);
           }
           try {
@@ -425,7 +445,8 @@ class _InspectorRequestProxy implements HttpClientRequest {
     final forwardFut = _request.addStream(controller.stream);
     try {
       await for (final chunk in stream) {
-        if (_bodyBytes.length < _maxRequestCaptureBytes) {
+        if (_bodyBytes.length < _maxRequestCaptureBytes &&
+            InspectorService.instance.globalBodyRemaining > 0) {
           final remaining = _maxRequestCaptureBytes - _bodyBytes.length;
           if (chunk.length <= remaining) {
             _bodyBytes.addAll(chunk);
