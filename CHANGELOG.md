@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0
+
+### Added / 新增
+- 网络详情页对 WebSocket 条目渲染为结构化帧列表：收/发方向、帧类型（文本/二进制/关闭）、字节大小、时间戳，并支持 Sent/Received 筛选与自动滚动。 / The network detail view now renders WebSocket entries as a structured frame list: direction (send/receive), frame type (text/binary/close), byte size, and timestamp, with Sent/Received filter and auto-scroll.
+- 新增公开 API：`WsFrame`、`WsFrameType`、`WsInspectorService.framesFor`（含被裁剪会话的惰性淘汰，避免内存泄漏）。 / New public API: `WsFrame`, `WsFrameType`, and `WsInspectorService.framesFor` (with lazy eviction of trimmed sessions to avoid leaks).
+
+### Tests / 测试
+- 新增 `WsInspectorService` 单元测试（开关、`recordCall`、帧获取、zone 标记、模型）。 / Added `WsInspectorService` unit tests (toggle, `recordCall`, frame retrieval, zone flag, model).
+
 ## 1.7.2
 
 ### Changed / 变更
