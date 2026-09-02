@@ -33,6 +33,207 @@ const List<String> _kFilterMethods = [
 
 /// 网络请求查看器 / Network request viewer
 /// 显示所有捕获的网络请求，支持搜索和查看详细信息 / Display all captured network requests, support search and viewing details
+/// WebSocket 抓取的帧列表视图（方向筛选 + 自动滚动）。
+/// Frame-list view for captured WebSocket traffic, with direction filter and
+/// auto-scroll. Self-contained StatefulWidget so it owns its scroll controller
+/// and filter state without touching the parent viewer's state.
+class _WsFramesView extends StatefulWidget {
+  /// 关联的 WS 网络记录 / The associated WS network record
+  final NetworkRequest request;
+
+  const _WsFramesView({required this.request});
+
+  @override
+  State<_WsFramesView> createState() => _WsFramesViewState();
+}
+
+class _WsFramesViewState extends State<_WsFramesView> {
+  _WsDir _dir = _WsDir.all;
+  bool _autoScroll = true;
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final frames = WsInspectorService.instance.framesFor(widget.request.id);
+    final all = frames ?? const <WsFrame>[];
+    final list = switch (_dir) {
+      _WsDir.outgoing => all.where((f) => f.outgoing).toList(),
+      _WsDir.incoming => all.where((f) => !f.outgoing).toList(),
+      _WsDir.all => all,
+    };
+    if (_autoScroll && _scroll.hasClients && list.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      });
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(),
+        const SizedBox(height: 8),
+        Container(
+          height: 260,
+          decoration: BoxDecoration(
+            color: InspectorColors.card,
+            borderRadius: BorderRadius.circular(
+              InspectorDimensions.smallRadius,
+            ),
+          ),
+          child: list.isEmpty
+              ? Center(
+                  child: Text(
+                    frames == null
+                        ? 'Session ended or trimmed — no frames.'
+                        : 'Waiting for frames…',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: InspectorColors.textSecondary,
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  controller: _scroll,
+                  itemCount: list.length,
+                  itemBuilder: (ctx, i) => _buildRow(list[i]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        _chip('All', _WsDir.all),
+        const SizedBox(width: 6),
+        _chip('Sent', _WsDir.outgoing),
+        const SizedBox(width: 6),
+        _chip('Received', _WsDir.incoming),
+        const Spacer(),
+        Row(
+          children: [
+            Icon(
+              Icons.vertical_align_bottom,
+              size: 14,
+              color: InspectorColors.textSecondary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Auto',
+              style: TextStyle(
+                fontSize: 10,
+                color: InspectorColors.textSecondary,
+              ),
+            ),
+            Switch(
+              value: _autoScroll,
+              onChanged: (v) => setState(() => _autoScroll = v),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _chip(String label, _WsDir dir) {
+    final active = _dir == dir;
+    return GestureDetector(
+      onTap: () => setState(() => _dir = dir),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: active
+              ? InspectorColors.accent.withValues(alpha: 0.15)
+              : InspectorColors.card,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: active ? InspectorColors.accent : InspectorColors.border,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: active
+                ? InspectorColors.accent
+                : InspectorColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRow(WsFrame f) {
+    final arrow = f.outgoing ? '→' : '←';
+    final typeLabel = f.type == WsFrameType.binary
+        ? 'BIN'
+        : f.type == WsFrameType.close
+        ? 'CLOSE'
+        : 'TXT';
+    final color = f.outgoing ? InspectorColors.info : InspectorColors.success;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            arrow,
+            style: TextStyle(
+              color: color,
+              fontFamily: 'monospace',
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$typeLabel · ${f.byteSize}B · ${_ts(f.at)}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: InspectorColors.textSecondary,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  f.text,
+                  style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _ts(DateTime at) {
+    final t = at.toLocal();
+    final h = t.hour.toString().padLeft(2, '0');
+    final m = t.minute.toString().padLeft(2, '0');
+    final s = t.second.toString().padLeft(2, '0');
+    final ms = (t.millisecond ~/ 100).toString();
+    return '$h:$m:$s.$ms';
+  }
+}
+
+/// 帧方向筛选 / Frame direction filter
+enum _WsDir { all, outgoing, incoming }
+
 class NetworkViewer extends StatefulWidget {
   const NetworkViewer({super.key});
 
@@ -1144,7 +1345,9 @@ class _NetworkViewerState extends State<NetworkViewer> {
           const SizedBox(height: 10),
           _buildDetailSection('Status', request.statusCode?.toString() ?? '-'),
           _buildDetailSection('Duration', request.durationText),
-          if (request.responseBody != null)
+          if (request.method == 'WS')
+            _WsFramesView(request: request)
+          else if (request.responseBody != null)
             _buildDetailSection('Body', _formatJson(request.responseBody)),
           const SizedBox(height: 16),
           _buildTimelineCard(request),

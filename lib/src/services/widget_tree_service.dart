@@ -24,8 +24,10 @@ class WidgetTreeService extends ChangeNotifier {
   // performance cost, so it doesn't need a user toggle.
   bool _isEnabled = true;
 
+  /// 获取是否启用 Widget 树检查 / Get whether the widget tree inspector is enabled
   bool get isEnabled => _isEnabled;
 
+  /// 设置是否启用 Widget 树检查 / Set whether the widget tree inspector is enabled
   set isEnabled(bool value) {
     if (_isEnabled == value) return;
     _isEnabled = value;

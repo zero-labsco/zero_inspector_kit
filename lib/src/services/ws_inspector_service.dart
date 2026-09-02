@@ -6,6 +6,18 @@ import 'package:flutter/foundation.dart';
 import '../models/network_request.dart';
 import 'inspector_service.dart';
 
+/// WebSocket 帧类型 / WebSocket frame type
+enum WsFrameType {
+  /// 文本帧 / Text frame
+  text,
+
+  /// 二进制帧 / Binary frame
+  binary,
+
+  /// 连接关闭标记帧 / Connection-close marker frame
+  close,
+}
+
 /// WebSocket / gRPC 等流式协议抓取服务 / Streaming-protocol capture service (WebSocket / gRPC, etc.)
 ///
 /// 设计上与 Memory / FPS 监控一致：**默认关闭、运行时开关**，对没有使用这类协议的
@@ -19,6 +31,12 @@ import 'inspector_service.dart';
 /// 2. 手动 hook [recordCall]，用于 gRPC、web_socket_channel 等无法被 `dart:io` 透明拦截的栈。
 ///    / Manual [recordCall] hook for gRPC, web_socket_channel, or anything not transparently
 ///    interceptable by `dart:io`.
+///
+/// 抓取的每帧以 [WsFrame] 形式保存在会话中，详情页通过 [framesFor] 读取并渲染
+/// （方向 / 类型 / 字节大小 / 时间），不再只是拼接成纯文本。
+/// Each captured frame is kept as a [WsFrame] in the session and read by the detail
+/// view via [framesFor] (direction / type / byte size / timestamp) instead of a
+/// flat text blob.
 class WsInspectorService extends ChangeNotifier {
   WsInspectorService._();
 
@@ -79,17 +97,26 @@ class WsInspectorService extends ChangeNotifier {
     return InspectorWebSocket._(ws, id);
   }
 
-  /// 记录一帧（收发方向 + 文本内容）/ Record a single frame (direction + text)
+  /// 记录一帧（收发方向 + 原始数据，自动推断类型与字节大小）。
+  /// Record a single frame (direction + raw data; type & byte size inferred).
   void _recordFrame(String id, bool outgoing, dynamic data) {
     final session = _sessions[id];
     if (session == null) return;
-    final text = data?.toString() ?? '';
+    final type = _frameTypeOf(data);
+    final text = _framePreview(data, type);
+    final byteSize = _byteSizeOf(data);
     session.frames.add(
-      _WsFrame(outgoing: outgoing, text: text, at: DateTime.now()),
+      WsFrame(
+        outgoing: outgoing,
+        type: type,
+        text: text,
+        byteSize: byteSize,
+        at: DateTime.now(),
+      ),
     );
 
-    // 累积到对应网络记录的 responseBody，供详情页/导出查看。
-    // Accumulate into the network record's responseBody for the detail view & export.
+    // 累积到对应网络记录的 responseBody，供详情页/导出查看（向后兼容）。
+    // Accumulate into the network record's responseBody for the detail view & export (back-compat).
     final existing = InspectorService.instance.findNetworkRequest(id);
     final prev = existing?.responseBody?.toString() ?? '';
     final arrow = outgoing ? '→' : '←';
@@ -100,17 +127,70 @@ class WsInspectorService extends ChangeNotifier {
     );
   }
 
-  /// 连接关闭：追加关闭标记 / Connection closed: append a close marker
+  /// 连接关闭：追加关闭标记帧 / Connection closed: append a close marker frame
   void _onClose(String id) {
     final session = _sessions[id];
     if (session == null) return;
     session.closed = true;
+    session.frames.add(
+      WsFrame(
+        outgoing: false,
+        type: WsFrameType.close,
+        text: '[connection closed]',
+        byteSize: 0,
+        at: DateTime.now(),
+      ),
+    );
     final existing = InspectorService.instance.findNetworkRequest(id);
     final prev = existing?.responseBody?.toString() ?? '';
     InspectorService.instance.updateNetworkRequest(
       id,
       responseBody: '$prev[connection closed]\n',
     );
+  }
+
+  /// 获取某会话已抓取的帧列表（按时间顺序）；会话不存在或已被淘汰时返回 null。
+  /// 同时用于**惰性淘汰**：当对应网络记录已被 [InspectorService] 裁剪出列表后，
+  /// 这里会释放会话，避免内存泄漏（详见 [_trimNetworkRequests]）。
+  /// Get captured frames for a session (chronological); returns null if the
+  /// session doesn't exist or has been evicted. Also lazily evicts sessions whose
+  /// network record has been trimmed from [InspectorService] to avoid leaks.
+  List<WsFrame>? framesFor(String id) {
+    if (!_sessions.containsKey(id)) return null;
+    if (InspectorService.instance.findNetworkRequest(id) == null) {
+      _sessions.remove(id);
+      return null;
+    }
+    return List.unmodifiable(_sessions[id]!.frames);
+  }
+
+  /// 推断帧类型：字符串为文本帧，List 为二进制帧，其余按文本处理。
+  /// Infer frame type: String -> text, List -> binary, else text.
+  static WsFrameType _frameTypeOf(dynamic data) {
+    if (data is String) return WsFrameType.text;
+    if (data is List) return WsFrameType.binary;
+    return WsFrameType.text;
+  }
+
+  /// 计算帧字节大小 / Compute frame byte size
+  static int _byteSizeOf(dynamic data) {
+    if (data is String) return data.length;
+    if (data is List) return data.length;
+    return data?.toString().length ?? 0;
+  }
+
+  /// 生成帧预览文本；二进制帧给出前 16 字节的十六进制预览。
+  /// Build frame preview text; binary frames get a 16-byte hex preview.
+  static String _framePreview(dynamic data, WsFrameType type) {
+    if (type == WsFrameType.binary && data is List) {
+      final bytes = data
+          .take(16)
+          .map((b) => (b as int).toRadixString(16).padLeft(2, '0'))
+          .join(' ');
+      final overflow = data.length > 16 ? ' …(+${data.length - 16})' : '';
+      return '$bytes$overflow';
+    }
+    return data?.toString() ?? '';
   }
 
   /// 手动记录一次调用（gRPC / 自定义协议等）。
@@ -166,7 +246,7 @@ class _WsSession {
   final int startTime;
 
   /// 收发帧记录 / Captured frames
-  final List<_WsFrame> frames = [];
+  final List<WsFrame> frames = [];
 
   /// 是否已关闭 / Whether the connection is closed
   bool closed = false;
@@ -174,18 +254,30 @@ class _WsSession {
   _WsSession({required this.id, required this.url, required this.startTime});
 }
 
-/// 单帧记录（内部）/ A single captured frame (internal)
-class _WsFrame {
+/// 单帧记录（WebSocket 抓取） / A single captured WebSocket frame
+class WsFrame {
   /// 是否出站（true=发送 / false=接收）/ Outgoing when true, incoming when false
   final bool outgoing;
 
-  /// 文本内容 / Text payload
+  /// 帧类型（文本 / 二进制 / 关闭标记）/ Frame type (text / binary / close)
+  final WsFrameType type;
+
+  /// 帧预览文本（二进制帧为十六进制预览）/ Frame preview text (hex preview for binary)
   final String text;
+
+  /// 帧字节大小 / Frame byte size
+  final int byteSize;
 
   /// 时间戳 / Timestamp
   final DateTime at;
 
-  _WsFrame({required this.outgoing, required this.text, required this.at});
+  WsFrame({
+    required this.outgoing,
+    required this.type,
+    required this.text,
+    required this.byteSize,
+    required this.at,
+  });
 }
 
 /// 可监控的 WebSocket 包装器 / Monitorable WebSocket wrapper
