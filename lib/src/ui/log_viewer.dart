@@ -6,6 +6,7 @@ import '../services/inspector_service.dart';
 import '../services/export_service.dart';
 import 'theme/inspector_theme.dart';
 import 'widgets/widgets.dart';
+import 'inspector_toast.dart';
 
 /// 日志查看器 / Log viewer
 /// 显示所有捕获的日志，支持按级别/标签过滤、正则搜索、自动滚动与单条复制。
@@ -312,19 +313,19 @@ class _LogViewerState extends State<LogViewer> {
                           icon: Icons.content_copy_rounded,
                           tooltip: 'Copy as JSON',
                           onTap: () async {
+                            final messenger = Overlay.of(
+                              context,
+                              rootOverlay: true,
+                            );
                             final logs = _filterLogs(
                               InspectorService.instance.logEntries,
                             );
                             if (logs.isEmpty) return;
-                            final messenger = ScaffoldMessenger.of(context);
                             await ExportService.instance.copyLogs(logs);
                             if (mounted) {
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Copied ${logs.length} logs as JSON',
-                                  ),
-                                ),
+                              InspectorToast.showOn(
+                                messenger,
+                                'Copied ${logs.length} logs as JSON',
                               );
                             }
                           },
@@ -333,22 +334,22 @@ class _LogViewerState extends State<LogViewer> {
                           icon: Icons.share_rounded,
                           tooltip: 'Share as Text',
                           onTap: () async {
+                            final messenger = Overlay.of(
+                              context,
+                              rootOverlay: true,
+                            );
                             final logs = _filterLogs(
                               InspectorService.instance.logEntries,
                             );
                             if (logs.isEmpty) return;
-                            final messenger = ScaffoldMessenger.of(context);
                             await ExportService.instance.exportLogsAndShare(
                               logs,
                               json: false,
                             );
                             if (mounted) {
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Sharing ${logs.length} logs as Text',
-                                  ),
-                                ),
+                              InspectorToast.showOn(
+                                messenger,
+                                'Sharing ${logs.length} logs as Text',
                               );
                             }
                           },
@@ -834,12 +835,9 @@ class _LogViewerState extends State<LogViewer> {
 
   /// 复制单条日志为 JSON / Copy a single log entry as JSON
   Future<void> _copySingle(LogEntry entry) async {
-    final messenger = ScaffoldMessenger.of(context);
     await ExportService.instance.copyText(jsonEncode(entry.toJson()));
     if (mounted) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Copied log as JSON')),
-      );
+      InspectorToast.show(context, 'Copied log as JSON');
     }
   }
 
@@ -894,9 +892,7 @@ Widget _buildLogDetail(BuildContext context, LogEntry entry) {
                   jsonEncode(entry.toJson()),
                 );
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Copied log as JSON')),
-                  );
+                  InspectorToast.show(context, 'Copied log as JSON');
                 }
               },
             ),

@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本次更新强化了 WebSocket 检查能力：网络详情页现在把抓取的 WS 帧渲染为结构化、可筛选的列表（方向 / 帧类型 / 字节大小 / 时间戳）并支持自动滚动，同时新增 `WsFrame`、`WsFrameType`、`WsInspectorService.framesFor` 作为公开 API。建议所有用户升级到最新版本（`^1.8.0`）。
+> **🔔 推荐升级：** 本次更新修复了复制 / 分享 / 重放 / Bug 报告等面板内提示被检查器面板遮挡的问题，并把所有提示反馈收敛到统一的 `InspectorToast` 组件，样式更一致。建议所有用户升级到最新版本（`^1.8.1`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -93,7 +93,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.8.0
+  zero_inspector_kit: ^1.8.1
 ```
 
 ### GitHub
@@ -103,7 +103,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.8.0   # 将 1.8.0 替换为你需要的版本号
+      ref: release/v1.8.1   # 将 1.8.1 替换为你需要的版本号
 ```
 
 ---
