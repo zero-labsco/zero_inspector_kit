@@ -12,6 +12,7 @@ import 'fps_viewer.dart';
 import 'alerts_viewer.dart';
 import 'widget_tree_viewer.dart';
 import 'widgets/inspector_error_boundary.dart';
+import 'inspector_toast.dart';
 
 import '../services/inspector_service.dart';
 import '../services/ws_inspector_service.dart';
@@ -357,9 +358,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     );
 
     if (mounted) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Bug report shared')),
-      );
+      InspectorToast.showOn(messenger, 'Bug report shared');
     }
   }
 

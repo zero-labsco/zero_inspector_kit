@@ -17,6 +17,7 @@ export 'src/models/database_info.dart';
 export 'src/services/fps_service.dart';
 export 'src/services/export_service.dart';
 export 'src/ui/inspector_panel.dart';
+export 'src/ui/inspector_toast.dart';
 export 'src/ui/log_viewer.dart';
 export 'src/ui/network_viewer.dart';
 export 'src/ui/database_viewer.dart';
@@ -420,28 +421,41 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   /// tapping the panel itself never bubbles to the close layer. The previous
   /// single opaque GestureDetector was occasionally hit by a synthetic pointer
   /// event when InspectorPanel rebuilt from MemoryInspectorService's frequent
-  /// notifications, auto-closing the panel right after enabling memory monitor.
+  /// 构建面板内容 / Build panel content
+  ///
+  /// 用 ScaffoldMessenger + 全屏 Scaffold 包裹整个面板浮层：面板内所有
+  /// `ScaffoldMessenger.of(context)` 会就近解析到这个 ScaffoldMessenger，提示
+  /// 因此被渲染进面板所在的那一层 Overlay、且位于面板之上（不会被面板遮挡）。
+  /// Uses ScaffoldMessenger + a full-screen Scaffold to host the whole panel
+  /// overlay, so `ScaffoldMessenger.of(context)` inside the panel resolves here
+  /// and toasts render into the same overlay layer — above the panel.
   Widget _buildPanelContent() {
-    return Stack(
-      children: [
-        // 关闭层：点击空白区域关闭面板
-        // Close layer: tapping empty area closes the panel
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: _togglePanel,
-            behavior: HitTestBehavior.translucent,
-            child: Container(color: Colors.transparent),
-          ),
+    return ScaffoldMessenger(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        resizeToAvoidBottomInset: false,
+        body: Stack(
+          children: [
+            // 关闭层：点击空白区域关闭面板
+            // Close layer: tapping empty area closes the panel
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _togglePanel,
+                behavior: HitTestBehavior.translucent,
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+            // 面板内容层：在关闭层之上，点击面板内部不关闭
+            // Panel content layer: above the close layer; tapping inside is consumed
+            Center(
+              child: GestureDetector(
+                onTap: () {},
+                child: InspectorPanel(onClose: _togglePanel),
+              ),
+            ),
+          ],
         ),
-        // 面板内容层：在关闭层之上，点击面板内部不关闭
-        // Panel content layer: above the close layer; tapping inside is consumed
-        Center(
-          child: GestureDetector(
-            onTap: () {},
-            child: InspectorPanel(onClose: _togglePanel),
-          ),
-        ),
-      ],
+      ),
     );
   }
 

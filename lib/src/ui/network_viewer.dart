@@ -10,6 +10,7 @@ import '../services/export_service.dart';
 import '../utils/formatters.dart';
 import 'theme/inspector_theme.dart';
 import 'widgets/widgets.dart';
+import 'inspector_toast.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -328,7 +329,6 @@ class _NetworkViewerState extends State<NetworkViewer> {
   /// 在 App 内重放该请求（用捕获的方法/URL/头/体重新发出一次）。
   /// Replay the request in-app (re-issue with captured method/URL/headers/body).
   Future<void> _replayRequest(NetworkRequest r) async {
-    final messenger = ScaffoldMessenger.of(context);
     final client = http.Client();
     try {
       final request = buildReplayRequest(r);
@@ -340,18 +340,15 @@ class _NetworkViewerState extends State<NetworkViewer> {
           ? '${response.body.substring(0, 200)}…'
           : response.body;
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Replayed → ${response.statusCode} in ${elapsed.inMilliseconds}ms\n$preview',
-            ),
-            duration: const Duration(seconds: 4),
-          ),
+        InspectorToast.show(
+          context,
+          'Replayed → ${response.statusCode} in ${elapsed.inMilliseconds}ms\n$preview',
+          duration: const Duration(seconds: 4),
         );
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(SnackBar(content: Text('Replay failed: $e')));
+        InspectorToast.show(context, 'Replay failed: $e');
       }
     } finally {
       client.close();
@@ -522,14 +519,11 @@ class _NetworkViewerState extends State<NetworkViewer> {
                               ),
                             );
                             if (mounted) {
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    _maskSensitive
-                                        ? 'Copied as cURL (sensitive hidden)'
-                                        : 'Copied as cURL',
-                                  ),
-                                ),
+                              InspectorToast.showOn(
+                                messenger,
+                                _maskSensitive
+                                    ? 'Copied as cURL (sensitive hidden)'
+                                    : 'Copied as cURL',
                               );
                             }
                           },
@@ -544,22 +538,19 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         icon: Icons.content_copy_rounded,
                         tooltip: 'Copy as JSON',
                         onTap: () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           final requests =
                               InspectorService.instance.networkRequests;
                           if (requests.isEmpty) return;
-                          final messenger = ScaffoldMessenger.of(context);
                           await ExportService.instance.copyNet(
                             requests,
                             maskSensitive: _maskSensitive,
                           );
                           if (mounted) {
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Copied ${requests.length} requests as JSON'
-                                  '${_maskSensitive ? ' (sensitive hidden)' : ''}',
-                                ),
-                              ),
+                            InspectorToast.showOn(
+                              messenger,
+                              'Copied ${requests.length} requests as JSON'
+                              '${_maskSensitive ? ' (sensitive hidden)' : ''}',
                             );
                           }
                         },
@@ -568,22 +559,19 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         icon: Icons.share_rounded,
                         tooltip: 'Share as JSON',
                         onTap: () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           final requests =
                               InspectorService.instance.networkRequests;
                           if (requests.isEmpty) return;
-                          final messenger = ScaffoldMessenger.of(context);
                           await ExportService.instance.exportNetAndShare(
                             requests,
                             maskSensitive: _maskSensitive,
                           );
                           if (mounted) {
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Sharing ${requests.length} requests as JSON'
-                                  '${_maskSensitive ? ' (sensitive hidden)' : ''}',
-                                ),
-                              ),
+                            InspectorToast.showOn(
+                              messenger,
+                              'Sharing ${requests.length} requests as JSON'
+                              '${_maskSensitive ? ' (sensitive hidden)' : ''}',
                             );
                           }
                         },
@@ -1026,7 +1014,6 @@ class _NetworkViewerState extends State<NetworkViewer> {
   }
 
   void _copySelectedCurl(BuildContext context) {
-    final messenger = ScaffoldMessenger.of(context);
     final list = InspectorService.instance.networkRequests;
     final selected = list.where((r) => _selectedIds.contains(r.id)).toList();
     if (selected.isEmpty) return;
@@ -1037,13 +1024,10 @@ class _NetworkViewerState extends State<NetworkViewer> {
         )
         .join('\n\n');
     ExportService.instance.copy(curl);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          'Copied ${selected.length} cURL'
-          '${_maskSensitive ? ' (sensitive hidden)' : ''}',
-        ),
-      ),
+    InspectorToast.show(
+      context,
+      'Copied ${selected.length} cURL'
+      '${_maskSensitive ? ' (sensitive hidden)' : ''}',
     );
   }
 

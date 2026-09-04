@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.1
+
+### Fixed / 修复
+- 修复面板内提示（复制 / 分享 / 重放 / Bug 报告）被检查器面板遮挡、不可见的问题：面板浮层现由自身的 `ScaffoldMessenger` 包裹，提示被渲染进面板所在 Overlay 层之上，不再被遮挡。 / Fixed in-panel toasts (copy / share / replay / bug report) being occluded by the inspector panel and invisible: the panel overlay now owns its own `ScaffoldMessenger`, so toasts render above the panel in the same overlay layer.
+
+### Changed / 变更
+- 新增统一提示组件 `InspectorToast`（`lib/src/ui/inspector_toast.dart`），把分散在 `inspector_panel` / `network_viewer` / `log_viewer` 中的 11 处 `SnackBar` 调用收敛到一处，统一为浮动样式。 / Added a unified `InspectorToast` component (`lib/src/ui/inspector_toast.dart`) that consolidates the 11 scattered `SnackBar` calls across `inspector_panel` / `network_viewer` / `log_viewer` into one place with a consistent floating style.
+
 ## 1.8.0
 
 ### Added / 新增
