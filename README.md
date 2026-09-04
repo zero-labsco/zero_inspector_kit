@@ -23,6 +23,10 @@ A powerful Flutter plugin for an in-app developer console, providing real-time d
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
+<p align="center">
+  <a href="https://ko-fi.com/amiskwok"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on ko-fi!" /></a>
+</p>
+
 ---
 
 ## Table of Contents
