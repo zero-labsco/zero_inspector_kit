@@ -335,7 +335,7 @@ class _InspectorPanelState extends State<InspectorPanel>
   /// 一键生成并分享 Bug 报告（设备信息 + 当前内存 + 最近日志 + 最近网络）
   /// One-click generate & share a bug report.
   Future<void> _shareBugReport(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
+    final messenger = Overlay.of(context, rootOverlay: true);
     final memory = MemoryInspectorService.instance;
     final memoryInfo = <String>[
       '=== Memory (current) ===',

@@ -511,7 +511,10 @@ class _NetworkViewerState extends State<NetworkViewer> {
                           icon: Icons.terminal_rounded,
                           tooltip: 'Copy as cURL',
                           onTap: () async {
-                            final messenger = ScaffoldMessenger.of(context);
+                            final messenger = Overlay.of(
+                              context,
+                              rootOverlay: true,
+                            );
                             await ExportService.instance.copy(
                               ExportService.instance.toCurl(
                                 _selectedRequest!,
@@ -538,7 +541,10 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         icon: Icons.content_copy_rounded,
                         tooltip: 'Copy as JSON',
                         onTap: () async {
-                          final messenger = ScaffoldMessenger.of(context);
+                          final messenger = Overlay.of(
+                            context,
+                            rootOverlay: true,
+                          );
                           final requests =
                               InspectorService.instance.networkRequests;
                           if (requests.isEmpty) return;
@@ -559,7 +565,10 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         icon: Icons.share_rounded,
                         tooltip: 'Share as JSON',
                         onTap: () async {
-                          final messenger = ScaffoldMessenger.of(context);
+                          final messenger = Overlay.of(
+                            context,
+                            rootOverlay: true,
+                          );
                           final requests =
                               InspectorService.instance.networkRequests;
                           if (requests.isEmpty) return;

@@ -313,7 +313,10 @@ class _LogViewerState extends State<LogViewer> {
                           icon: Icons.content_copy_rounded,
                           tooltip: 'Copy as JSON',
                           onTap: () async {
-                            final messenger = ScaffoldMessenger.of(context);
+                            final messenger = Overlay.of(
+                              context,
+                              rootOverlay: true,
+                            );
                             final logs = _filterLogs(
                               InspectorService.instance.logEntries,
                             );
@@ -331,7 +334,10 @@ class _LogViewerState extends State<LogViewer> {
                           icon: Icons.share_rounded,
                           tooltip: 'Share as Text',
                           onTap: () async {
-                            final messenger = ScaffoldMessenger.of(context);
+                            final messenger = Overlay.of(
+                              context,
+                              rootOverlay: true,
+                            );
                             final logs = _filterLogs(
                               InspectorService.instance.logEntries,
                             );
