@@ -8,7 +8,7 @@
 
 </div>
 
-一个功能强大的 Flutter 插件，用于应用内开发者控制台，提供实时调试工具：网络请求检查、日志记录、数据库查看、内存监控、FPS 监控和路由追踪。
+一个 Flutter 应用内开发者控制台：检查 HTTP、WebSocket 与 gRPC 流量，实时监控日志、数据库、内存泄漏与 FPS，追踪路由，获取告警与一键 Bug 报告——无需离开你的应用。发布模式下自动禁用。
 
 [![pub version](https://img.shields.io/pub/v/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit)
 [![pub points](https://img.shields.io/pub/points/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit/score)
