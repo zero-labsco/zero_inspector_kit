@@ -1,5 +1,5 @@
 name: zero_inspector_kit
-description: "One-line in-app developer console for Flutter: HTTP/WebSocket/gRPC inspection, logs, database, memory leaks, FPS jank, routes, alerts, bug reports. Auto-disabled in release."
+description: One-line in-app developer console for Flutter — HTTP/WebSocket/gRPC inspection, logs, database, memory leaks, FPS jank, routes, alerts, bug reports. Auto-disabled in release.
 version: 1.8.1
 topics:
   - logging
