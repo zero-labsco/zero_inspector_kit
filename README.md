@@ -8,7 +8,7 @@
 
 </div>
 
-A powerful Flutter plugin for an in-app developer console, providing real-time debugging tools: network inspection, logging, database viewing, memory monitoring, FPS monitoring, and route tracking.
+An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic, monitor logs, database, memory leaks and FPS in real time, track routes, get alerts and one-tap bug reports — all without leaving your app. Auto-disabled in release.
 
 [![pub version](https://img.shields.io/pub/v/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit)
 [![pub points](https://img.shields.io/pub/points/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit/score)
