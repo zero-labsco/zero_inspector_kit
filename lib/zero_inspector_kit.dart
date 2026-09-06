@@ -231,9 +231,7 @@ class ZeroInspectorKit {
     for (var attempt = 0; attempt < 5; attempt++) {
       if (PersistenceService.instance.isEnabled) return;
       if (attempt > 0) {
-        await Future<void>.delayed(
-          Duration(milliseconds: 100 * (attempt + 1)),
-        );
+        await Future<void>.delayed(Duration(milliseconds: 100 * (attempt + 1)));
       }
       await _initPersistence();
     }
