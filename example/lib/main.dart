@@ -182,6 +182,14 @@ class _ExampleHomePageState extends State<ExampleHomePage>
   late final AnimationController _fpsAnim;
   bool _fpsAnimPlaying = false;
 
+  // ── 持久化环形缓冲演示状态 / Persistence ring-buffer demo state ──
+  // null 表示尚未查询磁盘 / null means not queried yet.
+  int? _diskLogRows;
+  int _diskErrorRows = 0;
+  String _diskNewestId = '—';
+  String _diskOldestId = '—';
+  int _floodSeq = 0;
+
   @override
   void initState() {
     super.initState();
@@ -195,6 +203,12 @@ class _ExampleHomePageState extends State<ExampleHomePage>
     );
     _initInspectorData();
     _startWsEchoServer();
+    // 持久化 init 是异步的：首帧后等 DB 就绪再读一次磁盘状态。
+    // Persistence init is async: wait for the DB once after the first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      await _refreshPersistenceStatus();
+    });
   }
 
   /// 启动一个本地 WebSocket 回显服务器（绑定 127.0.0.1 随机端口），用于离线验证
@@ -492,6 +506,163 @@ class _ExampleHomePageState extends State<ExampleHomePage>
     debugPrint('jank workload done (result=$sink)');
   }
 
+  /// 演示异常聚合 · 手动上报同一异常 3 次：Errors Tab 会按类型+堆栈签名去重成
+  /// 一条记录、count 变为 3，标签栏红点 +1；也演示了 ErrorService 的 report()
+  /// 公共 API（适合 gRPC / 自定义协议等没有 FlutterError 场景的上报）。
+  /// Errors demo — report the same exception 3 times manually: the Errors tab
+  /// dedupes them by type + stack signature into one entry with count 3 and the
+  /// tab badge +1. Also demos the ErrorService.report() public API (for gRPC /
+  /// custom protocols that never go through FlutterError).
+  void _reportRepeatedError() {
+    for (var i = 0; i < 3; i++) {
+      ErrorService.instance.report(
+        StateError('DemoStateError: sync failed for order #1024'),
+        StackTrace.current,
+        'example-home',
+      );
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reported the same crash 3× — see the Errors tab'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// 演示「未捕获的 zone 异步异常」聚合：在 Timer 回调里直接 throw，由
+  /// runAppWithInspector 的 runZonedGuarded 兜住并同步写入 Errors Tab。
+  /// Errors demo — an uncaught async error thrown in a Timer callback: the
+  /// runZonedGuarded created by runAppWithInspector catches it and feeds the
+  /// Errors tab synchronously.
+  void _throwUncaughtAsyncError() {
+    Timer.run(() {
+      throw ArgumentError(
+        'DemoAsyncError: uncaught async error from a Timer callback',
+      );
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Threw an uncaught async error — see the Errors tab'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// 演示「FlutterError 路径」聚合：手动构造一次 FlutterErrorDetails 走
+  /// FlutterError.onError（检查器已接管并保留默认红色报错）。不打断页面，
+  /// 仅控制台红字 + Errors Tab 记录。
+  /// Errors demo — the FlutterError path: manually build FlutterErrorDetails
+  /// and route it through FlutterError.onError (hooked by the inspector while
+  /// keeping the default red error). Doesn't disrupt the page — just a red
+  /// console dump plus an Errors tab entry.
+  void _reportFlutterError() {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: StateError('DemoLayoutError: simulated build crash'),
+        stack: StackTrace.current,
+        library: 'example_home_page',
+        context: ErrorDescription('while building the Errors demo card'),
+      ),
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Simulated a FlutterError — see the Errors tab (and red console)',
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// 查询磁盘环形缓冲当前状态：日志/异常行数 + 最新/最旧一条的 id，
+  /// 用于直观验证"超过行数上限后最旧的被裁掉"。
+  /// Query the on-disk ring buffer: log/error row counts plus the ids of the
+  /// newest/oldest rows, to visibly verify that overflow evicts the oldest.
+  Future<void> _refreshPersistenceStatus() async {
+    final svc = PersistenceService.instance;
+    int? logRows;
+    var errorRows = 0;
+    var newest = '—';
+    var oldest = '—';
+    if (svc.isEnabled) {
+      try {
+        final logs = await svc.loadLogs(limit: 1 << 16);
+        logRows = logs.length;
+        newest = logs.isEmpty ? '—' : logs.first.id;
+        oldest = logs.isEmpty ? '—' : logs.last.id;
+      } catch (_) {
+        // 查询失败时保留上一状态 / keep last state on query failure
+      }
+      try {
+        errorRows = (await svc.loadErrors(limit: 1 << 16)).length;
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    setState(() {
+      _diskLogRows = logRows;
+      _diskErrorRows = errorRows;
+      _diskNewestId = newest;
+      _diskOldestId = oldest;
+    });
+  }
+
+  /// 灌入 [n] 条日志验证环形缓冲：走真实的 addLogEntry → 落盘链路。
+  /// [n] 超过行数上限时，磁盘上只会留下最新的一批、最旧被裁掉。
+  /// Flood [n] logs through the real addLogEntry → flush pipeline. When [n]
+  /// exceeds the row cap, disk keeps only the newest rows and drops the oldest.
+  Future<void> _floodPersistedLogs(int n) async {
+    final svc = PersistenceService.instance;
+    if (!svc.isEnabled) {
+      _demoSnack('Persistence disabled (DB unavailable on this platform)');
+      return;
+    }
+    final start = DateTime.now();
+    for (var i = 0; i < n; i++) {
+      final seq = ++_floodSeq;
+      InspectorService.instance.addLogEntry(
+        LogEntry(
+          id: 'persist-demo-$seq',
+          level: LogLevel.info,
+          message:
+              'Ring demo #${seq.toString().padLeft(6, '0')} '
+              '(flood at ${start.toIso8601String()})',
+          timestamp: start,
+          tag: 'persist-demo',
+        ),
+      );
+    }
+    await svc.flush();
+    await _refreshPersistenceStatus();
+    final cap = svc.maxRowsPerTable;
+    _demoSnack(
+      n > cap
+          ? 'Flooded $n logs → disk trimmed to the newest $cap rows '
+                '(oldest evicted)'
+          : 'Flooded $n logs → disk rows now: $_diskLogRows',
+    );
+  }
+
+  /// 清空磁盘上的持久化数据 / Clear all persisted data on disk
+  Future<void> _clearPersistedData() async {
+    await PersistenceService.instance.clearAll();
+    await _refreshPersistenceStatus();
+    _demoSnack('Persisted data cleared (disk logs: $_diskLogRows)');
+  }
+
+  /// 短提示 / Short snackbar helper
+  void _demoSnack(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text), duration: const Duration(seconds: 2)),
+    );
+  }
+
   /// FPS 动画测试：开关一个持续旋转的动画。旋转时引擎每帧都渲染，FPS 监控应读到
   /// ~60（或设备刷新率）；停止后页面静止，FPS 会因无帧可渲染而掉到个位数/0。
   /// FPS animation test: toggle a continuously spinning widget. While spinning, the
@@ -718,11 +889,148 @@ class _ExampleHomePageState extends State<ExampleHomePage>
             ),
           ),
           const SizedBox(height: 16),
+          // Errors（异常聚合）演示：三种途径制造异常。打开检查器的 Errors 标签页
+          // 可看到按"类型 + 堆栈签名"去重聚合——相同异常连点多次会合并为一条并累加
+          // 出现次数，未处理计数同步到标签栏红点。覆盖手动 report、未捕获的 zone
+          // 异步异常、FlutterError.onError 三条真实路径。
+          // Errors demo: raise exceptions three ways. Open the inspector's Errors
+          // tab to see dedup aggregation by type + stack signature — reporting
+          // the same crash repeatedly merges into one entry with a growing count,
+          // and the unread badge on the tab bar updates live.
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE53935).withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFE53935).withValues(alpha: 0.3),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Errors aggregation demo',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Open the inspector → Errors tab, then raise a few exceptions '
+                  'below. Reporting the same crash repeatedly is deduped into '
+                  'one entry with an increasing count.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: _reportRepeatedError,
+                  icon: const Icon(Icons.bug_report_outlined),
+                  label: const Text('Report the same crash 3×'),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: _throwUncaughtAsyncError,
+                  icon: const Icon(Icons.bolt_outlined),
+                  label: const Text('Throw an uncaught async error'),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: _reportFlutterError,
+                  icon: const Icon(Icons.error_outline_rounded),
+                  label: const Text('Simulate a FlutterError (build crash)'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildPersistenceDemoCard(),
+          const SizedBox(height: 16),
           // Widget 检查器演示：带 Key 的嵌套组件树，打开 Widget 检查器即可查看
           // 每个节点的类型、Key、子节点数与层级。
           // Widget inspector demo: a nested tree with Keys — open the Widget
           // Inspector to inspect each node's type, Key, child count and depth.
           _buildWidgetDemoTree(),
+        ],
+      ),
+    );
+  }
+
+  /// 持久化环形缓冲演示卡片：展示磁盘行数/最新最旧 id，并提供
+  /// 「写入 → 溢出 → 清空」操作，用来真机/模拟器验证环形缓冲语义。
+  /// Persistence ring-buffer demo card: shows on-disk rows and newest/oldest
+  /// ids, with write / overflow / clear actions to verify ring semantics.
+  Widget _buildPersistenceDemoCard() {
+    final svc = PersistenceService.instance;
+    final cap = svc.maxRowsPerTable;
+    final status = _diskLogRows == null
+        ? 'status: enabled=${svc.isEnabled} · cap=$cap rows/table\n'
+              '(querying disk… keep an eye on the Logs tab too)'
+        : 'status: enabled=${svc.isEnabled} · cap=$cap rows/table\n'
+              'disk logs: $_diskLogRows · disk errors: $_diskErrorRows\n'
+              'newest: $_diskNewestId · oldest: $_diskOldestId';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E88E5).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF1E88E5).withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Persistence ring-buffer demo',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Captured logs / network / errors are async-flushed to SQLite and '
+            'rolled by row cap + retention; overflow drops the oldest rows. '
+            'Flood past the cap below, then press Hot Restart (R) — the last '
+            'session replays into the inspector Logs/Errors tabs.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              status,
+              style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _floodPersistedLogs(200),
+                icon: const Icon(Icons.data_object, size: 18),
+                label: const Text('Write 200 logs'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _floodPersistedLogs(5200),
+                icon: const Icon(Icons.trending_up, size: 18),
+                label: const Text('Overflow (write 5200)'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _clearPersistedData,
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('Clear persisted'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _refreshPersistenceStatus,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Refresh status'),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -855,10 +1163,10 @@ class _ExampleHomePageState extends State<ExampleHomePage>
 }
 
 /// 实时显示「检查器已捕获的路由数」的小部件。
-/// 监听 [InspectorService]（ChangeNotifier），每次路由 push/pop 都会触发重建，
+/// 监听 [InspectorService.routeNotifier]，每次路由 push/pop 都会触发重建，
 /// 让用户无需打开面板也能直观确认穿透注入是否成功。
 /// A small live widget showing how many routes the inspector has captured.
-/// Listens to [InspectorService] (a ChangeNotifier) so it rebuilds on every
+/// Listens to [InspectorService.routeNotifier] so it rebuilds on every
 /// route push/pop, letting the user verify penetration without opening the panel.
 class _RouteCaptureIndicator extends StatelessWidget {
   const _RouteCaptureIndicator();
@@ -866,7 +1174,7 @@ class _RouteCaptureIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: InspectorService.instance,
+      listenable: InspectorService.instance.routeNotifier,
       builder: (context, _) {
         final count = InspectorService.instance.routeEntryCount;
         final color = count > 0 ? Colors.green : Colors.grey;

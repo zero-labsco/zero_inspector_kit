@@ -26,7 +26,7 @@ class _RouteViewerState extends State<RouteViewer> {
         _buildToolbar(),
         Expanded(
           child: ListenableBuilder(
-            listenable: InspectorService.instance,
+            listenable: InspectorService.instance.routeNotifier,
             builder: (context, child) {
               if (_selectedRoute != null) {
                 return _buildRouteDetail(_selectedRoute!);
@@ -53,7 +53,7 @@ class _RouteViewerState extends State<RouteViewer> {
   /// 构建工具栏 / Build toolbar
   Widget _buildToolbar() {
     return ListenableBuilder(
-      listenable: InspectorService.instance,
+      listenable: InspectorService.instance.routeNotifier,
       builder: (context, child) {
         final isDetail = _selectedRoute != null;
         return Container(

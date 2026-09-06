@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.9.0
+
+### Added / 新增
+- 独立的 **Errors（异常聚合）** 标签页：接管 `FlutterError.onError`（保留默认红色报错），按异常类型 + 堆栈签名去重，显示出现次数、首末次时间、可折叠完整堆栈，标签栏带未处理计数红点。 / A dedicated **Errors** tab: hooks `FlutterError.onError` (keeping the default red error), dedupes by exception type + stack signature, and shows occurrence count, first/last seen, and a collapsible full stack, with an unread-count badge on the tab bar.
+- 新增 `ErrorService` / `ErrorRecord` 公共 API，以及 `init(enableErrorCapture:)` 开关；未捕获 zone 异常也会同步聚合。 / New `ErrorService` / `ErrorRecord` public API plus an `init(enableErrorCapture:)` switch; uncaught zone errors are aggregated too.
+- 持久化环形缓冲 `PersistenceService`：日志 / 网络 / 异常异步落盘到 SQLite，按行数上限与保留时长滚动裁剪，跨重启不丢，并支持"导出本次会话完整存档"。 / A `PersistenceService` disk ring buffer: logs / network / errors flush asynchronously into SQLite and roll by row cap and retention window, surviving restarts and enabling full-session archive export.
+- 泄漏检测桥接 Flutter 官方 `FlutterMemoryAllocations` 作为第二来源：官方上报 `disposed` 的对象不再被误判为泄漏。 / Leak detection now bridges Flutter's official `FlutterMemoryAllocations` as a second source: objects the official stream reports as `disposed` are no longer flagged as leaks.
+- 面板头部新增**持久化数据管理**入口（数据库图标）：查看磁盘环形缓冲行数、导出完整会话存档、清空磁盘（或同时清空当前显示的列表）。导出上一次崩溃/会话后手动清空磁盘，下一次启动便不再回放历史、从零开始。 / The panel header now has a **Persisted data** manager (database icon): inspect on-disk ring-buffer rows, export the full session archive, and clear the disk (optionally together with the lists in view). After exporting a previous crash / session, clearing the disk lets the next launch start clean instead of replaying history.
+
+### Fixed / 修复
+- 修复 App 空闲（无动画 / 无渲染请求）时 FPS 显示过低并被误判为性能问题：空闲时不再计入告警，FPS 回退显示刷新率。另修复监控 UI 自身周期性重绘（约 2 fps）产生的"自产帧"令空闲判定失效、静止页面持续误报 FPS dropped 的问题——判定只看窗口内帧数：真实动画即使掉帧也会按 vsync 持续产帧，帧率几乎不会低于每秒 4 帧，因此窗口内帧数 ≤ 4 即视为低活跃（静止/无持续动画），不再触发低 FPS 告警；不参考单帧耗时（debug/模拟器下一次普通重绘常超 16ms，会令静止页面再次被误报）。 / Fixed FPS showing too low and being misjudged as a performance problem when the app is idle (no animation / no render requests): idle frames no longer trigger alerts and FPS falls back to the refresh rate. Also fixed the monitor's own periodic rebuilds (~2 fps) defeating the idle check so a still page kept reporting FPS drops — the check now relies on frame count alone: real animations keep producing frames every vsync even while janking, so their FPS rarely drops to ≤ 4 frames/sec, and a window at or below that is treated as low-activity (idle) and never fires a low-FPS alert. Frame duration is deliberately ignored (a trivial debug/emulator rebuild often exceeds 16 ms, which would re-flag a static page).
+- 修复日志续行合并的无 tag 漏洞：print / debugPrint 直出的日志 tag 恒为 null，"同 tag"判定（null == null）空真，仍会把 60ms 窗口内"以空格开头"的另一条独立无 tag 日志误并进上一条。现无 tag 流只允许以 Box 制图符开头的强续行合并。 / Fixed the untagged hole in log continuation reassembly: print / debugPrint output always carries a null tag, making the same-tag check (`null == null`) vacuous, so a separate untagged log starting with whitespace within the 60ms window could still be merged into the previous one. An untagged stream now only reassembles strong box-glyph continuations.
+- 修复日志重复片段去重误吞整行重复的独立日志：去重只作用于上一条多行文本"内部的行"，两条内容完全相同但独立相邻的日志不再被丢弃。 / Fixed fragment dedup swallowing genuinely identical standalone logs: only lines that already exist *inside* the previous multi-line text are dropped; two independent logs with identical whole messages are now kept.
+
+### Changed / 变更
+- `InspectorService` 由单一 `ChangeNotifier` 拆分为 `networkNotifier` / `logNotifier` / `routeNotifier` / `interceptorNotifier`，任一分类写入只重建对应 viewer。 / `InspectorService` was split from a single `ChangeNotifier` into `networkNotifier` / `logNotifier` / `routeNotifier` / `interceptorNotifier`, so a write to one category rebuilds only its own viewer.
+- 网络请求改为"有序 ID 列表 + id 索引 Map"，`findNetworkRequest` / 更新由 O(n) 线性扫描变为 O(1)，WS 高频帧不再触发整表重排。 / Network requests now use an ordered id list + id-index Map: lookups/updates went from O(n) linear scans to O(1), and high-frequency WS frames no longer reorder the whole list.
+- 日志续行合并收窄为"同 tag 内"，降低把本身以空格 / Box 字符开头的正常日志误合并的风险。 / Log continuation reassembly is now narrowed to the same tag, reducing the risk of mis-merging legitimate logs that start with whitespace / box-drawing glyphs.
+- 无 UI 监听者（面板未挂载）时不再调度帧回调，进一步省电。 / No frame callback is scheduled when there is no UI listener (panel not mounted), saving additional power.
+- 九个查看器标签页按诊断工作流重新排序：网络 → 日志 → 异常 → 数据库 → 内存 → FPS → 路由 → Widget → 告警，实时监控（内存 / FPS / 路由）相邻排列、Alerts 殿后，未处理异常计数红点跟随 Errors 标签。 / The nine viewer tabs are re-ordered by diagnostic workflow: network → logs → errors → database → memory → FPS → routes → widgets → alerts, keeping the live monitors (memory / FPS / routes) adjacent with Alerts last; the unhandled-error badge tracks the Errors tab.
+
 ## 1.8.1
 
 ### Fixed / 修复

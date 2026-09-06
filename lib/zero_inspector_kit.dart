@@ -7,6 +7,10 @@ export 'src/interceptors/dio_interceptor.dart';
 export 'src/interceptors/route_observer.dart';
 export 'src/services/inspector_service.dart';
 export 'src/services/ws_inspector_service.dart';
+export 'src/services/error_service.dart';
+export 'src/services/persistence_service.dart';
+export 'src/models/error_record.dart';
+export 'src/ui/error_viewer.dart';
 export 'src/services/database_service.dart';
 export 'src/services/sqlite_provider.dart';
 export 'src/services/database_provider.dart';
@@ -32,6 +36,7 @@ export 'src/utils/memory_leak_tracking.dart';
 // Expose additional public capabilities so consumers can reference them directly
 // without importing internal lib/src/ paths.
 export 'src/services/memory_inspector_service.dart';
+export 'src/services/leak_tracker_bridge.dart';
 export 'src/services/alert_service.dart';
 export 'src/models/network_request.dart';
 export 'src/models/log_entry.dart';
@@ -59,6 +64,9 @@ import 'src/models/log_entry.dart';
 import 'src/services/database_provider.dart';
 import 'src/services/sqlite_provider.dart';
 import 'src/services/inspector_service.dart';
+import 'src/services/error_service.dart';
+import 'src/services/persistence_service.dart';
+import 'src/services/memory_inspector_service.dart';
 import 'src/services/shared_prefs_provider.dart';
 import 'src/services/hive_provider.dart';
 import 'src/services/widget_tree_service.dart';
@@ -111,6 +119,7 @@ class ZeroInspectorKit {
   /// [enable] 是否启用检查器（默认 true，release模式下自动为 false）/ Whether to enable inspector (default true, auto false in release mode)
   /// [enableLogCapture] 是否启用日志捕获（默认 true）/ Whether to enable log capture (default true)
   /// [enableNetworkCapture] 是否启用网络请求捕获（默认 true）/ Whether to enable network request capture (default true)
+  /// [enableErrorCapture] 是否启用异常聚合捕获（默认 true）/ Whether to enable error aggregation (default true)
   /// [enableDatabaseScan] 是否启用数据库扫描（默认 true）/ Whether to enable database scan (default true)
   /// [enableRouteTracking] 是否启用路由跟踪（默认 true）/ Whether to enable route tracking (default true)
   /// [customButton] 自定义悬浮按钮组件（可选）/ Custom floating button widget (optional)
@@ -123,6 +132,9 @@ class ZeroInspectorKit {
     bool enable = true,
     bool enableLogCapture = true,
     bool enableNetworkCapture = true,
+    bool enableErrorCapture = true,
+    bool enablePersistence = true,
+    bool enableFlutterLeakTracker = true,
     bool enableDatabaseScan = true,
     bool enableRouteTracking = true,
     bool enableWidgetInspector = true,
@@ -159,6 +171,18 @@ class ZeroInspectorKit {
       InspectorHttpInterceptor.instance.start();
     }
 
+    // 接管 FlutterError.onError 做异常聚合（保留默认红色报错行为）。
+    // Hook FlutterError.onError for error aggregation (default red error kept).
+    if (enableErrorCapture) {
+      ErrorService.instance.install();
+    }
+
+    // 桥接 Flutter 官方 MemoryAllocations 作为泄漏检测第二来源。
+    // Bridge Flutter's official MemoryAllocations as a second leak-detection source.
+    if (enableFlutterLeakTracker) {
+      MemoryInspectorService.instance.flutterLeakTrackerEnabled = true;
+    }
+
     if (enableDatabaseScan) {
       DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
     }
@@ -172,6 +196,45 @@ class ZeroInspectorKit {
     // 预置网络瀑布图偏好（详情页默认展示时间轴）。
     // Pre-seed the timeline preference (detail page shows the timeline by default).
     InspectorService.instance.preferNetworkTimeline = enableNetworkTimeline;
+
+    // 持久化环形缓冲：异步落盘并在启动时回放上次会话的日志/异常，
+    // 实现"跨重启不丢"（DB 不可用时优雅降级为纯内存）。
+    // Persistence ring buffer: async flush to disk and replay the previous
+    // session's logs/errors at startup so data survives restarts (degrades to
+    // memory-only when the DB is unavailable).
+    if (enablePersistence) {
+      // 不能在此处立即 openDatabase：init() 总是在 runApp 之前执行
+      // （runAppWithInspector 与两行式 init()+wrapApp 皆如此），此刻 Flutter
+      // binding 尚未初始化、platform channel 不可用，直接打开数据库必然抛错
+      // 并被 PersistenceService 静默降级 —— 表现为移动端 SQLite 明明可用
+      // （example 库能建），持久化却始终 disabled、zero_inspector_kit.db 从不落盘。
+      // 因此改为“binding 就绪后带重试”：runApp 同步执行完毕 binding 即就绪，
+      // 第二次尝试即可成功；桌面等没有 sqflite 实现的平台重试耗尽后维持降级。
+      unawaited(_initPersistenceWhenReady());
+    }
+  }
+
+  /// 初始化持久化并回放上次会话 / Init persistence and replay the last session
+  static Future<void> _initPersistence() async {
+    await PersistenceService.instance.init();
+    if (!PersistenceService.instance.isEnabled) return;
+    final logs = await PersistenceService.instance.loadLogs();
+    if (logs.isNotEmpty) InspectorService.instance.restoreLogs(logs);
+    final errors = await PersistenceService.instance.loadErrors();
+    if (errors.isNotEmpty) ErrorService.instance.restore(errors);
+  }
+
+  /// 等待 Flutter binding 就绪后再初始化持久化，失败按递增间隔自动重试。
+  /// 首次尝试发生在 runApp 之前（binding 未初始化必失败），runApp 同步完成后
+  /// 的第二次尝试即成功；无 sqflite 的平台重试耗尽后保持优雅降级。
+  static Future<void> _initPersistenceWhenReady() async {
+    for (var attempt = 0; attempt < 5; attempt++) {
+      if (PersistenceService.instance.isEnabled) return;
+      if (attempt > 0) {
+        await Future<void>.delayed(Duration(milliseconds: 100 * (attempt + 1)));
+      }
+      await _initPersistence();
+    }
   }
 
   // ────────────────────────────────────────────────────────────────
@@ -252,6 +315,9 @@ class ZeroInspectorKit {
       (error, stackTrace) {
         InspectorLogInterceptor.instance.error(error.toString());
         InspectorLogInterceptor.instance.error(stackTrace.toString());
+        // 同步聚合到 Errors Tab，确保未捕获异常也能被去重统计。
+        // Also aggregate into the Errors Tab so uncaught errors are deduped.
+        ErrorService.instance.report(error, stackTrace);
       },
       zoneSpecification: ZoneSpecification(
         print: (self, parent, zone, line) {

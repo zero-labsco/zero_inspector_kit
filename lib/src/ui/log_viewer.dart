@@ -71,12 +71,12 @@ class _LogViewerState extends State<LogViewer> {
   @override
   void initState() {
     super.initState();
-    InspectorService.instance.addListener(_onServiceChanged);
+    InspectorService.instance.logNotifier.addListener(_onServiceChanged);
   }
 
   @override
   void dispose() {
-    InspectorService.instance.removeListener(_onServiceChanged);
+    InspectorService.instance.logNotifier.removeListener(_onServiceChanged);
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -120,7 +120,7 @@ class _LogViewerState extends State<LogViewer> {
             if (selected == null) _buildFilterBar(),
             Expanded(
               child: ListenableBuilder(
-                listenable: InspectorService.instance,
+                listenable: InspectorService.instance.logNotifier,
                 builder: (context, child) {
                   if (selected != null) {
                     return _buildLogDetail(context, selected);
@@ -260,7 +260,7 @@ class _LogViewerState extends State<LogViewer> {
   Widget _buildToolbar() {
     final selected = _selectedLog;
     return ListenableBuilder(
-      listenable: InspectorService.instance,
+      listenable: InspectorService.instance.logNotifier,
       builder: (context, child) {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -465,7 +465,7 @@ class _LogViewerState extends State<LogViewer> {
   /// Tag filter shares the level row, placed before the "All" chip.
   Widget _buildFilterBar() {
     return ListenableBuilder(
-      listenable: InspectorService.instance,
+      listenable: InspectorService.instance.logNotifier,
       builder: (context, child) {
         final tags = _availableTags(InspectorService.instance.logEntries);
         return Container(

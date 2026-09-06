@@ -5,6 +5,7 @@ import '../services/fps_service.dart';
 import '../services/memory_inspector_service.dart';
 import 'network_viewer.dart';
 import 'log_viewer.dart';
+import 'error_viewer.dart';
 import 'database_viewer.dart';
 import 'memory_viewer.dart';
 import 'route_viewer.dart';
@@ -16,13 +17,19 @@ import 'inspector_toast.dart';
 
 import '../services/inspector_service.dart';
 import '../services/ws_inspector_service.dart';
+import '../services/error_service.dart';
 import '../services/export_service.dart';
+import '../services/persistence_service.dart';
 import '../utils/device_info.dart';
 import '../utils/formatters.dart';
 
+/// 持久化数据管理面板里的可选动作 / Optional actions in the persisted-data panel
+enum _PersistedDataAction { export, clearDisk, clearDiskAndLists }
+
 /// 检查器面板 / Inspector panel
-/// 包含网络、日志、数据库、内存、FPS、路由、告警、Widget 八个查看器
-/// Contains eight viewers: network, logs, database, memory, FPS, routes, alerts, widgets
+/// 按诊断工作流排序的网络、日志、异常、数据库、内存、FPS、路由、Widget、告警九个查看器
+/// Nine viewers ordered by diagnostic workflow: network, logs, errors, database,
+/// memory, FPS, routes, widgets, alerts
 class InspectorPanel extends StatefulWidget {
   /// 关闭面板回调 / Close panel callback
   final VoidCallback onClose;
@@ -41,6 +48,10 @@ class _InspectorPanelState extends State<InspectorPanel>
   /// 当前选中的 Tab 索引 / Currently selected tab index
   int _currentIndex = 0;
 
+  /// "持久化数据管理"弹层的 OverlayEntry（手动插入 root overlay）。
+  /// Persisted-data sheet OverlayEntry (inserted into the root overlay).
+  OverlayEntry? _persistedSheetEntry;
+
   /// 各个标签页的内容 / Contents of each tab
   /// 仅当前激活页会被挂载到组件树（其余只构造、不监听全局 notifier），
   /// 因此每次 notify 只重建当前页；代价是切换标签会重建对应页面、瞬时状态（搜索词/筛选）重置。
@@ -55,6 +66,10 @@ class _InspectorPanelState extends State<InspectorPanel>
     InspectorErrorBoundary(
       label: 'Logs',
       child: LogViewer(key: ValueKey('logs')),
+    ),
+    InspectorErrorBoundary(
+      label: 'Errors',
+      child: ErrorViewer(key: ValueKey('errors')),
     ),
     InspectorErrorBoundary(
       label: 'Database',
@@ -73,12 +88,12 @@ class _InspectorPanelState extends State<InspectorPanel>
       child: RouteViewer(key: ValueKey('routes')),
     ),
     InspectorErrorBoundary(
-      label: 'Alerts',
-      child: AlertsViewer(key: ValueKey('alerts')),
-    ),
-    InspectorErrorBoundary(
       label: 'Widgets',
       child: WidgetTreeInspector(key: ValueKey('widgets')),
+    ),
+    InspectorErrorBoundary(
+      label: 'Alerts',
+      child: AlertsViewer(key: ValueKey('alerts')),
     ),
   ];
 
@@ -86,24 +101,26 @@ class _InspectorPanelState extends State<InspectorPanel>
   final List<String> _titles = const [
     'Network',
     'Logs',
+    'Errors',
     'Database',
     'Memory',
     'FPS',
     'Routes',
-    'Alerts',
     'Widgets',
+    'Alerts',
   ];
 
   /// 标签页图标 / Tab icons
   final List<IconData> _icons = const [
     Icons.http_rounded,
     Icons.article_rounded,
+    Icons.error_outline_rounded,
     Icons.storage_rounded,
     Icons.memory_rounded,
     Icons.speed_rounded,
     Icons.route_rounded,
-    Icons.notifications_active_rounded,
     Icons.visibility_rounded,
+    Icons.notifications_active_rounded,
   ];
 
   @override
@@ -114,6 +131,7 @@ class _InspectorPanelState extends State<InspectorPanel>
     FpsService.instance.addListener(_onMonitorChanged);
     MemoryInspectorService.instance.addListener(_onMonitorChanged);
     WsInspectorService.instance.addListener(_onMonitorChanged);
+    ErrorService.instance.addListener(_onErrorChanged);
   }
 
   @override
@@ -122,8 +140,21 @@ class _InspectorPanelState extends State<InspectorPanel>
     FpsService.instance.removeListener(_onMonitorChanged);
     MemoryInspectorService.instance.removeListener(_onMonitorChanged);
     WsInspectorService.instance.removeListener(_onMonitorChanged);
+    ErrorService.instance.removeListener(_onErrorChanged);
+    // 面板销毁时收掉可能仍开着的持久化管理弹层，避免 OverlayEntry 泄漏。
+    // Clean up a possibly-open persisted sheet when the panel is disposed so no
+    // OverlayEntry leaks.
+    try {
+      _persistedSheetEntry?.remove();
+    } catch (_) {}
+    _persistedSheetEntry = null;
     _tabController.dispose();
     super.dispose();
+  }
+
+  /// 异常聚合变化 → 仅刷新标签栏上的错误红点（错误本身不频繁）/ Error count changed
+  void _onErrorChanged() {
+    if (mounted) setState(() {});
   }
 
   /// 监控开关变化 → 刷新头部状态行 / Monitor toggle → refresh header status row
@@ -257,6 +288,23 @@ class _InspectorPanelState extends State<InspectorPanel>
             ),
           ),
           IconButton(
+            onPressed: _openPersistedDataPanel,
+            tooltip:
+                'Persisted data (disk): export session archive / clear disk',
+            icon: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.storage_rounded,
+                color: InspectorColors.textPrimary,
+                size: 18,
+              ),
+            ),
+          ),
+          IconButton(
             onPressed: () => _shareBugReport(context),
             tooltip: 'Share bug report (device + memory + logs + network)',
             icon: Container(
@@ -362,8 +410,335 @@ class _InspectorPanelState extends State<InspectorPanel>
     }
   }
 
+  /// 打开"持久化数据管理"：查看磁盘环形缓冲行数、导出完整会话存档，
+  /// 或清空磁盘——在导出上一次会话 / 崩溃后手动清空，下一次启动即干净，
+  /// 不会被历史回放污染。
+  /// Open the "Persisted data" manager: inspect on-disk ring-buffer rows,
+  /// export the full session archive, or clear the disk — after exporting the
+  /// previous session / crash, clearing lets the next launch start clean.
+  ///
+  /// 不用 showDialog：本面板是直接插进宿主 Navigator Overlay 的浮层。宿主若
+  /// 使用嵌套 Navigator，showDialog 的 route 会被推入内层 Overlay，反而渲染在
+  /// 面板之下（正是此前弹窗被主面板挡住的原因）。这里改向 root overlay 手动
+  /// 插入一个全新 OverlayEntry —— 与 toast 同一条已被验证能显示在面板之上的
+  /// 通道，且后插入的条目永远绘制在面板之上。
+  /// Why not showDialog: this panel itself is an overlay layer inserted into the
+  /// host Navigator's Overlay. When the host uses a nested Navigator, the dialog
+  /// route can land on an inner Overlay and render *under* the panel (the exact
+  /// bug reported). Instead we insert a dedicated OverlayEntry into the root
+  /// overlay — the same channel the toast already uses (verified to paint above
+  /// the panel) — and later-inserted entries always draw above the panel.
+  Future<void> _openPersistedDataPanel() async {
+    final svc = PersistenceService.instance;
+    final enabled = svc.isEnabled;
+    var logRows = 0;
+    var netRows = 0;
+    var errorRows = 0;
+    if (enabled) {
+      try {
+        logRows = (await svc.loadLogs(limit: 1 << 16)).length;
+      } catch (_) {}
+      try {
+        netRows = (await svc.loadNetworkJson(limit: 1 << 16)).length;
+      } catch (_) {}
+      try {
+        errorRows = (await svc.loadErrors(limit: 1 << 16)).length;
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    _dismissPersistedSheet();
+
+    // 与 toast 相同的 root overlay / The same root overlay the toast uses.
+    final messenger = Overlay.of(context, rootOverlay: true);
+    final statusText = enabled
+        ? 'logs: $logRows · network: $netRows · errors: $errorRows\n'
+              'cap: ${svc.maxRowsPerTable} rows / table · replays on launch'
+        : 'Persistence not enabled on this platform (SQLite unavailable)';
+
+    final entry = OverlayEntry(
+      builder: (_) => _buildPersistedSheet(
+        svc: svc,
+        enabled: enabled,
+        statusText: statusText,
+        messenger: messenger,
+      ),
+    );
+    _persistedSheetEntry = entry;
+    messenger.insert(entry);
+  }
+
+  /// 构建持久化管理弹层：独立全屏模态，常驻于面板 OverlayEntry 之上。
+  /// Build the persisted-data sheet as its own full-screen modal, always above
+  /// the panel's own OverlayEntry.
+  Widget _buildPersistedSheet({
+    required PersistenceService svc,
+    required bool enabled,
+    required String statusText,
+    required OverlayState messenger,
+  }) {
+    final screen = MediaQuery.of(context).size;
+    return Material(
+      type: MaterialType.transparency,
+      child: Stack(
+        children: [
+          // 全屏遮罩：点空白关闭 / Full-screen barrier: tap to dismiss
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _dismissPersistedSheet,
+              child: Container(color: Colors.black.withValues(alpha: 0.55)),
+            ),
+          ),
+          SafeArea(
+            child: Center(
+              child: GestureDetector(
+                // 消费点击，避免冒泡到遮罩把弹层误关
+                // Consume taps so they never bubble to the dismiss barrier.
+                onTap: () {},
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: screen.width * 0.8 > 440
+                        ? 440
+                        : screen.width * 0.8,
+                    maxHeight: screen.height * 0.72,
+                  ),
+                  child: Material(
+                    color: InspectorColors.card,
+                    elevation: 16,
+                    borderRadius: BorderRadius.circular(12),
+                    clipBehavior: Clip.antiAlias,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Persisted data',
+                            style: TextStyle(
+                              color: InspectorColors.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Logs / network / errors are stored in a SQLite '
+                            'ring buffer and replayed into Logs / Errors on '
+                            'launch, surviving crashes and restarts. After '
+                            'exporting the session you need, clear the disk so '
+                            'the next launch replays nothing and starts clean.',
+                            style: TextStyle(
+                              color: InspectorColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: InspectorColors.surface,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: InspectorColors.border,
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              statusText,
+                              style: const TextStyle(
+                                color: InspectorColors.textSecondary,
+                                fontSize: 11,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                          if (enabled) ...[
+                            const SizedBox(height: 12),
+                            _buildDialogActionItem(
+                              icon: Icons.share_rounded,
+                              color: InspectorColors.accent,
+                              title: 'Export session archive',
+                              subtitle:
+                                  'JSON with logs · network · errors '
+                                  'from disk',
+                              onTap: () {
+                                _dismissPersistedSheet();
+                                _runPersistedAction(
+                                  _PersistedDataAction.export,
+                                  svc,
+                                  messenger,
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            _buildDialogActionItem(
+                              icon: Icons.delete_forever_rounded,
+                              color: InspectorColors.error,
+                              title: 'Clear persisted data',
+                              subtitle:
+                                  'Remove disk rows only — next launch '
+                                  'replays nothing',
+                              onTap: () {
+                                _dismissPersistedSheet();
+                                _runPersistedAction(
+                                  _PersistedDataAction.clearDisk,
+                                  svc,
+                                  messenger,
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            _buildDialogActionItem(
+                              icon: Icons.delete_sweep_rounded,
+                              color: InspectorColors.error,
+                              title: 'Clear disk + current lists',
+                              subtitle:
+                                  'Also clear the Logs / Errors / Network '
+                                  'lists in view now',
+                              onTap: () {
+                                _dismissPersistedSheet();
+                                _runPersistedAction(
+                                  _PersistedDataAction.clearDiskAndLists,
+                                  svc,
+                                  messenger,
+                                );
+                              },
+                            ),
+                          ],
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _dismissPersistedSheet,
+                              style: TextButton.styleFrom(
+                                foregroundColor: InspectorColors.textSecondary,
+                              ),
+                              child: const Text('Cancel'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 收起持久化管理弹层 / Dismiss the persisted-data sheet
+  void _dismissPersistedSheet() {
+    try {
+      _persistedSheetEntry?.remove();
+    } catch (_) {}
+    _persistedSheetEntry = null;
+  }
+
+  /// 执行弹层里选中的动作 / Run the action picked in the sheet
+  Future<void> _runPersistedAction(
+    _PersistedDataAction action,
+    PersistenceService svc,
+    OverlayState messenger,
+  ) async {
+    switch (action) {
+      case _PersistedDataAction.export:
+        final ok = await svc.exportSessionArchiveAndShare();
+        InspectorToast.showOn(
+          messenger,
+          ok ? 'Session archive exported & shared' : 'Export failed',
+        );
+        break;
+      case _PersistedDataAction.clearDisk:
+        await svc.clearAll();
+        InspectorToast.showOn(
+          messenger,
+          'Persisted data cleared — next launch replays nothing',
+        );
+        break;
+      case _PersistedDataAction.clearDiskAndLists:
+        await svc.clearAll();
+        InspectorService.instance.clearAll();
+        ErrorService.instance.clear();
+        InspectorToast.showOn(
+          messenger,
+          'Persisted data and current lists cleared',
+        );
+        break;
+    }
+  }
+
+  /// 持久化管理弹层内的可点动作行 / Tappable action row in the manager dialog
+  Widget _buildDialogActionItem({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: InspectorColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: InspectorColors.border, width: 1),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: color),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: InspectorColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: InspectorColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: InspectorColors.textSecondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 构建标签栏 / Build tab bar
   Widget _buildTabBar() {
+    final errorsIndex = _titles.indexOf('Errors');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -374,6 +749,8 @@ class _InspectorPanelState extends State<InspectorPanel>
       ),
       child: TabBar(
         controller: _tabController,
+        // Errors 标签页索引，用于显示聚合异常数红点。
+        // Index of the Errors tab, used to show the aggregated error-count badge.
         // 始终允许横向滚动：8 个带文字的标签页在窄屏或系统大字体下
         // 可能超出可用宽度，可滚动才能保证在所有设备/字号下都不溢出。
         // Always scrollable: with 8 labeled tabs and large system fonts the
@@ -404,7 +781,38 @@ class _InspectorPanelState extends State<InspectorPanel>
           // No fixed height: the tab sizes to its icon + label (including system
           // font scaling). A fixed 44 would clip/overflow the label on large
           // system fonts, so letting it size automatically is safe everywhere.
-          return Tab(icon: Icon(_icons[index], size: 18), text: _titles[index]);
+          final badge = index == errorsIndex
+              ? ErrorService.instance.errorCount
+              : 0;
+          return Tab(
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(_icons[index], size: 18),
+                if (badge > 0)
+                  Positioned(
+                    top: -2,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: InspectorColors.error,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        badge > 99 ? '99+' : '$badge',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            text: _titles[index],
+          );
         }),
       ),
     );
