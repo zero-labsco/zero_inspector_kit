@@ -27,8 +27,9 @@ import '../utils/formatters.dart';
 enum _PersistedDataAction { export, clearDisk, clearDiskAndLists }
 
 /// 检查器面板 / Inspector panel
-/// 包含网络、日志、数据库、内存、FPS、路由、告警、Widget 八个查看器
-/// Contains eight viewers: network, logs, database, memory, FPS, routes, alerts, widgets
+/// 按诊断工作流排序的网络、日志、异常、数据库、内存、FPS、路由、Widget、告警九个查看器
+/// Nine viewers ordered by diagnostic workflow: network, logs, errors, database,
+/// memory, FPS, routes, widgets, alerts
 class InspectorPanel extends StatefulWidget {
   /// 关闭面板回调 / Close panel callback
   final VoidCallback onClose;
@@ -87,12 +88,12 @@ class _InspectorPanelState extends State<InspectorPanel>
       child: RouteViewer(key: ValueKey('routes')),
     ),
     InspectorErrorBoundary(
-      label: 'Alerts',
-      child: AlertsViewer(key: ValueKey('alerts')),
-    ),
-    InspectorErrorBoundary(
       label: 'Widgets',
       child: WidgetTreeInspector(key: ValueKey('widgets')),
+    ),
+    InspectorErrorBoundary(
+      label: 'Alerts',
+      child: AlertsViewer(key: ValueKey('alerts')),
     ),
   ];
 
@@ -105,8 +106,8 @@ class _InspectorPanelState extends State<InspectorPanel>
     'Memory',
     'FPS',
     'Routes',
-    'Alerts',
     'Widgets',
+    'Alerts',
   ];
 
   /// 标签页图标 / Tab icons
@@ -118,8 +119,8 @@ class _InspectorPanelState extends State<InspectorPanel>
     Icons.memory_rounded,
     Icons.speed_rounded,
     Icons.route_rounded,
-    Icons.notifications_active_rounded,
     Icons.visibility_rounded,
+    Icons.notifications_active_rounded,
   ];
 
   @override

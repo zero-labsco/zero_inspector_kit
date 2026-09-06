@@ -19,6 +19,7 @@
 - 网络请求改为"有序 ID 列表 + id 索引 Map"，`findNetworkRequest` / 更新由 O(n) 线性扫描变为 O(1)，WS 高频帧不再触发整表重排。 / Network requests now use an ordered id list + id-index Map: lookups/updates went from O(n) linear scans to O(1), and high-frequency WS frames no longer reorder the whole list.
 - 日志续行合并收窄为"同 tag 内"，降低把本身以空格 / Box 字符开头的正常日志误合并的风险。 / Log continuation reassembly is now narrowed to the same tag, reducing the risk of mis-merging legitimate logs that start with whitespace / box-drawing glyphs.
 - 无 UI 监听者（面板未挂载）时不再调度帧回调，进一步省电。 / No frame callback is scheduled when there is no UI listener (panel not mounted), saving additional power.
+- 九个查看器标签页按诊断工作流重新排序：网络 → 日志 → 异常 → 数据库 → 内存 → FPS → 路由 → Widget → 告警，实时监控（内存 / FPS / 路由）相邻排列、Alerts 殿后，未处理异常计数红点跟随 Errors 标签。 / The nine viewer tabs are re-ordered by diagnostic workflow: network → logs → errors → database → memory → FPS → routes → widgets → alerts, keeping the live monitors (memory / FPS / routes) adjacent with Alerts last; the unhandled-error badge tracks the Errors tab.
 
 ## 1.8.1
 
