@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release fixes in-panel toasts (copy / share / replay / bug report) being drawn behind the inspector panel, and centralizes all toast feedback into a single reusable `InspectorToast` component. All users are encouraged to upgrade to the latest version (`^1.8.1`).
+> **🔔 Upgrade recommended:** This release adds a dedicated **Errors** tab (aggregated `FlutterError` deduped by type/stack, with occurrence count, first/last seen time and collapsible stacks), persists logs / network / errors to a SQLite ring buffer so data survives restarts (plus a full-session archive export), bridges Flutter's official `MemoryAllocations` as a second leak-detection source, fixes FPS being misjudged as low while the app is idle, and splits `InspectorService` into per-category notifiers to narrow rebuild scope. All users are encouraged to upgrade to the latest version (`^1.9.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -98,7 +98,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.8.1
+  zero_inspector_kit: ^1.9.0
 ```
 
 ### GitHub
@@ -108,7 +108,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.8.1   # replace 1.8.1 with the version you need
+      ref: release/v1.9.0   # replace 1.9.0 with the version you need
 ```
 
 ---

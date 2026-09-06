@@ -485,5 +485,79 @@ void main() {
       expect(logs[1].message, equals('second'));
       expect(logs[2].message, equals('first'));
     });
+
+    test(
+      '无 tag 时后一条以空格开头也不被误并（原会被误并）/ Untagged indented standalone log is not mis-merged',
+      () {
+        InspectorLogInterceptor.instance.start();
+        // 两条相互独立的无 tag 日志（print/debugPrint 直出，tag 恒为 null）
+        // Two independent untagged logs (tag is always null for print output)
+        InspectorLogInterceptor.instance.captureLog('fetch ok', LogLevel.info);
+        // 后一条本身以空格开头（如 pretty 缩进内容），60ms 窗口内相邻
+        // The next line happens to start with spaces (e.g. indented payload)
+        InspectorLogInterceptor.instance.captureLog(
+          '   [Dio] parsed 200 bytes',
+          LogLevel.info,
+        );
+        final logs = InspectorService.instance.logEntries;
+        // 两条都应独立保留，不得合并 / Both must stay separate entries
+        expect(logs.length, equals(2));
+        expect(logs[0].message, equals('   [Dio] parsed 200 bytes'));
+        expect(logs[1].message, equals('fetch ok'));
+      },
+    );
+
+    test(
+      '有 tag 的缩进续行仍会合并 / Same-tagged indented continuation still merges',
+      () {
+        InspectorLogInterceptor.instance.start();
+        InspectorLogInterceptor.instance.captureLog(
+          'network response',
+          LogLevel.info,
+          tag: 'SVC',
+        );
+        InspectorLogInterceptor.instance.captureLog(
+          '  status=200',
+          LogLevel.info,
+          tag: 'SVC',
+        );
+        final logs = InspectorService.instance.logEntries;
+        // 同 tag 的缩进续行 -> 合并为单条 / Same-tag indented line -> merged
+        expect(logs.length, equals(1));
+        expect(logs[0].message, equals('network response\n  status=200'));
+      },
+    );
+
+    test('不同 tag 的缩进行不被合并 / Cross-tag indented line never merges', () {
+      InspectorLogInterceptor.instance.start();
+      InspectorLogInterceptor.instance.captureLog(
+        'service header',
+        LogLevel.info,
+        tag: 'SVC',
+      );
+      // 另一 tag 的缩进行即使在窗口内也不得并进 SVC 那条
+      // A differently-tagged indented line must not join the SVC entry
+      InspectorLogInterceptor.instance.captureLog(
+        '  third-party payload',
+        LogLevel.info,
+        tag: 'OTHER',
+      );
+      final logs = InspectorService.instance.logEntries;
+      expect(logs.length, equals(2));
+      expect(logs[1].tag, equals('SVC'));
+      expect(logs[0].tag, equals('OTHER'));
+    });
+
+    test('整行内容完全相同的独立日志不被吞掉 / Identical whole-line logs are kept', () {
+      InspectorLogInterceptor.instance.start();
+      InspectorLogInterceptor.instance.captureLog('SAME', LogLevel.info);
+      InspectorLogInterceptor.instance.captureLog('SAME', LogLevel.info);
+      final logs = InspectorService.instance.logEntries;
+      // 两条完整重复的独立日志都应保留（并非上一条的内部行）
+      // Two independent full duplicates are kept (not an inner fragment)
+      expect(logs.length, equals(2));
+      expect(logs[0].message, equals('SAME'));
+      expect(logs[1].message, equals('SAME'));
+    });
   });
 }

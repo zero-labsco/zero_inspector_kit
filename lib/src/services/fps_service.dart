@@ -62,6 +62,18 @@ class FpsService extends ChangeNotifier {
   /// At 60fps each frame takes ~16.67ms, exceeding this is considered jank
   static const int _jankThresholdUs = 16000;
 
+  /// 低活跃判定：1 秒窗口内帧数不超过此值视为无持续动画渲染。
+  /// Low-activity threshold: at most this many frames per 1s window means no
+  /// continuous animation is being rendered.
+  ///
+  /// 无动画/静止时 Flutter 引擎不产帧，监控 UI 自身每 500ms 的周期重绘
+  /// 每秒只贡献约 2 帧。这类帧与真实动画帧差异巨大，可用于区分「静止」
+  /// 与「掉帧卡顿」，避免把静止页面误报为低 FPS 告警。
+  /// When the UI is still, the engine produces no frames except the monitor's
+  /// own periodic rebuilds (~2 fps). This distinguishes a "still" screen from
+  /// genuine jank, so a static page is not misreported as a low-FPS alert.
+  static const int _lowActivityFrameThreshold = 4;
+
   // ==================== 状态变量 / State variables ====================
 
   /// 是否正在监控 / Whether monitoring is active
@@ -87,6 +99,27 @@ class FpsService extends ChangeNotifier {
 
   /// 最近 60 个 FPS 历史值 / Recent 60 FPS history values
   final List<double> _fpsHistory = [];
+
+  /// 是否处于空闲（无渲染请求）状态 / Whether idle (no render requested)
+  bool _isIdle = false;
+
+  /// 获取是否空闲（无动画/无渲染时为真，此时低 FPS 不算性能问题）
+  /// Get whether idle (true when no animation/render; low FPS then is not a perf problem)
+  bool get isIdle => _isIdle;
+
+  /// 最近一次活跃渲染时的 FPS，空闲时回退显示，避免把"静止"误判为 0/卡顿。
+  /// Last active FPS, used as the idle fallback display so a still app isn't
+  /// misread as 0 FPS / jank.
+  double _lastActiveFps = 0;
+
+  /// 设备标称刷新率（Hz），空闲时用作回退显示值 / Nominal display refresh rate
+  double get _displayRefreshRate {
+    try {
+      final views = WidgetsBinding.instance.platformDispatcher.views;
+      if (views.isNotEmpty) return views.first.display.refreshRate;
+    } catch (_) {}
+    return 60.0;
+  }
 
   // ==================== 公开属性 / Public properties ====================
 
@@ -123,6 +156,8 @@ class FpsService extends ChangeNotifier {
     if (_isRunning) return;
     _isRunning = true;
     _currentFps = 0;
+    _isIdle = false;
+    _lastActiveFps = 0;
     _totalJankyCount = 0;
     _totalFrameCount = 0;
     _frameRecords.clear();
@@ -150,6 +185,9 @@ class FpsService extends ChangeNotifier {
     _fpsHistory.clear();
     _totalJankyCount = 0;
     _totalFrameCount = 0;
+    _isIdle = false;
+    _lastActiveFps = 0;
+    _currentFps = 0;
     notifyListeners();
   }
 
@@ -231,15 +269,45 @@ class FpsService extends ChangeNotifier {
     // Use the max frame timestamp as "now": it advances naturally when new frames
     // arrive, and old frames are still purged correctly when idle.
     if (_recentFrameTimestamps.isEmpty) {
-      _currentFps = 0;
+      // 空闲：无渲染请求。FPS 回退为显示刷新率并标记空闲态，不告警，
+      // 避免把"静止/无动画"误判为性能 FPS 问题。
+      // Idle: no render requested. Fall back to the display refresh rate, mark
+      // idle, and skip the alert so a still app isn't misjudged as jank.
+      _isIdle = true;
+      _currentFps = _lastActiveFps > 0 ? _lastActiveFps : _displayRefreshRate;
     } else {
       final now = _recentFrameTimestamps.reduce((a, b) => a > b ? a : b);
 
       // 清理超过 1 秒的旧时间戳 / Remove timestamps older than 1 second
       _recentFrameTimestamps.removeWhere((ts) => now - ts > 1000000);
+      final framesInWindow = _recentFrameTimestamps.length;
 
-      // FPS = 最近 1 秒内的帧数 / FPS = frames in the most recent second
-      _currentFps = _recentFrameTimestamps.length.toDouble();
+      // 低活跃判定（即空闲）：1 秒窗口内帧数 ≤ 阈值即视为"无持续动画渲染"。
+      // 无动画时 Flutter 引擎不产帧，唯一帧源是监控 UI 自身每 500ms 的周期
+      // 重绘（约 2fps）；真实动画即使掉帧，帧请求仍按 vsync 持续产生，帧率
+      // 几乎不可能掉到该阈值以下。因此仅凭窗口帧数即可区分「静止」与「卡顿」，
+      // 不参考单帧耗时——开发（debug/模拟器）模式下一次简单重绘整帧耗时常常
+      // 就超过 16ms，若以耗时为条件会把静止页面重新误报成低 FPS 告警。
+      // Low-activity (idle) detection: ≤ threshold frames in the 1s window means
+      // no continuous animation is rendered. A still page only ever renders the
+      // monitor's own ~2fps periodic rebuilds; real animations keep requesting
+      // frames every vsync even while janking, so their FPS stays far above this
+      // floor. Frame duration is intentionally NOT consulted — a trivial
+      // debug/emulator rebuild routinely exceeds 16ms, which would re-flag a
+      // static page as low-FPS jank.
+      if (framesInWindow <= _lowActivityFrameThreshold) {
+        _isIdle = true;
+        _currentFps = _lastActiveFps > 0 ? _lastActiveFps : _displayRefreshRate;
+      } else {
+        _isIdle = false;
+        // FPS = 最近 1 秒内的帧数 / FPS = frames in the most recent second
+        _currentFps = framesInWindow.toDouble();
+        _lastActiveFps = _currentFps;
+
+        // 仅活跃渲染时检测 FPS 告警；空闲不告警。
+        // Only check FPS alerts while actively rendering; idle produces no alert.
+        AlertService.instance.checkFps(_currentFps);
+      }
     }
 
     // 记录 FPS 历史 / Record FPS history
@@ -247,9 +315,6 @@ class FpsService extends ChangeNotifier {
     if (_fpsHistory.length > 60) {
       _fpsHistory.removeAt(0);
     }
-
-    // 告警检测 / Alert check
-    AlertService.instance.checkFps(_currentFps);
 
     notifyListeners();
   }

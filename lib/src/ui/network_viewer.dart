@@ -389,7 +389,10 @@ class _NetworkViewerState extends State<NetworkViewer> {
           child: Stack(
             children: [
               ListenableBuilder(
-                listenable: InspectorService.instance,
+                listenable: Listenable.merge([
+                  InspectorService.instance.networkNotifier,
+                  InspectorService.instance.interceptorNotifier,
+                ]),
                 builder: (context, child) {
                   if (_selectedRequest != null) {
                     return _buildRequestDetail(_selectedRequest!);
@@ -416,7 +419,10 @@ class _NetworkViewerState extends State<NetworkViewer> {
 
   Widget _buildToolbar() {
     return ListenableBuilder(
-      listenable: InspectorService.instance,
+      listenable: Listenable.merge([
+        InspectorService.instance.networkNotifier,
+        InspectorService.instance.interceptorNotifier,
+      ]),
       builder: (context, child) {
         final interceptorOn = InspectorService.instance.isInterceptorEnabled;
         return Container(

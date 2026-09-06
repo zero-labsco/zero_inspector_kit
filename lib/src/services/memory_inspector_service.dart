@@ -13,6 +13,7 @@ import '../models/memory_snapshot.dart';
 import '../platform/platform_channel.dart';
 import 'database_service.dart';
 import 'alert_service.dart';
+import 'leak_tracker_bridge.dart';
 
 /// 内存检查服务 / Memory inspector service
 ///
@@ -183,6 +184,21 @@ class MemoryInspectorService extends ChangeNotifier {
   int get releasedCount => _trackedRecords.values
       .where((r) => r.status == LeakStatus.released)
       .length;
+
+  /// 是否启用 Flutter 官方 [FlutterMemoryAllocations] 作为泄漏检测的第二来源。
+  /// Whether Flutter's official [FlutterMemoryAllocations] is used as a second source.
+  bool get isFlutterLeakTrackerEnabled => LeakTrackerBridge.instance.isEnabled;
+
+  /// 启用/关闭官方第二来源（关闭时仅使用自研 [WeakReference] 方案）。
+  /// Toggle the official second source (off = custom [WeakReference] only).
+  set flutterLeakTrackerEnabled(bool value) {
+    if (value) {
+      LeakTrackerBridge.instance.enable();
+    } else {
+      LeakTrackerBridge.instance.disable();
+    }
+    notifyListeners();
+  }
 
   // ==================== 进程级内存 / Process-level Memory ====================
 
@@ -1452,6 +1468,16 @@ class MemoryInspectorService extends ChangeNotifier {
           // GC 触发后已等待足够时长，仍未释放 => 疑似泄漏
           // Waited enough after GC trigger, still not released => suspected leak
           if (waitMs >= _leakVerifyWaitMs) {
+            // 第二来源：官方 MemoryAllocations 若已上报 disposed，说明对象已走完
+            // dispose、只是在等 GC，不应判为泄漏（避免误报）。
+            // Second source: if official MemoryAllocations reported `disposed`,
+            // the object is disposed and merely awaiting GC — not a leak.
+            final obj = record.weakRef.target;
+            if (obj != null && LeakTrackerBridge.instance.hasDisposed(obj)) {
+              record.status = LeakStatus.released;
+              changed = true;
+              break;
+            }
             record.status = LeakStatus.leaked;
             changed = true;
           }
