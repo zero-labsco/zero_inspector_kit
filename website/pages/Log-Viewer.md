@@ -12,9 +12,13 @@ The Log Viewer automatically captures logs from multiple sources with zero confi
 |--------|---------------|
 | `print()` | Zone specification override / Zone 规范覆盖 |
 | `debugPrint()` | debugPrint override / debugPrint 覆盖 |
-| Flutter errors | runZonedGuarded / runZonedGuarded 捕获 |
-| Unhandled exceptions | runZonedGuarded / runZonedGuarded 捕获 |
+| Flutter errors | `FlutterError.onError` hook / 接管 `FlutterError.onError` |
+| Unhandled exceptions | `runZonedGuarded` / runZonedGuarded 捕获 |
 | Third-party libraries | Via print() capture / 通过 print() 捕获 |
+
+> **Since v1.9.0**, Flutter framework errors and unhandled exceptions are *also* aggregated & deduplicated in the dedicated [Errors](Errors) tab (keyed by type + stack signature) — while this Log Viewer keeps showing them as error-level lines in the chronological stream. Use Errors for "is this crash repeating?"; use Log Viewer for the raw timeline.
+>
+> **自 v1.9.0 起**，Flutter 框架异常与未捕获异常会**同时**进入独立的 [Errors](Errors) 标签页**去重聚合**（按类型 + 堆栈签名归并）；本 Log Viewer 仍会在原始时间流中把它们显示为错误级日志。回答"该崩溃是否反复出现"请用 Errors；查看原始时间线请用 Log Viewer。
 
 ## Log Levels / 日志级别
 

@@ -37,6 +37,8 @@
 - [使用方法](#使用方法)
   - [零侵入集成](#零侵入集成推荐)
   - [日志记录](#日志记录)
+  - [异常监控](#异常监控)
+  - [会话持久化](#会话持久化)
   - [网络请求](#网络请求)
   - [WebSocket / gRPC 抓取（默认关闭）](#websocket--grpc-抓取)
   - [网络请求拦截修改](#网络请求拦截修改)
@@ -56,9 +58,11 @@
 - **零侵入集成**：一行代码，无需改动现有项目代码。
 - **网络检查器**：实时捕获所有 HTTP（http & Dio）请求；通过拦截规则修改请求体/请求头；批量复制 cURL；敏感请求头遮蔽；可按方法/状态码/拦截状态筛选。
 - **WebSocket / gRPC 抓取**：可选的流式协议抓取（默认关闭，运行时开关，与 Memory/FPS 一致）；WebSocket 帧与 gRPC 调用出现在 Network 列表中。
-- **日志系统**：自动捕获 `print()`、Flutter 错误及自定义日志，支持多级别与第三方日志库集成；新增自动滚动（可暂停）、正则搜索、按标签过滤与单条日志一键复制。
+- **日志系统**：自动捕获 `print()`、`debugPrint()` 及自定义日志，支持多级别与第三方日志库集成；自动滚动（可暂停）、正则搜索、按标签过滤与单条日志一键复制。
+- **异常监控**：独立的 Errors 标签页（v1.9.0 起）：接管 `FlutterError.onError` + `runZonedGuarded`，按类型 + 堆栈签名去重聚合崩溃，记录次数与首末次时间；Errors 标签图标带红色计数。
+- **会话持久化**：日志 / 网络 / 异常异步落盘到本地 SQLite 环形缓冲（v1.9.0 起）；启动时日志与异常回放入各自标签页，网络请求留档供导出；可从面板头部导出完整会话存档并分享。
 - **数据库查看器**：支持 SQLite 及其他数据库，可自定义提供者。
-- **内存监控**：趋势图、Dart Heap、Native 内存分项、泄漏检测、图片缓存与存储统计（总开关避免开销）。
+- **内存监控**：趋势图、Dart Heap、Native 内存分项、泄漏检测、图片缓存与存储统计（总开关避免开销）。v1.9.0 起泄漏检测额外桥接 Flutter 官方 `FlutterMemoryAllocations`，降低误报。
 - **FPS 监控**：实时帧率、掉帧检测、趋势图、帧记录（总开关避免开销）。
 - **路由追踪器**：导航历史与当前路由。
 - **告警系统**：针对网络/日志/内存/FPS 的告警规则，带未读红点与节流。
@@ -210,7 +214,9 @@ void main() {
 InspectorLogInterceptor.instance.start();
 ```
 
-**自动捕获：** `print()` / `debugPrint()` 调用、Flutter 框架错误、`runZonedGuarded` 捕获的未处理异常。
+**自动捕获：** `print()` / `debugPrint()` 调用、Flutter 框架错误（接管 `FlutterError.onError`）与 `runZonedGuarded` 捕获的未处理异常。
+
+> v1.9.0 起，这些错误会**同时**进入独立的 **Errors** 标签页（见下文）按类型 + 堆栈去重聚合——日志流仍保留它们为错误级行，而 Errors 回答"该崩溃是否反复出现"。
 
 **手动记录（可选）：**
 
@@ -231,6 +237,50 @@ InspectorLogInterceptor.instance.onLogCaptured = (entry) {
     '${entry.tag != null ? '[${entry.tag}] ' : ''}${entry.message}');
 };
 ```
+
+### 异常监控
+
+> v1.9.0 起可用
+
+**Errors** 标签页回答的是"同一处崩溃是否反复出现？"。`ErrorService` 接管 `FlutterError.onError`（保留默认红色报错行为）与 `runAppWithInspector()` 内的 `runZonedGuarded`，将每次异常按**类型 + 堆栈签名**聚合：重复崩溃合并为一条记录，显示 **×N** 次数与首次/末次时间。点击行展开完整堆栈样本，支持搜索过滤与单条复制。面板打开时，Errors 标签图标上的红色计数会显示聚合记录条数。
+
+```dart
+import 'package:zero_inspector_kit/zero_inspector_kit.dart';
+
+// 手动上报——gRPC / 自定义协议 / 你自己的错误通道
+ErrorService.instance.report(error, stackTrace, 'myModule');
+
+// 读取聚合记录（最新在前）
+final ErrorRecord latest = ErrorService.instance.errors.first;
+
+// 清空所有记录
+ErrorService.instance.clear();
+```
+
+通过 `init()` 的 `enableErrorCapture` 开关（默认 `true`）。详见 [Errors 页面](website/pages/Errors.md)。
+
+### 会话持久化
+
+> v1.9.0 起可用
+
+日志、网络请求与聚合异常会被异步写入本地 SQLite **环形缓冲**。**下次启动时，日志与聚合异常会回放入各自标签页**；网络请求保留在磁盘存档，供之后导出。因此即使从未打开过面板，数据也能跨重启保留。点击面板头部的**存储图标**打开 **Persisted data** 管理弹层：查看各类别行数、导出**完整会话存档** JSON（系统分享）或清空磁盘。
+
+```dart
+// 编程方式读取持久化数据（可选）
+final logs   = await PersistenceService.instance.loadLogs();
+final errors = await PersistenceService.instance.loadErrors();
+
+// 完整会话快照，例如附加到 Bug 报告
+final String archive = await PersistenceService.instance.buildSessionArchiveJson();
+
+// 通过系统分享面板导出并分享
+await PersistenceService.instance.exportSessionArchiveAndShare();
+
+// 清空磁盘环形缓冲
+await PersistenceService.instance.clearAll();
+```
+
+通过 `init()` 的 `enablePersistence` 开关（默认 `true`）。将 `enableErrorCapture` 与 `enablePersistence` 都设为 `false`，则数据仅保留在内存。
 
 ### 网络请求
 
@@ -307,7 +357,7 @@ DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
 - **趋势图**：2 分钟历史窗口（240 条快照 × 500ms），可切换 进程 RSS / Dart Heap / 新生代 / 老生代。
 - **Dart Heap（需 VM Service）**：使用量/容量/外部 进度条；新生代/老生代明细；手动 GC 按钮。
 - **Native 内存（真机 100% 可用）**：Android PSS 分项；iOS 物理内存/压缩内存/RSS；低内存警告。
-- **泄漏检测（基于 Dart 2.17+ WeakReference）**：`trackObject()` 四状态流转；超时自动触发 GC 验证；UI 显示疑似/追踪中/已释放对象。
+- **泄漏检测（基于 Dart 2.17+ WeakReference）**：`trackObject()` 四状态流转；超时自动触发 GC 验证；UI 显示疑似/追踪中/已释放对象。v1.9.0 起额外桥接 Flutter 官方 `FlutterMemoryAllocations`（`enableFlutterLeakTracker` 开启），已上报 `disposed` 的对象视为已释放，显著降低误报。
 
 ```dart
 myBloc.trackMemoryLeak(tag: 'HomePage_myBloc');   // 简写

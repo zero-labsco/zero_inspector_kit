@@ -27,22 +27,25 @@ void main() {
 
 ## Inspector Panel / 检查器面板
 
-The inspector panel contains **6 tabs**:
+The inspector panel contains **9 tabs** (as of v1.9.0):
 
-检查器面板包含 **6 个标签页**：
+检查器面板包含 **9 个标签页**（v1.9.0 起）：
 
 | Tab | Icon | Feature |
 |-----|------|---------|
 | **Network** | 🌐 | HTTP request viewing + interceptor rules / 网络请求查看 + 拦截修改 |
 | **Logs** | 📝 | Log viewing with level filter / 日志查看 |
+| **Errors** | 🚨 | Aggregated & deduped crash viewing / 去重聚合的异常查看 |
 | **Database** | 💾 | Database and table inspection / 数据库查看 |
-| **Routes** | 🧭 | Route navigation tracking / 路由追踪 |
 | **Memory** | 📊 | Memory trend, Dart Heap, Native memory, leak detection / 内存趋势、Dart Heap、Native 内存、泄漏检测 |
 | **FPS** | 🎯 | Real-time FPS, jank rate, trend chart / 实时 FPS、卡顿率、趋势图 |
+| **Routes** | 🧭 | Route navigation tracking / 路由追踪 |
+| **Widgets** | 🔍 | Widget tree snapshot for the current route / 当前路由的 Widget 树快照 |
+| **Alerts** | 🔔 | Rule-based alerts with unread badge / 基于规则的告警与未读角标 |
 
-> The Memory and FPS panels are **off by default** to avoid performance overhead. Toggle the switch at the top of each panel to start collecting data.
+> The Memory and FPS monitors are **off by default** to avoid performance overhead. Toggle the switch at the top of each panel to start collecting data.
 >
-> Memory 和 FPS 面板**默认关闭**以避免性能开销。在各自面板顶部打开开关才会开始采集数据。
+> Memory 与 FPS 监控**默认关闭**以避免性能开销。在各自面板顶部打开开关才会开始采集数据。
 
 ## One-Click Bug Report / 一键 Bug 报告
 
@@ -89,14 +92,15 @@ When released near a screen edge, the button auto-docks and tucks into the edge,
 
 ## Search / 搜索
 
-All three main viewers (Network, Logs, Database) support **fuzzy search**:
+The main viewers support **fuzzy search**:
 
-三大查看器均支持**模糊搜索**：
+各查看器均支持**模糊搜索**：
 
 | Viewer | Search Scope |
 |--------|-------------|
 | Network | URL, HTTP method / URL、请求方法 |
 | Logs | Message, tag / 消息、标签 |
+| Errors | Exception type, message / 异常类型、消息 |
 | Database (global) | Database name, table name / 数据库名、表名 |
 | Database (in-database) | Table name, all column data / 表名、所有列数据 |
 
@@ -152,7 +156,14 @@ InspectorLogInterceptor.instance.onLogCaptured = (entry) {
 
 - [Network Inspector](Network-Inspector) — Network request details + interceptor rules / 网络检查器详情 + 拦截修改
 - [Log Viewer](Log-Viewer) — Log viewing details / 日志查看器详情
+- [Errors](Errors) — Aggregated error viewing / 异常聚合查看
 - [Database Viewer](Database-Viewer) — Database inspection details / 数据库查看器详情
 - [Route Tracker](Route-Tracker) — Route tracking details / 路由追踪详情
 - [Memory Viewer](Memory-Viewer) — Memory monitoring & leak detection / 内存监控与泄漏检测
 - [FPS Viewer](FPS-Viewer) — FPS monitoring & jank detection / FPS 监控与卡顿检测
+
+## Session Persistence / 会话持久化
+
+Logs, network requests, and aggregated errors are asynchronously flushed to a local SQLite ring buffer. On the next launch, **logs and aggregated errors replay into their tabs**; network requests stay archived on disk for later export. Data therefore survives app restarts even if the inspector panel was never opened. Tap the **storage icon** in the panel header to open the **Persisted data** manager: view row counts per category, **export the full session archive**, or clear the disk. See [Configuration](Configuration) (PersistenceService section) for the API and tuning parameters.
+
+日志、网络请求与聚合异常会被异步写入本地 SQLite 环形缓冲。**下次启动时，日志与聚合异常会回放入各自标签页**；网络请求保留在磁盘存档，供之后导出。因此即使从未打开过检查器面板，数据也能跨重启保留。点击面板头部的**存储图标**可打开 **Persisted data** 管理弹层：查看各类别行数、**导出完整会话存档**或清空磁盘。API 与调参详见 [Configuration](Configuration)（PersistenceService 一节）。

@@ -138,6 +138,12 @@ MemoryInspectorService.instance.clearLeakRecords();
 - Detection interval: 2 seconds
 - `trackObject()` requires user code modification (mild invasion)
 
+> **Flutter MemoryAllocations bridge (since v1.9.0) / 官方泄漏追踪桥接（v1.9.0 起）**
+>
+> The WeakReference state machine has a blind spot: an object whose `dispose()` ran but that has not been GC'd yet still resolves through the weak reference, producing a false "leaked" verdict. Since v1.9.0, `MemoryInspectorService` also subscribes to Flutter's official `FlutterMemoryAllocations` (the data source behind `leak_tracker`) via `LeakTrackerBridge`: once the official stream reports `disposed`, the object is treated as released (awaiting GC) even if the weak reference still resolves — cutting false positives. Enabled by default through `enableFlutterLeakTracker` in `init()`, and toggled in code via `MemoryInspectorService.instance.flutterLeakTrackerEnabled`.
+>
+> WeakReference 状态机有一个盲点：对象已调用 `dispose()` 但尚未被 GC 时弱引用仍存活，会产生"疑似泄漏"的误报。v1.9.0 起，`MemoryInspectorService` 通过 `LeakTrackerBridge` 额外订阅 Flutter 官方的 `FlutterMemoryAllocations`（`leak_tracker` 背后的数据源）：只要官方上报 `disposed`，即便弱引用仍存活也判定为已释放（等待 GC），从而显著降低误报。由 `init()` 的 `enableFlutterLeakTracker` 默认启用，也可用 `MemoryInspectorService.instance.flutterLeakTrackerEnabled` 在代码中开关。
+
 ### 7. Image Cache / 图片缓存
 
 - Real-time Flutter image cache size and count
