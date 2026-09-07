@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.9.1
+
+### Changed / 变更
+- 精简发布包：不再随包发布本地构建产物（`build/`），下载体积由约 23 MB 降至约 3 MB，插件运行时行为无变化。 / Trimmed the published package: local build artifacts (`build/`) are no longer shipped, cutting the downloaded archive from ~23 MB to ~3 MB. No runtime behavior change.
+
 ## 1.9.0
 
 ### Added / 新增
