@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.10.1
+
+### Changed / 变更
+- 更新开源协议：许可证由 GPL-3.0 更换为 **MPL-2.0**，允许商用与闭源分发；修改插件源文件时，被修改的文件需以 MPL-2.0 公开源码，未修改使用则无需公开。 / Updated the open-source license: relicensed from GPL-3.0 to **MPL-2.0** — commercial and closed-source use are allowed; modified plugin source files must be published in source form under MPL-2.0, while unmodified use requires no disclosure.
+- `LICENSE` 改为标准 MPL-2.0 全文，使 pub.dev 能正确识别协议；版权声明与附加声明（免责、禁止背书、修改版须标注）移至新增的 `NOTICE` 文件。 / The `LICENSE` file is now the clean upstream MPL-2.0 text so pub.dev detects the license; the copyright notice and additional statements (no warranty, no endorsement, modified versions must be marked) moved to the new `NOTICE` file.
+
 ## 1.10.0
 
 ### Changed / 变更

@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release relicenses the plugin under **MPL-2.0** — using it unmodified (including in closed-source commercial apps) requires no source disclosure, while modified files must be published in source form. No code changes. All users are encouraged to upgrade to the latest version (`^1.10.0`).
+> **🔔 Upgrade recommended:** This release updates the open-source license — the plugin is now **MPL-2.0** (commercial and closed-source use allowed; modified files must be published in source form). The `LICENSE` file is now the clean upstream MPL-2.0 text so pub.dev detects it, with the copyright notice and additional statements moved to [NOTICE](NOTICE). All users are encouraged to upgrade to the latest version (`^1.10.1`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -102,7 +102,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.10.0
+  zero_inspector_kit: ^1.10.1
 ```
 
 ### GitHub
@@ -112,7 +112,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.10.0   # replace 1.10.0 with the version you need
+      ref: release/v1.10.1   # replace 1.10.1 with the version you need
 ```
 
 ---
@@ -536,7 +536,7 @@ Contributions are welcome! Please read the [Contributing Guidelines](CONTRIBUTIN
 
 ## License
 
-Copyright (c) 2026 Zero Labs Co. (AmisKwok). This project is licensed under the **Mozilla Public License 2.0 (MPL-2.0)** — see the [LICENSE](LICENSE) file for details.
+Copyright (c) 2026 Zero Labs Co. (AmisKwok). This project is licensed under the **Mozilla Public License 2.0 (MPL-2.0)** — see the [LICENSE](LICENSE) file for details. The copyright notice and additional statements (no warranty, no endorsement) live in [NOTICE](NOTICE).
 
 - **Commercial use is allowed.** Use, modification and closed-source distribution are permitted.
 - **Modified the plugin?** The files you modified must be published in source form under MPL-2.0. Your own app does **not** need to be open-sourced.

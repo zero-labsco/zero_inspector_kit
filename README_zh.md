@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本将许可证更换为 **MPL-2.0**——未修改直接使用（含闭源商业 App）无需公开源码，修改过的文件则需以源码形式公开。代码无变更。建议所有用户升级到最新版本（`^1.10.0`）。
+> **🔔 推荐升级：** 本次更新开源协议——插件改用 **MPL-2.0**（允许商用与闭源使用，修改过的文件需以源码形式公开）；`LICENSE` 改为标准 MPL-2.0 全文以便 pub.dev 正确识别，版权与附加声明移至 [NOTICE](NOTICE)。建议所有用户升级到最新版本（`^1.10.1`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -101,7 +101,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.10.0
+  zero_inspector_kit: ^1.10.1
 ```
 
 ### GitHub
@@ -111,7 +111,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.10.0   # 将 1.10.0 替换为你需要的版本号
+      ref: release/v1.10.1   # 将 1.10.1 替换为你需要的版本号
 ```
 
 ---
@@ -536,7 +536,7 @@ runInspectorApp(VoidCallback appRunner)
 
 ## 许可证
 
-版权所有 (c) 2026 Zero Labs Co. (AmisKwok)。本项目采用 **Mozilla Public License 2.0（MPL-2.0）** 授权 — 详见 [LICENSE](LICENSE) 文件。
+版权所有 (c) 2026 Zero Labs Co. (AmisKwok)。本项目采用 **Mozilla Public License 2.0（MPL-2.0）** 授权 — 详见 [LICENSE](LICENSE) 文件。版权声明与附加声明（免责、禁止背书）见 [NOTICE](NOTICE)。
 
 - **允许商用**：可自由使用、修改与闭源分发。
 - **修改了插件？** 被修改的文件必须以 MPL-2.0 公开源码；你自己的 App **无需**开源。
