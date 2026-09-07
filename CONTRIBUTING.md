@@ -20,9 +20,9 @@ The following is a set of guidelines for contributing to Zero Inspector Kit. The
 
 ## Code of Conduct
 
-This project is licensed under GPL-3.0. By participating, you are expected to uphold a respectful and collaborative tone. Please be kind to maintainers and other contributors.
+This project is licensed under MPL-2.0. By participating, you are expected to uphold a respectful and collaborative tone. Please be kind to maintainers and other contributors.
 
-> 本项目采用 GPL-3.0 许可证。参与贡献请保持尊重、协作的态度,对维护者和其他贡献者友善。
+> 本项目采用 MPL-2.0 许可证。参与贡献请保持尊重、协作的态度,对维护者和其他贡献者友善。
 
 ## Getting Started
 

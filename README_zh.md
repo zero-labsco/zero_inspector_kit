@@ -13,13 +13,13 @@
 [![pub version](https://img.shields.io/pub/v/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit)
 [![pub points](https://img.shields.io/pub/points/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit/score)
 [![CI](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml/badge.svg)](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml)
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://github.com/zero-labsco/zero_inspector_kit/blob/main/LICENSE)
+[![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-blue.svg)](https://github.com/zero-labsco/zero_inspector_kit/blob/main/LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green.svg)](https://pub.dev/packages/zero_inspector_kit)
 [![Flutter](https://img.shields.io/badge/Flutter-✓-02569B?logo=flutter)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本次更新精简发布包——不再随包发布本地构建产物，下载体积由约 23 MB 降至约 3 MB，运行时行为无变化。建议所有用户升级到最新版本（`^1.9.1`）。
+> **🔔 推荐升级：** 本版本将许可证更换为 **MPL-2.0**——未修改直接使用（含闭源商业 App）无需公开源码，修改过的文件则需以源码形式公开。代码无变更。建议所有用户升级到最新版本（`^1.10.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -101,7 +101,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.9.1
+  zero_inspector_kit: ^1.10.0
 ```
 
 ### GitHub
@@ -111,7 +111,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.9.1   # 将 1.9.1 替换为你需要的版本号
+      ref: release/v1.10.0   # 将 1.10.0 替换为你需要的版本号
 ```
 
 ---
@@ -536,8 +536,12 @@ runInspectorApp(VoidCallback appRunner)
 
 ## 许可证
 
-本项目采用 GNU General Public License v3.0 许可证 - 详见 [LICENSE](LICENSE) 文件。
+版权所有 (c) 2026 Zero Labs Co. (AmisKwok)。本项目采用 **Mozilla Public License 2.0（MPL-2.0）** 授权 — 详见 [LICENSE](LICENSE) 文件。
 
-本插件采用 GPL-3.0 授权，允许商业使用；任何对本插件进行修改并再分发的衍生项目，必须以相同许可证公开其完整源代码。
+- **允许商用**：可自由使用、修改与闭源分发。
+- **修改了插件？** 被修改的文件必须以 MPL-2.0 公开源码；你自己的 App **无需**开源。
+- **未修改直接使用？** 无需公开任何源码。
+- **禁止背书**：未经书面许可，不得以 "Zero Labs Co."、"zero_inspector_kit"、项目 Logo / 吉祥物形象及作者名义（AmisKwok）为衍生品背书、宣传或暗示官方赞助 / 关联。
+- **免责声明**：版权方不对任何修改版或衍生版提供担保，也不承担相应责任；修改版必须明确标注已被修改。
 
 本插件按"原样"提供，不提供任何担保。作者不对修改版或衍生项目的功能、安全性及任何使用后果承担责任。

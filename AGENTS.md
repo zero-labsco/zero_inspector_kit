@@ -24,7 +24,7 @@ This file defines the architecture, coding conventions, and required workflows f
 - Dart SDK: `>=3.11.0 <4.0.0`; Flutter: `>=3.3.0` (from `pubspec.yaml`).
 - Runtime deps: `plugin_platform_interface`, `http`, `sqflite`, `path_provider`, `collection`. Keep the caret (`^`) constraint on pub dependencies; do not pin exact versions without reason.
 - Dev deps: `flutter_test`, `flutter_lints` (v6). Analysis is governed by `analysis_options.yaml`.
-- License: GPL-3.0. Do not relicense.
+- License: MPL-2.0 (Mozilla Public License 2.0). Do not relicense without the maintainer's explicit decision.
 - Platform pattern: define the abstract API in the platform interface, provide the `MethodChannel` default, register it in the barrel.
 - How features work: network capture via `HttpOverrides` (covers `http` and Dio's `HttpClient`); logging via Zone plus `debugPrint` override; memory/FPS via VM Service plus `addTimingsCallback` (v1.2.1+ uses real frame timestamps and `rasterFinish - buildStart` duration to catch GPU jank).
 - Native: Android `android/src/main/kotlin/.../ZeroInspectorKitPlugin.kt` (package `com.zerolabsco.zero_inspector_kit`); iOS `ios/Classes/ZeroInspectorKitPlugin.swift`. Keep native changes minimal and matching the method channel contract.

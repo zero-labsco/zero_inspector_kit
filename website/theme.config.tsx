@@ -13,7 +13,7 @@ const config: DocsThemeConfig = {
   docsRepositoryBase:
     'https://github.com/zero-labsco/zero_inspector_kit/tree/main/website',
   footer: {
-    content: 'Zero Inspector Kit · GPL-3.0'
+    content: 'Zero Inspector Kit · MPL-2.0'
   },
   // Keep it light & cozy — no dark mode for the island vibe
   darkMode: false,

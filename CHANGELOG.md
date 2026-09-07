@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.10.0
+
+### Changed / 变更
+- 许可证由 GPL-3.0 更换为 **MPL-2.0**：未修改使用（含闭源商业分发）无需公开源码；修改了插件源文件时，被修改的文件必须以 MPL-2.0 公开源码，宿主 App 仍无需开源。 / Relicensed from GPL-3.0 to **MPL-2.0**: using the plugin unmodified (including in closed-source commercial apps) requires no source disclosure; when plugin source files are modified, those modified files must be published in source form under MPL-2.0, while the host app itself still needs no disclosure.
+- `LICENSE` 新增版权声明与附加声明：修改版 / 衍生版不提供任何担保、版权方不承担相应责任、修改版须明确标注已修改，且未经书面许可不得以 "Zero Labs Co."、"zero_inspector_kit"、项目 Logo / 吉祥物形象及作者名义为衍生品背书或暗示官方赞助。 / The `LICENSE` now carries a copyright notice plus additional statements: no warranty and no liability for modified or derivative versions, modified versions must be marked as such, and no use of "Zero Labs Co.", "zero_inspector_kit", the logo / mascot artwork, or the author's name to endorse derived products or imply sponsorship without prior written permission.
+
 ## 1.9.1
 
 ### Changed / 变更

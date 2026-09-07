@@ -13,13 +13,13 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![pub version](https://img.shields.io/pub/v/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit)
 [![pub points](https://img.shields.io/pub/points/zero_inspector_kit.svg)](https://pub.dev/packages/zero_inspector_kit/score)
 [![CI](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml/badge.svg)](https://github.com/zero-labsco/zero_inspector_kit/actions/workflows/ci.yml)
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://github.com/zero-labsco/zero_inspector_kit/blob/main/LICENSE)
+[![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-blue.svg)](https://github.com/zero-labsco/zero_inspector_kit/blob/main/LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green.svg)](https://pub.dev/packages/zero_inspector_kit)
 [![Flutter](https://img.shields.io/badge/Flutter-✓-02569B?logo=flutter)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release trims the published package — local build artifacts are no longer shipped, cutting the downloaded archive from ~23 MB to ~3 MB. No runtime changes. All users are encouraged to upgrade to the latest version (`^1.9.1`).
+> **🔔 Upgrade recommended:** This release relicenses the plugin under **MPL-2.0** — using it unmodified (including in closed-source commercial apps) requires no source disclosure, while modified files must be published in source form. No code changes. All users are encouraged to upgrade to the latest version (`^1.10.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -102,7 +102,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.9.1
+  zero_inspector_kit: ^1.10.0
 ```
 
 ### GitHub
@@ -112,7 +112,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.9.1   # replace 1.9.1 with the version you need
+      ref: release/v1.10.0   # replace 1.10.0 with the version you need
 ```
 
 ---
@@ -536,8 +536,12 @@ Contributions are welcome! Please read the [Contributing Guidelines](CONTRIBUTIN
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.
+Copyright (c) 2026 Zero Labs Co. (AmisKwok). This project is licensed under the **Mozilla Public License 2.0 (MPL-2.0)** — see the [LICENSE](LICENSE) file for details.
 
-This plugin is licensed under GPL-3.0, which permits commercial use. Any derivative project that modifies this plugin and redistributes it must publish its complete source code under the same license.
+- **Commercial use is allowed.** Use, modification and closed-source distribution are permitted.
+- **Modified the plugin?** The files you modified must be published in source form under MPL-2.0. Your own app does **not** need to be open-sourced.
+- **Used it unmodified?** No source disclosure is required.
+- **No endorsement.** "Zero Labs Co.", "zero_inspector_kit", the logo / mascot artwork, and the author's name (AmisKwok) may not be used to endorse or promote derived products, or to imply sponsorship or affiliation, without prior written permission.
+- **No warranty, no liability.** The copyright holder provides no warranty and accepts no liability for any modified or derivative version; modified versions must be clearly marked as modified.
 
 This plugin is provided "as is", without warranty of any kind. The author assumes no responsibility or liability for the functionality, security, or any consequences arising from the use of modified versions or derivative projects.
