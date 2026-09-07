@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本次更新新增独立的 **Errors（异常聚合）** 标签页（按异常类型 / 堆栈去重，显示出现次数、首末次时间与可折叠堆栈），把日志 / 网络 / 异常落盘到插件自有的 `zero_inspector_kit.db` 数据库（磁盘环形缓冲，跨重启不丢，并支持导出本次会话完整存档），桥接 Flutter 官方 `MemoryAllocations` 作为泄漏检测第二来源，修复 App 空闲时 FPS 被误判为性能问题，并将 `InspectorService` 拆分为分类 notifier 缩小重建范围。建议所有用户升级到最新版本（`^1.9.0`）。
+> **🔔 推荐升级：** 本次更新精简发布包——不再随包发布本地构建产物，下载体积由约 23 MB 降至约 3 MB，运行时行为无变化。建议所有用户升级到最新版本（`^1.9.1`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -101,7 +101,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.9.0
+  zero_inspector_kit: ^1.9.1
 ```
 
 ### GitHub
@@ -111,7 +111,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.9.0   # 将 1.9.0 替换为你需要的版本号
+      ref: release/v1.9.1   # 将 1.9.1 替换为你需要的版本号
 ```
 
 ---
