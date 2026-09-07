@@ -26,6 +26,12 @@ export const pageMap = [{
     "sidebarTitle": "Database Viewer"
   }
 }, {
+  name: "Errors",
+  route: "/Errors",
+  frontMatter: {
+    "sidebarTitle": "Errors"
+  }
+}, {
   name: "FAQ",
   route: "/FAQ",
   frontMatter: {

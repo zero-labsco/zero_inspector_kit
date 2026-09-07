@@ -39,8 +39,10 @@ After integration, the inspector automatically does the following **without modi
 
 | Feature | Description |
 |---------|-------------|
-| ✅ **Log Capture** | Auto-capture all `print()`, `debugPrint()` and Flutter errors via Zone / 通过 Zone 自动捕获所有日志 |
+| ✅ **Log Capture** | Auto-capture all `print()`, `debugPrint()` via Zone / 通过 Zone 自动捕获所有日志 |
 | ✅ **Network Interception** | Auto-intercept all **http** and **Dio** requests via HttpOverrides / 自动拦截所有网络请求 |
+| ✅ **Error Capture** | Aggregate Flutter framework errors & unhandled exceptions, deduped by type + stack (Errors tab) / 聚合 Flutter 框架异常与未捕获异常，按类型+堆栈去重 |
+| ✅ **Session Persistence** | Flush logs/network/errors to a disk ring buffer; logs & errors replay on next launch / 日志/网络/异常落盘环形缓冲，启动时回放日志与异常 |
 | ✅ **Database Scan** | Auto-scan and register SQLite databases / 自动扫描注册数据库 |
 | ✅ **Floating Button** | Auto-displayed via Overlay, not affected by keyboard / 通过 Overlay 自动显示 |
 | ✅ **Route Tracking** | Auto-inject `InspectorRouteObserver` into MaterialApp / 自动注入路由观察者 |

@@ -7,6 +7,7 @@ export default {
   '--features': { type: 'separator', title: '🔧 Features' },
   'Network-Inspector': '🌐 Network Inspector',
   'Log-Viewer': '📝 Log Viewer',
+  Errors: '🚨 Errors',
   'Database-Viewer': '💾 Database Viewer',
   'Route-Tracker': '🧭 Route Tracker',
   'Memory-Viewer': '📊 Memory Viewer',

@@ -37,6 +37,8 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 - [Usage](#usage)
   - [Zero-Invasion Integration](#zero-invasion-integration-recommended)
   - [Logging](#logging)
+  - [Error Monitor](#error-monitor)
+  - [Session Persistence](#session-persistence)
   - [Network Requests](#network-requests)
   - [WebSocket / gRPC Capture](#websocket--grpc-capture-off-by-default)
   - [Network Interceptor](#network-request-interceptor)
@@ -57,9 +59,11 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 - **Zero-Invasion Integration** — One line of code, no changes to existing project code.
 - **Network Inspector** — Real-time capture of all HTTP (http & Dio) requests; modify bodies/headers via interceptor rules; batch cURL copy; sensitive-header masking; filterable by method/status/interception.
 - **WebSocket / gRPC Capture** — Opt-in streaming-protocol capture (off by default, runtime toggle like Memory/FPS); WebSocket frames and gRPC calls appear in the Network list.
-- **Logging System** — Auto-captures `print()`, Flutter errors, and custom logs across multiple levels; integrates with third-party log libraries; auto-scroll (pausable), regex search, tag filtering and one-tap copy of a single log entry.
+- **Logging System** — Auto-captures `print()`, `debugPrint()`, and custom logs across multiple levels; integrates with third-party log libraries; auto-scroll (pausable), regex search, tag filtering and one-tap copy of a single log entry.
+- **Error Monitor** — Dedicated Errors tab (since v1.9.0): hooks `FlutterError.onError` + `runZonedGuarded`, aggregates & dedups crashes by type + stack signature with count and first/last seen; a red count badge sits on the Errors tab icon.
+- **Session Persistence** — Logs / network / errors flushed to a local SQLite ring buffer (since v1.9.0); on launch logs & errors replay into their tabs; export & share the full session archive from the panel header.
 - **Database Viewer** — Inspect SQLite and other databases via custom providers.
-- **Memory Monitor** — Trend chart, Dart Heap, Native memory breakdown, leak detection, image-cache & storage stats (master switch to avoid overhead).
+- **Memory Monitor** — Trend chart, Dart Heap, Native memory breakdown, leak detection, image-cache & storage stats (master switch to avoid overhead). Since v1.9.0 the leak detector also bridges Flutter's official `FlutterMemoryAllocations` to cut false positives.
 - **FPS Monitor** — Real-time FPS, jank detection, trend chart, frame records (master switch to avoid overhead).
 - **Route Tracker** — Navigation history and current route.
 - **Alert System** — Rule-based alerts on network/logs/memory/FPS with unread badge and throttling.
@@ -211,7 +215,9 @@ Start automatic capture from multiple sources:
 InspectorLogInterceptor.instance.start();
 ```
 
-**Auto-captured:** `print()` / `debugPrint()`, Flutter framework errors, and `runZonedGuarded` exceptions.
+**Auto-captured:** `print()` / `debugPrint()`, Flutter framework errors (`FlutterError.onError` hook), and `runZonedGuarded` exceptions.
+
+> Since v1.9.0, those errors are *also* aggregated & deduplicated in the dedicated **Errors** tab (see below) — the log stream keeps them as error-level lines, while Errors answers "is the same crash repeating?".
 
 **Manual logging (optional):**
 
@@ -232,6 +238,50 @@ InspectorLogInterceptor.instance.onLogCaptured = (entry) {
     '${entry.tag != null ? '[${entry.tag}] ' : ''}${entry.message}');
 };
 ```
+
+### Error Monitor
+
+> Available since v1.9.0 / v1.9.0 起可用
+
+The **Errors** tab answers "is the same crash happening repeatedly?" `ErrorService` hooks `FlutterError.onError` (keeping the default red-screen behavior) plus `runZonedGuarded` inside `runAppWithInspector()`, then aggregates each exception by **type + stack signature**: repeated crashes merge into one record with a **×N** count and first/last-seen time. Tap a row to expand the full stack sample, filter by search, and copy individual stacks. A red count badge on the Errors tab icon shows the number of aggregated records while the panel is open.
+
+```dart
+import 'package:zero_inspector_kit/zero_inspector_kit.dart';
+
+// Manual report — gRPC / custom protocol / your own error paths
+ErrorService.instance.report(error, stackTrace, 'myModule');
+
+// Read aggregated records (newest first)
+final ErrorRecord latest = ErrorService.instance.errors.first;
+
+// Clear all records
+ErrorService.instance.clear();
+```
+
+Toggle with `enableErrorCapture` in `init()` (default `true`). Full details on the [Errors page](website/pages/Errors.md).
+
+### Session Persistence
+
+> Available since v1.9.0 / v1.9.0 起可用
+
+Logs, network requests, and aggregated errors are asynchronously flushed to a local SQLite **ring buffer**. On the next launch, **logs and aggregated errors replay into their tabs**; network requests stay archived on disk for later export. Data therefore survives app restarts even if you never opened the panel. Tap the **storage icon** in the panel header to open the **Persisted data** manager: see row counts per category, export the **full session archive** as JSON (share sheet), or clear the disk.
+
+```dart
+// Reading persisted data programmatically (optional)
+final logs   = await PersistenceService.instance.loadLogs();
+final errors = await PersistenceService.instance.loadErrors();
+
+// Full-session snapshot, e.g. attach to a bug report
+final String archive = await PersistenceService.instance.buildSessionArchiveJson();
+
+// Export & share via the system share sheet
+await PersistenceService.instance.exportSessionArchiveAndShare();
+
+// Wipe the disk ring buffer
+await PersistenceService.instance.clearAll();
+```
+
+Toggle with `enablePersistence` in `init()` (default `true`). Set both `enableErrorCapture` and `enablePersistence` to `false` to keep everything in memory only.
 
 ### Network Requests
 
@@ -307,7 +357,7 @@ Comprehensive analysis with a master switch (off by default to avoid overhead).
 - **Trend Chart:** 2-minute window (240 snapshots × 500ms), switchable across Process RSS / Dart Heap / New Space / Old Space.
 - **Dart Heap (needs VM Service):** usage/capacity/external bars; new/old-space breakdown; manual GC trigger.
 - **Native Memory (real devices):** Android PSS breakdown; iOS physical footprint/compressed/RSS; low-memory warning.
-- **Leak Detection (Dart 2.17+ `WeakReference`):** `trackObject()` four-state flow; auto-GC verification; UI shows suspected/tracking/released objects.
+- **Leak Detection (Dart 2.17+ `WeakReference`):** `trackObject()` four-state flow; auto-GC verification; UI shows suspected/tracking/released objects. Since v1.9.0 it also bridges Flutter's official `FlutterMemoryAllocations` (enabled via `enableFlutterLeakTracker`) so objects already reported `disposed` are treated as released — cutting false positives.
 
 ```dart
 myBloc.trackMemoryLeak(tag: 'HomePage_myBloc');   // shorthand
