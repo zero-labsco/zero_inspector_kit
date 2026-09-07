@@ -223,9 +223,9 @@ See [Usage > Edge Docking](Usage#edge-docking-since-v120--边缘吸附v120-起) 
 
 ### Q: Can I use this in a commercial project? / 可以在商业项目中使用吗？
 
-**A:** This project is licensed under **GPL-3.0**. You can use it freely, but any modified commercial distribution must also be open-source under GPL-3.0.
+**A:** Yes. This project is licensed under **MPL-2.0**. You can use it in closed-source commercial apps — if you use it **unmodified**, no source disclosure is required. If you **modify** the plugin's source files, those modified files must be published in source form under MPL-2.0 (your own app still does not need to be open-sourced).
 
-本项目采用 **GPL-3.0** 许可证。可以自由使用，但修改后的商业分发也必须在 GPL-3.0 下开源。
+可以。本项目采用 **MPL-2.0** 许可证，可用于闭源商业 App——**未修改**直接使用时无需公开任何源码；若**修改**了插件源文件，被修改的文件必须以 MPL-2.0 公开源码（你自己的 App 仍无需开源）。
 
 ### Q: Are you liable for issues in modified versions? / 修改版出问题你们负责吗？
 
