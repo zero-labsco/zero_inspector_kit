@@ -11,6 +11,24 @@ homepage: https://github.com/zero-labsco/zero_inspector_kit
 repository: https://github.com/zero-labsco/zero_inspector_kit
 documentation: https://zero-labsco.github.io/zero_inspector_kit/
 
+screenshots:
+  - description: Network tab — inspect HTTP/WebSocket/gRPC traffic with method, URL, status, response body, headers and timing.
+    path: image/screenshot/network.png
+  - description: Logs tab — filter, search and export console logs by level, source and time.
+    path: image/screenshot/logs.png
+  - description: Database tab — browse tables, run SQL queries and edit rows in on-device databases.
+    path: image/screenshot/database.png
+  - description: Memory tab — monitor live heap usage with trend charts and snapshot analysis.
+    path: image/screenshot/memory.png
+  - description: FPS tab — track frame rate in real time and detect jank with frame timings.
+    path: image/screenshot/fps.png
+  - description: Routes tab — follow navigation history with route stack, duration and transitions.
+    path: image/screenshot/routes.png
+  - description: Widgets tab — explore the widget tree with hierarchy, properties and rebuild info.
+    path: image/screenshot/widgets.png
+  - description: Alerts tab — manage leak, exception and threshold alerts with rule configuration.
+    path: image/screenshot/alerts.png
+
 license: GPL-3.0-only
 
 environment:
