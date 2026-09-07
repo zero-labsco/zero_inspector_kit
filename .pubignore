@@ -11,3 +11,6 @@ wiki/
 TODO.md
 AGENTS.md
 CONTRIBUTING.md
+
+# Local build artifacts (test caches, native assets) — not needed by consumers.
+build/

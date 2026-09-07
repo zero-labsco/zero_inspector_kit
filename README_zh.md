@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本次更新新增独立的 **Errors（异常聚合）** 标签页（按异常类型 / 堆栈去重，显示出现次数、首末次时间与可折叠堆栈），把日志 / 网络 / 异常落盘到 SQLite 环形缓冲（跨重启不丢，并支持导出本次会话完整存档），桥接 Flutter 官方 `MemoryAllocations` 作为泄漏检测第二来源，修复 App 空闲时 FPS 被误判为性能问题，并将 `InspectorService` 拆分为分类 notifier 缩小重建范围。建议所有用户升级到最新版本（`^1.9.0`）。
+> **🔔 推荐升级：** 本次更新新增独立的 **Errors（异常聚合）** 标签页（按异常类型 / 堆栈去重，显示出现次数、首末次时间与可折叠堆栈），把日志 / 网络 / 异常落盘到插件自有的 `zero_inspector_kit.db` 数据库（磁盘环形缓冲，跨重启不丢，并支持导出本次会话完整存档），桥接 Flutter 官方 `MemoryAllocations` 作为泄漏检测第二来源，修复 App 空闲时 FPS 被误判为性能问题，并将 `InspectorService` 拆分为分类 notifier 缩小重建范围。建议所有用户升级到最新版本（`^1.9.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -60,7 +60,7 @@
 - **WebSocket / gRPC 抓取**：可选的流式协议抓取（默认关闭，运行时开关，与 Memory/FPS 一致）；WebSocket 帧与 gRPC 调用出现在 Network 列表中。
 - **日志系统**：自动捕获 `print()`、`debugPrint()` 及自定义日志，支持多级别与第三方日志库集成；自动滚动（可暂停）、正则搜索、按标签过滤与单条日志一键复制。
 - **异常监控**：独立的 Errors 标签页（v1.9.0 起）：接管 `FlutterError.onError` + `runZonedGuarded`，按类型 + 堆栈签名去重聚合崩溃，记录次数与首末次时间；Errors 标签图标带红色计数。
-- **会话持久化**：日志 / 网络 / 异常异步落盘到本地 SQLite 环形缓冲（v1.9.0 起）；启动时日志与异常回放入各自标签页，网络请求留档供导出；可从面板头部导出完整会话存档并分享。
+- **会话持久化**：日志 / 网络 / 异常异步写入插件自有的 `zero_inspector_kit.db` 数据库（v1.9.0 起；磁盘环形缓冲，也会出现在 Database 标签页）；启动时日志与异常回放入各自标签页，网络请求留档供导出；可从面板头部导出完整会话存档并分享。
 - **数据库查看器**：支持 SQLite 及其他数据库，可自定义提供者。
 - **内存监控**：趋势图、Dart Heap、Native 内存分项、泄漏检测、图片缓存与存储统计（总开关避免开销）。v1.9.0 起泄漏检测额外桥接 Flutter 官方 `FlutterMemoryAllocations`，降低误报。
 - **FPS 监控**：实时帧率、掉帧检测、趋势图、帧记录（总开关避免开销）。
@@ -263,7 +263,7 @@ ErrorService.instance.clear();
 
 > v1.9.0 起可用
 
-日志、网络请求与聚合异常会被异步写入本地 SQLite **环形缓冲**。**下次启动时，日志与聚合异常会回放入各自标签页**；网络请求保留在磁盘存档，供之后导出。因此即使从未打开过面板，数据也能跨重启保留。点击面板头部的**存储图标**打开 **Persisted data** 管理弹层：查看各类别行数、导出**完整会话存档** JSON（系统分享）或清空磁盘。
+日志、网络请求与聚合异常会被异步写入插件自有的数据库文件 **`zero_inspector_kit.db`**——一个基于 SQLite 的磁盘环形缓冲，也会出现在 **Database** 标签页中。**下次启动时，日志与聚合异常会回放入各自标签页**；网络请求保留在磁盘存档，供之后导出。因此即使从未打开过面板，数据也能跨重启保留。点击面板头部的**存储图标**打开 **Persisted data** 管理弹层：查看各类别行数、导出**完整会话存档** JSON（系统分享）或清空磁盘。
 
 ```dart
 // 编程方式读取持久化数据（可选）

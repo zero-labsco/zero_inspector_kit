@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release adds a dedicated **Errors** tab (aggregated `FlutterError` deduped by type/stack, with occurrence count, first/last seen time and collapsible stacks), persists logs / network / errors to a SQLite ring buffer so data survives restarts (plus a full-session archive export), bridges Flutter's official `MemoryAllocations` as a second leak-detection source, fixes FPS being misjudged as low while the app is idle, and splits `InspectorService` into per-category notifiers to narrow rebuild scope. All users are encouraged to upgrade to the latest version (`^1.9.0`).
+> **🔔 Upgrade recommended:** This release adds a dedicated **Errors** tab (aggregated `FlutterError` deduped by type/stack, with occurrence count, first/last seen time and collapsible stacks), persists logs / network / errors into its own `zero_inspector_kit.db` database (a disk ring buffer) so data survives restarts (plus a full-session archive export), bridges Flutter's official `MemoryAllocations` as a second leak-detection source, fixes FPS being misjudged as low while the app is idle, and splits `InspectorService` into per-category notifiers to narrow rebuild scope. All users are encouraged to upgrade to the latest version (`^1.9.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -61,7 +61,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 - **WebSocket / gRPC Capture** — Opt-in streaming-protocol capture (off by default, runtime toggle like Memory/FPS); WebSocket frames and gRPC calls appear in the Network list.
 - **Logging System** — Auto-captures `print()`, `debugPrint()`, and custom logs across multiple levels; integrates with third-party log libraries; auto-scroll (pausable), regex search, tag filtering and one-tap copy of a single log entry.
 - **Error Monitor** — Dedicated Errors tab (since v1.9.0): hooks `FlutterError.onError` + `runZonedGuarded`, aggregates & dedups crashes by type + stack signature with count and first/last seen; a red count badge sits on the Errors tab icon.
-- **Session Persistence** — Logs / network / errors flushed to a local SQLite ring buffer (since v1.9.0); on launch logs & errors replay into their tabs; export & share the full session archive from the panel header.
+- **Session Persistence** — Logs / network / errors are asynchronously flushed into the inspector's own `zero_inspector_kit.db` (since v1.9.0; a disk ring buffer that also shows up in the Database tab); on launch logs & errors replay into their tabs; export & share the full session archive from the panel header.
 - **Database Viewer** — Inspect SQLite and other databases via custom providers.
 - **Memory Monitor** — Trend chart, Dart Heap, Native memory breakdown, leak detection, image-cache & storage stats (master switch to avoid overhead). Since v1.9.0 the leak detector also bridges Flutter's official `FlutterMemoryAllocations` to cut false positives.
 - **FPS Monitor** — Real-time FPS, jank detection, trend chart, frame records (master switch to avoid overhead).
@@ -241,7 +241,7 @@ InspectorLogInterceptor.instance.onLogCaptured = (entry) {
 
 ### Error Monitor
 
-> Available since v1.9.0 / v1.9.0 起可用
+> Available since v1.9.0
 
 The **Errors** tab answers "is the same crash happening repeatedly?" `ErrorService` hooks `FlutterError.onError` (keeping the default red-screen behavior) plus `runZonedGuarded` inside `runAppWithInspector()`, then aggregates each exception by **type + stack signature**: repeated crashes merge into one record with a **×N** count and first/last-seen time. Tap a row to expand the full stack sample, filter by search, and copy individual stacks. A red count badge on the Errors tab icon shows the number of aggregated records while the panel is open.
 
@@ -262,9 +262,9 @@ Toggle with `enableErrorCapture` in `init()` (default `true`). Full details on t
 
 ### Session Persistence
 
-> Available since v1.9.0 / v1.9.0 起可用
+> Available since v1.9.0
 
-Logs, network requests, and aggregated errors are asynchronously flushed to a local SQLite **ring buffer**. On the next launch, **logs and aggregated errors replay into their tabs**; network requests stay archived on disk for later export. Data therefore survives app restarts even if you never opened the panel. Tap the **storage icon** in the panel header to open the **Persisted data** manager: see row counts per category, export the **full session archive** as JSON (share sheet), or clear the disk.
+Logs, network requests, and aggregated errors are asynchronously flushed into the inspector's own database file, **`zero_inspector_kit.db`** — a SQLite-backed disk ring buffer that also appears in the **Database** tab. On the next launch, **logs and aggregated errors replay into their tabs**; network requests stay archived on disk for later export. Data therefore survives app restarts even if you never opened the panel. Tap the **storage icon** in the panel header to open the **Persisted data** manager: see row counts per category, export the **full session archive** as JSON (share sheet), or clear the disk.
 
 ```dart
 // Reading persisted data programmatically (optional)
