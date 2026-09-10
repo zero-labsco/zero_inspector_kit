@@ -28,6 +28,13 @@ class SqliteDatabaseProvider implements DatabaseProvider {
   /// 受支持的数据库文件扩展名 / Supported database file extensions
   static const Set<String> _supportedExtensions = {'.db', '.sqlite'};
 
+  /// 插件自身的持久化数据库文件名，扫描时应排除，避免把它当成用户库打开
+  /// (既会触发只读写入错误，也会把内部 logs/network/errors/alerts 表暴露给 UI)。
+  /// The plugin's own persistence DB; excluded from scanning so it is not opened
+  /// as a user database (which would both error on a read-only write and leak
+  /// internal tables into the Database Viewer).
+  static const String _ownDbName = 'zero_inspector_kit.db';
+
   /// 按扩展名判定是否为数据库文件（大小写不敏感）
   /// Whether a path looks like a database file (case-insensitive)
   ///
@@ -64,6 +71,12 @@ class SqliteDatabaseProvider implements DatabaseProvider {
             .toList();
 
         for (final file in files) {
+          // 跳过插件自身的持久化数据库，避免只读打开报错并污染 UI。
+          // Skip the plugin's own persistence DB to avoid a read-only write
+          // error and leaking internal tables into the Database Viewer.
+          if (file.path.split(Platform.pathSeparator).last == _ownDbName) {
+            continue;
+          }
           if (_looksLikeDatabase(file.path)) {
             if (databases.any((d) => d.path == file.path)) continue;
 
@@ -307,7 +320,11 @@ class SqliteDatabaseProvider implements DatabaseProvider {
       return cached;
     }
 
-    final db = await openDatabase(dbPath, readOnly: true, version: 1);
+    // 只读检查：不传 version，避免 sqflite 尝试写入 `PRAGMA user_version`
+    // （在已存在 / 只读文件上会抛 "attempt to write a readonly database"）。
+    // Read-only inspection: no `version` so sqflite won't try to write
+    // `PRAGMA user_version`, which would fail on an existing / read-only file.
+    final db = await openDatabase(dbPath, readOnly: true);
     _connections[dbPath] = db;
     _accessOrder.add(dbPath);
 
