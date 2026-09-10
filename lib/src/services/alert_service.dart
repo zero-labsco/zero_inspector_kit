@@ -2,9 +2,13 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/alert_event.dart';
 import '../models/alert_rule.dart';
 import '../models/network_request.dart';
 import '../models/log_entry.dart';
+import 'persistence_service.dart';
+
+export '../models/alert_event.dart';
 
 /// 告警服务 / Alert service
 ///
@@ -31,6 +35,19 @@ class AlertService {
   /// (e.g. sustained high memory, a slow endpoint). 1s: at most one event
   /// per source per second; a new occurrence after the cooldown still fires.
   static const int _perSourceCooldownMs = 1000;
+
+  /// 节流表硬上限 / Hard cap for the throttle table
+  ///
+  /// key 是 `(source, message)`，其中 source 多为完整 URL，长跑 App 里会单调
+  /// 增长且永不淘汰 —— 这是本服务唯一的确定性内存泄漏。超过上限即按插入顺序
+  /// 淘汰最旧的项。
+  /// Keys are `(source, message)` where source is often a full URL, so the map
+  /// grows monotonically and is never evicted — a deterministic leak. Past the
+  /// cap, the oldest entries (insertion order) are dropped.
+  static const int _maxThrottleEntries = 512;
+
+  /// 节流表触发清扫的软阈值 / Soft threshold that triggers a sweep
+  static const int _throttleSweepThreshold = 384;
 
   /// 已启用的规则（默认内置）/ Enabled rules (defaults built-in)
   final List<AlertRule> _rules = List.of(AlertRule.defaults);
@@ -78,6 +95,25 @@ class AlertService {
     _events.clear();
     _lastFiredAt.clear();
     unreadCount.value = 0;
+  }
+
+  /// 恢复持久化的告警事件（跨重启不丢）。
+  /// Restore persisted alert events (survives restarts).
+  ///
+  /// 已存在相同 (source, message) 的事件会被跳过，避免重复计数。
+  /// Events whose (source, message) already exist are skipped to avoid
+  /// double counting.
+  void restore(Iterable<AlertEvent> records) {
+    for (final r in records) {
+      final exists = _events.any(
+        (e) => e.source == r.source && e.message == r.message,
+      );
+      if (exists) continue;
+      _events.addLast(r);
+    }
+    while (_events.length > _maxEvents) {
+      _events.removeLast();
+    }
   }
 
   /// 检测网络请求是否命中规则 / Check a network request against rules
@@ -141,26 +177,39 @@ class AlertService {
       return;
     }
     _lastFiredAt[key] = now;
+    _trimThrottleTable(now);
 
     _events.addFirst(AlertEvent(source: source, message: message));
     while (_events.length > _maxEvents) {
       _events.removeLast();
     }
     unreadCount.value = unreadCount.value + 1;
+    // 异步落盘（磁盘环形缓冲），崩溃后可在 Alerts 标签回看。
+    // Async persist (disk ring buffer) so alerts survive a crash.
+    PersistenceService.instance.enqueueAlert(
+      AlertEvent(source: source, message: message),
+    );
   }
-}
 
-/// 告警事件 / Alert event
-class AlertEvent {
-  /// 来源（url / memory / fps / log）/ Source
-  final String source;
-
-  /// 描述 / Description
-  final String message;
-
-  /// 触发时间 / Timestamp
-  final DateTime time;
-
-  AlertEvent({required this.source, required this.message})
-    : time = DateTime.now();
+  /// 裁剪节流表，防止无界增长 / Trim the throttle table so it cannot grow unbounded
+  ///
+  /// 两级策略 / Two-stage strategy:
+  /// 1. 过期清扫：任何 `now - ts >= _perSourceCooldownMs` 的项都不再具备节流
+  ///    能力（下次同 key 触发时必然放行），属于纯垃圾，可直接丢弃。
+  ///    Sweep: any entry already past the cooldown can never throttle again
+  ///    (the next fire for that key passes regardless), so it is garbage.
+  /// 2. 硬上限：按插入顺序淘汰最旧项，兜住"极短时间内出现大量不同 URL"的场景。
+  ///    Hard cap: evict oldest by insertion order as a backstop for a burst of
+  ///    many distinct URLs within a short window.
+  void _trimThrottleTable(int now) {
+    if (_lastFiredAt.length > _throttleSweepThreshold) {
+      _lastFiredAt.removeWhere((_, ts) => now - ts >= _perSourceCooldownMs);
+    }
+    final overflow = _lastFiredAt.length - _maxThrottleEntries;
+    if (overflow <= 0) return;
+    final keys = _lastFiredAt.keys.take(overflow).toList();
+    for (final k in keys) {
+      _lastFiredAt.remove(k);
+    }
+  }
 }

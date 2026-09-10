@@ -25,6 +25,21 @@ class SqliteDatabaseProvider implements DatabaseProvider {
   @override
   String get name => 'sqlite';
 
+  /// 受支持的数据库文件扩展名 / Supported database file extensions
+  static const Set<String> _supportedExtensions = {'.db', '.sqlite'};
+
+  /// 按扩展名判定是否为数据库文件（大小写不敏感）
+  /// Whether a path looks like a database file (case-insensitive)
+  ///
+  /// 此前用 `endsWith('.db')` 精确匹配，`.DB` / `.SQLite` 扫不到。
+  /// Previously matched `endsWith('.db')` exactly, so `.DB` / `.SQLite` were
+  /// never picked up.
+  static bool _looksLikeDatabase(String path) {
+    final dot = path.lastIndexOf('.');
+    if (dot < 0) return false;
+    return _supportedExtensions.contains(path.substring(dot).toLowerCase());
+  }
+
   @override
   Future<List<DatabaseInfo>> getDatabases() async {
     final databases = <DatabaseInfo>[];
@@ -37,10 +52,19 @@ class SqliteDatabaseProvider implements DatabaseProvider {
         final directory = Directory(dirPath);
         if (!directory.existsSync()) continue;
 
-        final files = directory.listSync(recursive: true).whereType<File>();
+        // 异步递归列举：此前用 listSync 在主线程同步遍历整个目录树，
+        // 大目录下直接掉帧（且该扫描每 3s 被存储统计定时器再触发一次）。
+        // Async recursive listing: listSync walked the whole tree on the main
+        // thread and dropped frames on large directories (and the storage-stats
+        // timer re-triggers this scan every 3s).
+        final files = await directory
+            .list(recursive: true)
+            .where((entity) => entity is File)
+            .cast<File>()
+            .toList();
 
         for (final file in files) {
-          if (file.path.endsWith('.db') || file.path.endsWith('.sqlite')) {
+          if (_looksLikeDatabase(file.path)) {
             if (databases.any((d) => d.path == file.path)) continue;
 
             Database? db;
@@ -190,7 +214,11 @@ class SqliteDatabaseProvider implements DatabaseProvider {
       final result = await db.rawQuery(
         'SELECT COUNT(*) FROM ${_quoteIdent(tableName)}',
       );
-      return result.first.values.first as int;
+      // 表在查询瞬间被删 / 损坏时结果为空，直接取 first 会抛
+      // `Bad state: No element`。Guard against an empty result (table dropped
+      // or corrupted mid-query), which used to throw `Bad state: No element`.
+      if (result.isEmpty || result.first.values.isEmpty) return 0;
+      return (result.first.values.first as num?)?.toInt() ?? 0;
     } catch (e, st) {
       InspectorInternalLog.warning(
         'sqlite',
@@ -238,8 +266,14 @@ class SqliteDatabaseProvider implements DatabaseProvider {
                 0
           : Sqflite.firstIntValue(await db.rawQuery(countSql, kwArgs)) ?? 0;
 
+      // LIMIT / OFFSET 必须是非负整数：SQLite 里 `LIMIT -1` 表示**不限制行数**，
+      // 会把整张表拉进内存。Clamp to non-negative: in SQLite `LIMIT -1` means
+      // "no limit" and would pull the whole table into memory.
+      final safeLimit = limit <= 0 ? 50 : limit;
+      final safeOffset = offset < 0 ? 0 : offset;
       final sql =
-          'SELECT * FROM $quotedTable$whereClause$orderClause LIMIT $limit OFFSET $offset';
+          'SELECT * FROM $quotedTable$whereClause$orderClause '
+          'LIMIT $safeLimit OFFSET $safeOffset';
       final rows = await db.rawQuery(sql, kwArgs);
 
       return QueryResult(

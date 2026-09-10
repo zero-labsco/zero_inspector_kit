@@ -42,4 +42,5 @@ The alert system lets you define rules that proactively surface problems across 
 ## Notes / 备注
 
 - Alerts are evaluated in-process and shown in the developer console only; they do not send data off-device / 告警仅在本机开发者控制台内评估与展示，不会将数据发送到设备外
+- **Persisted to disk (since v1.11.0)**: triggered alerts are flushed to the SQLite ring buffer and replay into the Alerts tab after an app restart, and are included in the session archive export / **已落盘持久化（v1.11.0 起）**：已触发的告警会写入 SQLite 环形缓冲，重启后回放至 Alerts 标签页，并包含在会话存档导出中
 - The alert system is tree-shaken out in release builds, like the rest of the inspector / 与检查器其余部分一样，告警系统在 release 构建中被 tree-shake 移除

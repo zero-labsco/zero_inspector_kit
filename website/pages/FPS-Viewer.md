@@ -38,7 +38,7 @@ When turned off, all callbacks and timers are cancelled, leaving no residual ove
 ### 1. Current Stats / 当前统计
 
 - **Current FPS** — Updated every 500ms / 每 500ms 更新
-- **Jank Rate** — Percentage of janky frames (>16ms) / 卡顿帧占比（>16ms 视为卡顿）
+- **Jank Rate** — Percentage of janky frames (duration exceeds the per-frame budget, derived from the display refresh rate) / 卡顿帧占比（帧耗时超过由屏幕刷新率换算的逐帧预算）
 - **Total Frame Count** — All frames captured since start / 自启动以来的总帧数
 - **Total Janky Count** — All janky frames captured / 自启动以来的总卡顿帧数
 - **Last Frame Janky** — Whether the most recent frame was janky / 最近一帧是否卡顿
@@ -56,11 +56,11 @@ When turned off, all callbacks and timers are cancelled, leaving no residual ove
 
 ### 3. Janky Frame List / 卡顿帧列表
 
-- Lists frames exceeding 16ms duration / 列出耗时超过 16ms 的帧
-- Each item shows frame duration and timestamp / 每项显示帧耗时和时间戳
+- Lists janky frames — duration exceeds the per-frame budget, derived from the display refresh rate (~16.7ms at 60Hz, ~8.3ms at 120Hz) / 列出卡顿帧——帧耗时超过由屏幕刷新率换算的逐帧预算（60Hz≈16.7ms、120Hz≈8.3ms）
+- Each item shows frame duration and timestamp, plus the **build / raster split** (`buildDurationUs` + `rasterDurationUs`) so you can tell whether build or GPU raster is the bottleneck / 每项显示帧耗时、时间戳，以及 **build / raster 分项**（`buildDurationUs` + `rasterDurationUs`），便于判断是构建还是 GPU 光栅化卡顿
 - Helps identify specific jank spikes / 帮助定位具体卡顿点
 
-列出耗时超过 16ms 的帧，每项显示帧耗时和时间戳，帮助定位具体卡顿点。
+列出卡顿帧（帧耗时超过由屏幕刷新率换算的逐帧预算，60Hz≈16.7ms、120Hz≈8.3ms），每项显示帧耗时、时间戳与 build / raster 分项，帮助定位具体卡顿点。
 
 ### 4. Reset / 重置
 
@@ -75,9 +75,13 @@ FPS monitoring uses Flutter's `WidgetsBinding.instance.addTimingsCallback` to re
 
 FPS 监控使用 Flutter 的 `WidgetsBinding.instance.addTimingsCallback` 接收引擎的帧时序信息。该回调是**批量**的——每次调用可能返回多个 `FrameTiming` 对象，因此在循环内部为每帧单独记录时间戳，确保 FPS 计算准确。
 
-**Jank threshold / 卡顿阈值**: A frame is considered janky if its duration exceeds 16ms (the 60 FPS budget of ~16.67ms per frame).
+**Jank threshold / 卡顿阈值**: A frame is janky when its **total** duration (build + raster) exceeds the per-frame budget — `1000ms ÷ refreshRate` (≈16.7ms at 60Hz, ≈8.3ms at 120Hz). Since v1.11.0 the budget is **derived from the device's refresh rate**, so high-refresh (120Hz) screens are held to a tight ≈8.3ms instead of being forgiven by a fixed 16ms.
 
-**卡顿阈值**：帧耗时超过 16ms（60 FPS 每帧预算约 16.67ms）即视为卡顿。
+**卡顿阈值**：帧的**总**耗时（build + raster）超过逐帧预算即视为卡顿——`1000ms ÷ 刷新率`（60Hz≈16.7ms、120Hz≈8.3ms）。自 v1.11.0 起预算按**设备刷新率**换算，高刷（120Hz）屏会被严格约束在 ≈8.3ms，而非被固定 16ms 放过。
+
+**Phased timing / 分阶段耗时**: Each `FrameRecord` carries `buildDurationUs` and `rasterDurationUs` (GPU raster); the janky-frame list shows the build / raster split per row.
+
+**分阶段耗时**：每条 `FrameRecord` 都带有 `buildDurationUs` 与 `rasterDurationUs`（GPU 光栅化），掉帧列表项会展示 build / raster 分项。
 
 ## Programmatic Control (Optional) / 编程式控制（可选）
 
@@ -127,7 +131,7 @@ Singleton service extending `ChangeNotifier`.
 | `currentFps` | double | Current FPS (updated every 500ms) / 当前 FPS（每 500ms 更新） |
 | `jankRate` | double | Jank rate as percentage / 卡顿率（百分比） |
 | `totalFrameCount` | int | Total frames captured / 总帧数 |
-| `totalJankyCount` | int | Total janky frames captured (>16ms) / 总卡顿帧数（>16ms） |
+| `totalJankyCount` | int | Total janky frames captured (per-frame budget) / 总卡顿帧数（按逐帧预算） |
 | `lastFrameJanky` | bool | Whether the most recent frame was janky / 最近一帧是否卡顿 |
 | `fpsHistory` | `List<double>` | Recent 60 FPS values (unmodifiable) / 最近 60 个 FPS 值（不可变） |
 | `frameRecords` | `List<FrameRecord>` | Recent frame records (unmodifiable, up to 3600) / 最近帧记录（不可变，最多 3600 条） |

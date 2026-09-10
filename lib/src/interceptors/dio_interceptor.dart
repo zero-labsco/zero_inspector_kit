@@ -76,7 +76,10 @@ class InspectorDioInterceptor extends InspectorDioInterceptorBase {
       id: requestId,
       method: options['method'] as String? ?? 'GET',
       url: options['url'] as String? ?? '',
-      headers: _convertHeaders(options['headers']),
+      // 记录给面板看的头里也剔除关联 ID，避免它被误当成业务头（导出 / 复制 cURL
+      // 时会带走）。The recorded headers drop the correlation ID too, so it is
+      // never mistaken for a business header (exported / copied as cURL).
+      headers: _convertHeaders(options['headers'], strip: _requestIdHeader),
       body: options['data'],
       requestTime: DateTime.now().millisecondsSinceEpoch,
     );
@@ -186,14 +189,26 @@ class InspectorDioInterceptor extends InspectorDioInterceptorBase {
 
   /// 转换headers为 `Map<String, String>` 格式 / Convert headers to `Map<String, String>` format
   /// Dio的headers可能包含非String类型的值（如content-length是int），需要转换 / Dio headers may contain non-String values (e.g., content-length is int), need conversion
-  Map<String, String>? _convertHeaders(dynamic headers) {
+  ///
+  /// [strip] 需要从结果中剔除的头名（大小写不敏感），用于去掉检查器自身的关联头。
+  /// [strip] header name to drop from the result (case-insensitive), used to
+  /// remove the inspector's own correlation header.
+  Map<String, String>? _convertHeaders(dynamic headers, {String? strip}) {
     if (headers == null) return null;
-    if (headers is Map<String, String>) return headers;
-    if (headers is Map) {
-      return headers.map(
+    Map<String, String> converted;
+    if (headers is Map<String, String>) {
+      converted = headers;
+    } else if (headers is Map) {
+      converted = headers.map(
         (key, value) => MapEntry(key.toString(), value.toString()),
       );
+    } else {
+      return null;
     }
-    return null;
+    if (strip == null) return converted;
+    final target = strip.toLowerCase();
+    return Map<String, String>.fromEntries(
+      converted.entries.where((e) => e.key.toLowerCase() != target),
+    );
   }
 }

@@ -123,7 +123,19 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
   }
 
   /// 未读告警数变化 → 触发重绘红点 / Unread alert change → repaint red dot
-  void _onUnreadChanged() => setState(() {});
+  ///
+  /// 去重：此前任何一次 notify 都重建整棵树（独立模式下连带整个
+  /// InspectorPanel 子树），而红点只依赖未读数本身。
+  /// Deduped: any notify used to rebuild the whole subtree (in standalone mode
+  /// that includes the entire InspectorPanel), while the badge only depends on
+  /// the unread count itself.
+  int? _lastUnread;
+  void _onUnreadChanged() {
+    final current = AlertService.instance.unreadCount.value;
+    if (current == _lastUnread) return;
+    _lastUnread = current;
+    if (mounted) setState(() {});
+  }
 
   /// 球体中心内容：有未读告警时显示红色数字，否则显示默认图标。
   /// Ball center: red count when unread, otherwise the default icon.

@@ -70,7 +70,11 @@ class HiveProvider implements DatabaseProvider {
     bool desc = false,
     String? whereKeyword,
   }) async {
-    var keys = _box.keys.toList()..sort();
+    var keys = _box.keys.toList();
+    // 用共享的安全排序：Hive key 是 dynamic，混合 int/String 时 List.sort()
+    // 会抛 TypeError。Use the shared safe sort: Hive keys are dynamic and
+    // List.sort() throws a TypeError when int and String are mixed.
+    KeyValueQuery.sortKeys(keys);
     if (desc) keys = keys.reversed.toList();
     if (whereKeyword != null && whereKeyword.isNotEmpty) {
       final kw = whereKeyword.toLowerCase();
@@ -79,7 +83,8 @@ class HiveProvider implements DatabaseProvider {
           .toList();
     }
     final total = keys.length;
-    final windowed = keys.skip(offset).take(limit).map((k) {
+    final paging = KeyValueQuery.clampPaging(limit, offset);
+    final windowed = keys.skip(paging.offset).take(paging.limit).map((k) {
       final v = _box.get(k);
       return <String, dynamic>{
         'key': _encodeKey(k),

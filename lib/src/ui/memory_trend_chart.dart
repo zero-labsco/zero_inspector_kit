@@ -312,17 +312,23 @@ class _MemoryTrendChartState extends State<MemoryTrendChart> {
                         child: SizedBox(
                           height: 100,
                           width: double.infinity,
-                          child: CustomPaint(
-                            painter: _LineChartPainter(
-                              values: values,
-                              maxValue: safeMax,
-                              lineColor: widget.metric.color,
-                              fillColor: widget.metric.color.withValues(
-                                alpha: 0.2,
+                          // RepaintBoundary 隔离自绘图表，避免每 500ms 的重绘
+                          // 扩散到同 layer 的父级卡片 / 整页。
+                          // Isolate the custom-painted chart so its 500ms
+                          // repaints don't spread to the parent card / page.
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              painter: _LineChartPainter(
+                                values: values,
+                                maxValue: safeMax,
+                                lineColor: widget.metric.color,
+                                fillColor: widget.metric.color.withValues(
+                                  alpha: 0.2,
+                                ),
+                                backgroundColor: InspectorColors.surface,
+                                gridColor: InspectorColors.divider,
+                                highlightIndex: _touchedIndex,
                               ),
-                              backgroundColor: InspectorColors.surface,
-                              gridColor: InspectorColors.divider,
-                              highlightIndex: _touchedIndex,
                             ),
                           ),
                         ),
@@ -782,6 +788,11 @@ class _LineChartPainter extends CustomPainter {
         oldDelegate.maxValue != maxValue ||
         oldDelegate.lineColor != lineColor ||
         oldDelegate.fillColor != fillColor ||
+        // 背景与网格色此前未参与比较，主题色变化不会重绘。
+        // Background and grid colors were not compared, so a color change never
+        // triggered a repaint.
+        oldDelegate.backgroundColor != backgroundColor ||
+        oldDelegate.gridColor != gridColor ||
         oldDelegate.highlightIndex != highlightIndex;
   }
 }

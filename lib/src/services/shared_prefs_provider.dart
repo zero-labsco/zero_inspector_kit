@@ -88,14 +88,16 @@ class SharedPrefsProvider implements DatabaseProvider {
     bool desc = false,
     String? whereKeyword,
   }) async {
-    var keys = _prefs.getKeys().toList()..sort();
+    var keys = _prefs.getKeys().toList();
+    KeyValueQuery.sortKeys(keys);
     if (desc) keys = keys.reversed.toList();
     if (whereKeyword != null && whereKeyword.isNotEmpty) {
       final kw = whereKeyword.toLowerCase();
       keys = keys.where((k) => k.toLowerCase().contains(kw)).toList();
     }
     final total = keys.length;
-    final windowed = keys.skip(offset).take(limit).map((k) {
+    final paging = KeyValueQuery.clampPaging(limit, offset);
+    final windowed = keys.skip(paging.offset).take(paging.limit).map((k) {
       final v = _prefs.get(k);
       return <String, dynamic>{
         'key': k,

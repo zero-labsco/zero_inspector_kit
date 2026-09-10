@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../models/error_record.dart';
 import 'persistence_service.dart';
@@ -14,6 +15,13 @@ import 'persistence_service.dart';
 /// dedups each exception by type + stack signature, and records count,
 /// first/last seen time and a full stack sample — powering a dedicated
 /// Errors Tab to surface "the same crash happening repeatedly".
+///
+/// 同时接管 [PlatformDispatcher.onError]：它能捕获 [FlutterError.onError]
+/// 漏掉的、发生在框架错误边界之外或平台通道回包中的异常（例如绘制/布局阶段
+/// 抛错后再次被框架捕获前的原始错误），避免这类崩溃完全不被聚合。
+/// Also hooks [PlatformDispatcher.onError], which catches errors that
+/// [FlutterError.onError] misses — those thrown outside the framework error
+/// boundary or from platform-channel replies — so they are aggregated too.
 class ErrorService extends ChangeNotifier {
   ErrorService._();
 
@@ -32,6 +40,11 @@ class ErrorService extends ChangeNotifier {
   /// 原生的 FlutterError 处理回调，用于保留默认行为 / Original handler
   FlutterExceptionHandler? _previousOnError;
 
+  /// 原生的 PlatformDispatcher.onError 回调 / Original platform dispatcher handler
+  /// 类型为 `bool Function(Object error, StackTrace stack)?`
+  /// (the type of [PlatformDispatcher.onError]).
+  bool Function(Object error, StackTrace stack)? _previousPlatformOnError;
+
   /// 是否已接管 FlutterError.onError / Whether hooked
   bool _installed = false;
 
@@ -47,19 +60,36 @@ class ErrorService extends ChangeNotifier {
   /// 聚合记录数量 / Aggregated record count
   int get errorCount => _errors.length;
 
-  /// 接管 FlutterError.onError（保留默认行为）/ Hook FlutterError.onError
+  /// 接管 FlutterError.onError 与 PlatformDispatcher.onError（均保留默认行为）
+  /// Hook both [FlutterError.onError] and [PlatformDispatcher.onError] (default
+  /// behavior preserved for both).
   void install() {
     if (_installed) return;
     _installed = true;
     _previousOnError = FlutterError.onError;
     FlutterError.onError = _onFlutterError;
+    try {
+      final dispatcher = WidgetsBinding.instance.platformDispatcher;
+      _previousPlatformOnError = dispatcher.onError;
+      dispatcher.onError = _onPlatformError;
+    } catch (_) {
+      // 绑定未就绪时跳过平台通道接管 / Skip if binding isn't ready
+    }
   }
 
-  /// 还原 FlutterError.onError / Restore FlutterError.onError
+  /// 还原 FlutterError.onError 与 PlatformDispatcher.onError
+  /// Restore both [FlutterError.onError] and [PlatformDispatcher.onError]
   void uninstall() {
     if (!_installed) return;
     FlutterError.onError = _previousOnError;
     _previousOnError = null;
+    try {
+      final dispatcher = WidgetsBinding.instance.platformDispatcher;
+      dispatcher.onError = _previousPlatformOnError;
+    } catch (_) {
+      // 绑定未就绪时忽略 / Ignore if binding isn't ready
+    }
+    _previousPlatformOnError = null;
     _installed = false;
   }
 
@@ -79,6 +109,19 @@ class ErrorService extends ChangeNotifier {
       details.stack?.toString() ?? '',
       details.library ?? '',
     );
+  }
+
+  /// PlatformDispatcher.onError 回调：返回 false 表示"未处理"，让框架继续走
+  /// 默认上层兜底逻辑；同时聚合进 Errors Tab。
+  /// PlatformDispatcher.onError callback: returning false leaves the error
+  /// unhandled so the framework keeps its default top-level fallback, while we
+  /// still aggregate it into the Errors Tab.
+  bool _onPlatformError(Object error, StackTrace stack) {
+    _previousPlatformOnError?.call(error, stack);
+    if (_enabled) {
+      _record(error, stack.toString(), 'platform-dispatcher');
+    }
+    return false;
   }
 
   /// 手动上报一个异常（gRPC/自定义协议或 Zone 捕获）/ Manual report

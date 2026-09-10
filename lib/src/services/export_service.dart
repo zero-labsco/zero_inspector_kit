@@ -8,6 +8,8 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models/log_entry.dart';
 import '../models/network_request.dart';
+import '../utils/inspector_version.dart';
+import '../utils/sensitive_data.dart';
 
 /// 导出服务 / Export service
 ///
@@ -20,6 +22,13 @@ class ExportService {
   static final ExportService instance = ExportService._();
 
   /// 导出时需遮蔽的敏感请求头（不区分大小写）/ Sensitive headers to mask on export
+  ///
+  /// 已废弃：仅保留旧的最小集合以维持公共 API 兼容。真正的脱敏统一走
+  /// [SensitiveData]，它额外覆盖 URL query 与请求体，并支持变体名与宿主扩展。
+  /// Deprecated: kept as the legacy minimal set for public-API compatibility.
+  /// Masking now goes through [SensitiveData], which also covers URL query and
+  /// bodies, supports name variants and host-side extension.
+  @Deprecated('Use SensitiveData.isSensitiveHeader / SensitiveData.maskHeaders')
   static const Set<String> sensitiveHeaders = {
     'authorization',
     'cookie',
@@ -67,41 +76,58 @@ class ExportService {
     'requests': requests.map((e) => _maskedJson(e, maskSensitive)).toList(),
   });
 
-  /// 按 [maskSensitive] 决定是否遮蔽敏感头后再序列化 / Serialize with masking
+  /// 按 [maskSensitive] 决定是否遮蔽敏感数据后再序列化 / Serialize with masking
+  ///
+  /// 覆盖请求头、URL query 与请求体 —— 此前只遮蔽请求头，`?token=` 与
+  /// JSON 里的 `password` 会原样导出。
+  /// Covers headers, URL query and body — previously only headers were masked,
+  /// so `?token=` and JSON `password` fields were exported verbatim.
   Map<String, dynamic> _maskedJson(NetworkRequest e, bool maskSensitive) {
     final json = e.toJson();
-    if (!maskSensitive || e.headers == null) return json;
-    final masked = <String, String>{};
-    for (final entry in e.headers!.entries) {
-      masked[entry.key] = sensitiveHeaders.contains(entry.key.toLowerCase())
-          ? '***'
-          : entry.value;
+    if (!maskSensitive) return json;
+    if (e.headers != null) {
+      json['headers'] = SensitiveData.maskHeaders(e.headers!);
     }
-    json['headers'] = masked;
+    final url = e.url;
+    if (url.isNotEmpty) {
+      json['url'] = SensitiveData.maskUrl(url);
+    }
+    if (e.body != null) {
+      json['body'] = SensitiveData.maskBodyByContent(e.body.toString());
+    }
+    if (e.responseBody != null) {
+      json['responseBody'] = SensitiveData.maskBodyByContent(
+        e.responseBody.toString(),
+      );
+    }
     return json;
   }
 
   /// 网络请求 → 复制为 cURL 命令 / Network request → cURL command
   ///
   /// 生成可直接粘贴到终端执行的 curl 命令（含 method、headers、body）。
-  /// [maskSensitive] 为 true 时遮蔽 Authorization/Cookie 等敏感头。
+  /// [maskSensitive] 为 true 时遮蔽敏感头、URL query 与 body。
   /// Produces a ready-to-run curl command. When [maskSensitive] is true,
-  /// sensitive headers (Authorization/Cookie/...) are masked.
+  /// sensitive headers, URL query params and the body are masked.
   String toCurl(NetworkRequest r, {bool maskSensitive = false}) {
     final buf = StringBuffer()..write('curl -X ${r.method} ');
-    // URL（含单引号时转义）/ URL (escape single quotes)
+    // URL（含单引号时转义，并按需遮蔽 query 中的凭据）
+    // URL (escape single quotes, and mask credentials in the query as needed)
+    final rawUrl = maskSensitive ? SensitiveData.maskUrl(r.url) : r.url;
     // ignore: prefer_single_quotes — 这里需要双引号以便把单引号转义为 %27
-    final url = r.url.replaceAll("'", "%27");
+    final url = rawUrl.replaceAll("'", "%27");
     buf.writeln("'$url' \\");
     for (final e in (r.headers ?? {}).entries) {
-      final masked =
-          maskSensitive && sensitiveHeaders.contains(e.key.toLowerCase());
-      final name = e.key.replaceAll('"', '\\"');
-      final value = (masked ? '***' : e.value).replaceAll('"', '\\"');
+      final masked = maskSensitive && SensitiveData.isSensitiveHeader(e.key);
+      final name = _shellQuote(e.key);
+      final value = _shellQuote(masked ? SensitiveData.placeholder : e.value);
       buf.writeln('  -H "$name: $value" \\');
     }
     if (r.body != null) {
-      final body = r.body.toString().replaceAll('"', '\\"');
+      final rawBody = r.body.toString();
+      final body = _shellQuote(
+        maskSensitive ? SensitiveData.maskBodyByContent(rawBody) : rawBody,
+      );
       buf.writeln('  -d "$body" \\');
     }
     // 去掉末尾的续行符 / Trim trailing line-continuation
@@ -109,6 +135,18 @@ class ExportService {
     if (out.endsWith(' \\\n')) out = out.substring(0, out.length - 3);
     return out;
   }
+
+  /// 双引号内的 shell 转义 / Shell escaping inside double quotes
+  ///
+  /// 此前只转义了 `"`，含反引号或 `$(...)` 的 body 粘贴到终端会被执行。
+  /// Previously only `"` was escaped, so a body containing backticks or
+  /// `$(...)` would be executed when pasted into a terminal.
+  static String _shellQuote(String s) => s
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"')
+      .replaceAll('`', '\\`')
+      .replaceAll('\$', '\\\$')
+      .replaceAll('!', '\\!');
 
   /// 网络请求 → CSV / Network to CSV
   /// 列：method,url,statusCode,durationMs,requestTime,hasBody,hasResponse
@@ -145,14 +183,25 @@ class ExportService {
           .map(
             (e) => {
               'name': e.key,
-              'value':
-                  maskSensitive &&
-                      sensitiveHeaders.contains(e.key.toLowerCase())
-                  ? '***'
+              'value': maskSensitive && SensitiveData.isSensitiveHeader(e.key)
+                  ? SensitiveData.placeholder
                   : e.value,
             },
           )
           .toList();
+      final url = maskSensitive ? SensitiveData.maskUrl(r.url) : r.url;
+      final rawBody = r.body?.toString();
+      final bodyText = rawBody == null
+          ? null
+          : (maskSensitive
+                ? SensitiveData.maskBodyByContent(rawBody)
+                : rawBody);
+      final rawResponse = r.responseBody?.toString();
+      final responseText = rawResponse == null
+          ? null
+          : (maskSensitive
+                ? SensitiveData.maskBodyByContent(rawResponse)
+                : rawResponse);
       final startedMs = r.requestTime;
       final time = r.duration ?? 0;
       return {
@@ -162,23 +211,17 @@ class ExportService {
         'time': time,
         'request': {
           'method': r.method,
-          'url': r.url,
+          'url': url,
           'headers': reqHeaders,
-          'postData': r.body != null
-              ? {
-                  'mimeType': 'application/octet-stream',
-                  'text': r.body.toString(),
-                }
+          'postData': bodyText != null
+              ? {'mimeType': _guessMimeType(r.headers), 'text': bodyText}
               : null,
         },
         'response': {
           'status': r.statusCode ?? 0,
           'statusText': '',
           'headers': <Map<String, String>>[],
-          'content': {
-            'size': r.responseBody?.toString().length ?? 0,
-            'text': r.responseBody?.toString(),
-          },
+          'content': {'size': responseText?.length ?? 0, 'text': responseText},
         },
         'timings': {'send': 0, 'wait': time, 'receive': 0},
       };
@@ -187,10 +230,30 @@ class ExportService {
     return jsonEncode({
       'log': {
         'version': '1.2',
-        'creator': {'name': 'Zero Inspector Kit', 'version': '1.2'},
+        'creator': {
+          'name': 'Zero Inspector Kit',
+          'version': InspectorVersion.value,
+        },
         'entries': entries,
       },
     });
+  }
+
+  /// 按 Content-Type 推断 HAR `postData.mimeType`
+  /// Infer the HAR `postData.mimeType` from Content-Type
+  ///
+  /// 此前恒为 `application/octet-stream`，导入 DevTools / Charles 后无法正常
+  /// 格式化 JSON / 表单请求体。
+  /// Previously always `application/octet-stream`, so imported bodies could not
+  /// be formatted as JSON / form data in DevTools / Charles.
+  static String _guessMimeType(Map<String, String>? headers) {
+    if (headers == null) return 'application/octet-stream';
+    for (final entry in headers.entries) {
+      if (entry.key.toLowerCase() != 'content-type') continue;
+      final value = entry.value.split(';').first.trim();
+      if (value.isNotEmpty) return value;
+    }
+    return 'application/octet-stream';
   }
 
   // ==================== 文件导出 / File export ====================
@@ -200,11 +263,42 @@ class ExportService {
   ///
   /// 返回的文件位于应用临时目录；可配合平台层分享或直接用文件管理器打开。
   /// The returned file lives in the app temp dir; share or open via a file manager.
+  ///
+  /// [fileName] 会先消毒（去掉路径分隔符与 `..`，避免越界写文件），
+  /// 且当同名文件已存在时自动追加序号，避免并发导出互相覆盖。
+  /// [fileName] is sanitized (path separators and `..` are stripped so a
+  /// crafted name cannot escape the temp dir), and a numeric suffix is appended
+  /// when the name is taken so concurrent exports don't overwrite each other.
   Future<String> writeToFile(String content, String fileName) async {
     final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsString(content);
-    return file.path;
+    final safeName = _sanitizeFileName(fileName);
+    var candidate = File('${dir.path}${Platform.pathSeparator}$safeName');
+    if (await candidate.exists()) {
+      final dot = safeName.lastIndexOf('.');
+      final base = dot > 0 ? safeName.substring(0, dot) : safeName;
+      final ext = dot > 0 ? safeName.substring(dot) : '';
+      var i = 1;
+      do {
+        candidate = File('${dir.path}${Platform.pathSeparator}${base}_$i$ext');
+        i++;
+      } while (await candidate.exists() && i < 100);
+    }
+    await candidate.writeAsString(content);
+    return candidate.path;
+  }
+
+  /// 文件名消毒：只保留文件名部分，剔除非法字符
+  /// Sanitize a file name: keep only the basename, drop illegal characters
+  static String _sanitizeFileName(String name) {
+    // 先去掉任何目录成分（`../x` 会越界），再剔除控制字符与路径分隔符。
+    // Strip any directory component (`../x` would escape), then drop control
+    // characters and path separators.
+    final cleaned = name
+        .replaceAll(RegExp(r'[\\/]'), '_')
+        .replaceAll(RegExp(r'[^\w.\-]'), '_')
+        .replaceAll(RegExp(r'^\.+'), '');
+    if (cleaned.isEmpty) return 'zero_inspector_export.txt';
+    return cleaned;
   }
 
   /// 导出日志到文件 / Export logs to a file
@@ -376,20 +470,15 @@ class ExportService {
   Future<void> copyText(String content) => copy(content);
 
   /// 日志级别前缀 / Log level prefix
-  String _lvl(LogLevel l) {
-    switch (l) {
-      case LogLevel.verbose:
-        return 'V';
-      case LogLevel.debug:
-        return 'D';
-      case LogLevel.info:
-        return 'I';
-      case LogLevel.warning:
-        return 'W';
-      case LogLevel.error:
-        return 'E';
-    }
-  }
+  ///
+  /// 此前是 [LogEntry.levelText] 之外**第二份**同样的 switch —— 新增日志级别时
+  /// 极易只改一处。现在直接复用模型层的单一实现。
+  /// This used to be a **second** copy of the same switch alongside
+  /// [LogEntry.levelText] — adding a level would likely miss one of them.
+  /// It now reuses the single implementation on the model.
+  static String _lvl(LogLevel l) => LogLevelText.of(l);
+
+  /// CSV 单元格转义：含逗号/引号/换行时用双引号包裹并转义内部引号。
 
   /// CSV 单元格转义：含逗号/引号/换行时用双引号包裹并转义内部引号。
   /// CSV cell escaping: wrap in quotes and escape inner quotes when needed.

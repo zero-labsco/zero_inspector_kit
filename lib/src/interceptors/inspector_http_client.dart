@@ -93,6 +93,12 @@ class _InspectorHttpClient implements HttpClient {
         .then((request) {
           final dioRequestId = request.headers.value(_dioRequestIdHeader);
           if (dioRequestId != null) {
+            // 关联用 ID 到手后立刻从**真实出站请求头**里摘掉，绝不能发到服务端：
+            // 否则会污染 HMAC / 签名校验、触发 CORS 预检、并把调试痕迹泄漏进生产流量。
+            // Once the correlation ID is read, strip it from the real outbound
+            // headers: leaving it would break HMAC / signature validation,
+            // trigger CORS preflight, and leak debug traces into production.
+            request.headers.removeAll(_dioRequestIdHeader);
             return _InspectorRequestProxy(request, dioRequestId);
           }
           // 综合请求头判定 WebSocket 升级握手（Upgrade: websocket），
@@ -295,7 +301,55 @@ class _InspectorRequestProxy implements HttpClientRequest {
   /// the underlying request (so [close] must NOT replay the captured body)
   bool _streamTeeForwarded = false;
 
+  /// 是否有字节已通过 [add] / [write] 系列直接写到底层请求
+  /// Whether bytes were already written straight to the underlying request via
+  /// the [add] / [write] family (so [close] must NOT replay them)
+  ///
+  /// 仅在请求体超过 [_maxRequestCaptureBytes] 时置位：此时已切换为直传，
+  /// 缓冲里只剩前 512KB 预览，重放会把大 body 截断。
+  /// Only set once the body exceeds [_maxRequestCaptureBytes] and we switch to
+  /// pass-through; the buffer then holds just a 512KB preview and replaying it
+  /// would truncate the upload.
+  bool _wireForwarded = false;
+
   _InspectorRequestProxy(this._request, this._requestId);
+
+  /// 追加请求体字节：先按需缓冲供检查器预览，超限后切换为直传。
+  /// Append request-body bytes: buffer a bounded copy for the inspector, then
+  /// switch to pass-through once the capture cap is hit.
+  ///
+  /// 此前 [add] / [write] 系列无上限地全量缓冲，用它们上传大 body 会 OOM
+  /// （上限此前只实现在 [addStream] 上），与类注释宣称的 OOM 防护不符。
+  /// Previously the [add] / [write] family buffered without any cap, so
+  /// uploading a large body through them could OOM (the cap only existed on
+  /// [addStream]), contradicting this class' documented OOM protection.
+  void _appendRequestBytes(List<int> data) {
+    if (_isClosed) return;
+    if (_requestCaptureExceeded) {
+      // 已进入直传模式：不再缓冲，直接转发。
+      // Already in pass-through mode: forward without buffering.
+      _request.add(data);
+      _wireForwarded = true;
+      return;
+    }
+    final remaining = _maxRequestCaptureBytes - _bodyBytes.length;
+    if (data.length <= remaining) {
+      _bodyBytes.addAll(data);
+      return;
+    }
+    // 首次超限：把已缓冲的预览一次性推给底层请求，其余部分直传，
+    // 从此不再缓冲（缓冲里保留前 512KB 供面板预览）。
+    // First time over the cap: push the buffered preview to the underlying
+    // request, forward the rest directly, and stop buffering (the first 512KB
+    // stays in the buffer as the panel preview).
+    _bodyBytes.addAll(data.sublist(0, remaining));
+    _requestCaptureExceeded = true;
+    _wireForwarded = true;
+    _request.add(_bodyBytes);
+    if (data.length > remaining) {
+      _request.add(data.sublist(remaining));
+    }
+  }
 
   @override
   Future<HttpClientResponse> close() async {
@@ -379,14 +433,15 @@ class _InspectorRequestProxy implements HttpClientRequest {
       }
     } catch (_) {}
 
-    // 若用户通过 [addStream] 已经把数据流直接透传到了底层请求，则
-    // 不再重复发送 _bodyBytes，避免：
+    // 若字节已经到底层请求（[addStream] 的 tee 直传，或 [add]/[write] 超限后
+    // 切换的直传），则不再重放 _bodyBytes，避免：
     //   1) 重复发送相同字节
     //   2) 因为只缓冲了前 512KB 而把大文件上传截断到 512KB
-    // If the user already tee'd the stream to the wire via [addStream], do
-    // not replay [_bodyBytes] here to avoid (1) duplicate bytes on the wire
-    // and (2) truncating large uploads because we only buffered a 512KB cap.
-    if (!_streamTeeForwarded) {
+    // If bytes already reached the underlying request (tee'd via [addStream],
+    // or pass-through after [add]/[write] exceeded the cap), do not replay
+    // [_bodyBytes] here to avoid (1) duplicate bytes on the wire and
+    // (2) truncating large uploads because we only buffered a 512KB cap.
+    if (!_streamTeeForwarded && !_wireForwarded) {
       try {
         await _request.addStream(Stream.value(finalBodyBytes));
       } catch (_) {}
@@ -417,11 +472,7 @@ class _InspectorRequestProxy implements HttpClientRequest {
   }
 
   @override
-  void add(List<int> data) {
-    if (!_isClosed) {
-      _bodyBytes.addAll(data);
-    }
-  }
+  void add(List<int> data) => _appendRequestBytes(data);
 
   @override
   void addError(Object error, [StackTrace? stackTrace]) =>
@@ -471,31 +522,28 @@ class _InspectorRequestProxy implements HttpClientRequest {
   @override
   void write(Object? obj) {
     if (!_isClosed) {
-      final bytes = utf8.encode(obj?.toString() ?? '');
-      _bodyBytes.addAll(bytes);
+      _appendRequestBytes(utf8.encode(obj?.toString() ?? ''));
     }
   }
 
   @override
   void writeAll(Iterable objects, [String separator = '']) {
     if (!_isClosed) {
-      final bytes = utf8.encode(objects.join(separator));
-      _bodyBytes.addAll(bytes);
+      _appendRequestBytes(utf8.encode(objects.join(separator)));
     }
   }
 
   @override
   void writeCharCode(int charCode) {
     if (!_isClosed) {
-      _bodyBytes.add(charCode);
+      _appendRequestBytes(<int>[charCode]);
     }
   }
 
   @override
   void writeln([Object? obj = '']) {
     if (!_isClosed) {
-      final bytes = utf8.encode('${obj ?? ''}\n');
-      _bodyBytes.addAll(bytes);
+      _appendRequestBytes(utf8.encode('${obj ?? ''}\n'));
     }
   }
 

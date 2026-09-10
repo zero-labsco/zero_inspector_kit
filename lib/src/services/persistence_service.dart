@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:sqflite/sqflite.dart';
 
+import '../models/alert_event.dart';
 import '../models/error_record.dart';
 import '../models/log_entry.dart';
 import '../models/network_request.dart';
@@ -34,7 +35,10 @@ class PersistenceService {
   static const String _dbName = 'zero_inspector_kit.db';
 
   /// 数据库版本 / Database version
-  static const int _dbVersion = 1;
+  /// Schema 版本：2 = 补齐裁剪用的 ts / last_ts 索引；3 = 新增 alerts 表（告警持久化）
+  /// Schema version: 2 = ts / last_ts indexes; 3 = new `alerts` table for
+  /// alert persistence.
+  static const int _dbVersion = 3;
 
   /// 每张表的默认行数上限（环形缓冲）/ Default per-table row cap (ring buffer)
   static const int _defaultMaxRows = 5000;
@@ -57,6 +61,7 @@ class PersistenceService {
   final List<LogEntry> _pendingLogs = [];
   final List<NetworkRequest> _pendingNetwork = [];
   final List<ErrorRecord> _pendingErrors = [];
+  final List<AlertEvent> _pendingAlerts = [];
 
   /// 是否已启用（DB 可用）/ Whether enabled (DB available)
   bool get isEnabled => _enabled;
@@ -95,6 +100,22 @@ class PersistenceService {
             'ts INTEGER, type TEXT, count INTEGER, first_ts INTEGER, '
             'last_ts INTEGER, stack TEXT, message TEXT, eid TEXT)',
           );
+          await db.execute(
+            'CREATE TABLE alerts(id INTEGER PRIMARY KEY AUTOINCREMENT, '
+            'ts INTEGER, last_ts INTEGER, source TEXT, message TEXT)',
+          );
+          await _createIndexes(db);
+        },
+        // 版本升级时补表 + 重建索引：此前没有 onUpgrade，未来加字段必然丢数据。
+        // Add the missing table and rebuild indexes on upgrade; there was no
+        // onUpgrade before, so adding a column would have silently lost data.
+        onUpgrade: (db, oldVersion, newVersion) async {
+          await db.execute(
+            'CREATE TABLE IF NOT EXISTS alerts('
+            'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+            'ts INTEGER, last_ts INTEGER, source TEXT, message TEXT)',
+          );
+          await _createIndexes(db);
         },
       );
       _enabled = true;
@@ -106,6 +127,27 @@ class PersistenceService {
       // e.g. desktop without sqflite FFI: fall back to memory-only mode.
       _enabled = false;
       _db = null;
+    }
+  }
+
+  /// 建索引：裁剪每 2s 跑 6 条 `NOT IN (SELECT id ... ORDER BY id DESC LIMIT n)`
+  /// 的全表扫描，没有 ts / last_ts 索引时代价随行数线性增长。
+  /// Create the indexes: trimming runs 6 `NOT IN (SELECT id ... ORDER BY id
+  /// DESC LIMIT n)` statements every 2s, which degrade to full scans that grow
+  /// linearly with row count without ts / last_ts indexes.
+  static Future<void> _createIndexes(Database db) async {
+    const statements = [
+      'CREATE INDEX IF NOT EXISTS idx_logs_ts ON logs(ts)',
+      'CREATE INDEX IF NOT EXISTS idx_network_ts ON network(ts)',
+      'CREATE INDEX IF NOT EXISTS idx_errors_ts ON errors(ts)',
+      'CREATE INDEX IF NOT EXISTS idx_errors_last_ts ON errors(last_ts)',
+      'CREATE INDEX IF NOT EXISTS idx_alerts_ts ON alerts(ts)',
+      'CREATE INDEX IF NOT EXISTS idx_alerts_last_ts ON alerts(last_ts)',
+    ];
+    for (final sql in statements) {
+      try {
+        await db.execute(sql);
+      } catch (_) {}
     }
   }
 
@@ -130,13 +172,22 @@ class PersistenceService {
     if (_pendingErrors.length >= _flushThreshold) flush();
   }
 
+  /// 入队一条告警事件（异步落盘，崩溃后可在 Alerts 标签回看）
+  /// Enqueue an alert event (async flush; recoverable in the Alerts tab later)
+  void enqueueAlert(AlertEvent e) {
+    if (!_enabled) return;
+    _pendingAlerts.add(e);
+    if (_pendingAlerts.length >= _flushThreshold) flush();
+  }
+
   /// 把缓冲区写入磁盘并按环形缓冲裁剪 / Flush buffer to disk then trim
   Future<void> flush() async {
     final db = _db;
     if (!_enabled || db == null) return;
     if (_pendingLogs.isEmpty &&
         _pendingNetwork.isEmpty &&
-        _pendingErrors.isEmpty) {
+        _pendingErrors.isEmpty &&
+        _pendingAlerts.isEmpty) {
       return;
     }
 
@@ -146,6 +197,8 @@ class PersistenceService {
     _pendingNetwork.clear();
     final errs = List<ErrorRecord>.of(_pendingErrors);
     _pendingErrors.clear();
+    final alerts = List<AlertEvent>.of(_pendingAlerts);
+    _pendingAlerts.clear();
 
     try {
       final batch = db.batch();
@@ -178,6 +231,15 @@ class PersistenceService {
           'eid': e.id,
         });
       }
+      for (final a in alerts) {
+        final ts = a.time.millisecondsSinceEpoch;
+        batch.insert('alerts', {
+          'ts': ts,
+          'last_ts': ts,
+          'source': a.source,
+          'message': a.message,
+        });
+      }
       await batch.commit(noResult: true);
       await _trim();
     } catch (_) {}
@@ -192,6 +254,7 @@ class PersistenceService {
       await db.delete('logs', where: 'ts < ?', whereArgs: [cutoff]);
       await db.delete('network', where: 'ts < ?', whereArgs: [cutoff]);
       await db.delete('errors', where: 'last_ts < ?', whereArgs: [cutoff]);
+      await db.delete('alerts', where: 'last_ts < ?', whereArgs: [cutoff]);
       // 超出行数上限的最旧记录 / Drop oldest rows beyond the cap
       await db.execute(
         'DELETE FROM logs WHERE id NOT IN '
@@ -204,6 +267,10 @@ class PersistenceService {
       await db.execute(
         'DELETE FROM errors WHERE id NOT IN '
         '(SELECT id FROM errors ORDER BY id DESC LIMIT $_maxRows)',
+      );
+      await db.execute(
+        'DELETE FROM alerts WHERE id NOT IN '
+        '(SELECT id FROM alerts ORDER BY id DESC LIMIT $_maxRows)',
       );
     } catch (_) {}
   }
@@ -259,6 +326,24 @@ class PersistenceService {
     }
   }
 
+  /// 读取已持久化的告警事件（最新在前）/ Load persisted alerts (newest first)
+  Future<List<AlertEvent>> loadAlerts({int limit = 100}) async {
+    final db = _db;
+    if (!_enabled || db == null) return const [];
+    try {
+      final rows = await db.query('alerts', orderBy: 'id DESC', limit: limit);
+      return rows.map((r) {
+        return AlertEvent(
+          source: (r['source'] as String?) ?? '',
+          message: (r['message'] as String?) ?? '',
+          time: DateTime.fromMillisecondsSinceEpoch((r['ts'] as int?) ?? 0),
+        );
+      }).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// 读取已持久化的网络记录（原始 JSON，最新在前）
   /// Load persisted network records (raw JSON, newest first)
   Future<List<Map<String, dynamic>>> loadNetworkJson({int limit = 500}) async {
@@ -287,11 +372,13 @@ class PersistenceService {
     int logLimit = 2000,
     int netLimit = 500,
     int errLimit = 200,
+    int alertLimit = 100,
   }) async {
     await flush();
     final logs = await loadLogs(limit: logLimit);
     final errs = await loadErrors(limit: errLimit);
     final nets = await loadNetworkJson(limit: netLimit);
+    final alerts = await loadAlerts(limit: alertLimit);
     return jsonEncode({
       'generatedAt': DateTime.now().toIso8601String(),
       'logs': logs.map((l) => l.toJson()).toList(),
@@ -309,6 +396,15 @@ class PersistenceService {
           )
           .toList(),
       'network': nets,
+      'alerts': alerts
+          .map(
+            (a) => {
+              'source': a.source,
+              'message': a.message,
+              'timestamp': a.time.toIso8601String(),
+            },
+          )
+          .toList(),
     });
   }
 
@@ -336,12 +432,14 @@ class PersistenceService {
     _pendingLogs.clear();
     _pendingNetwork.clear();
     _pendingErrors.clear();
+    _pendingAlerts.clear();
     final db = _db;
     if (db == null) return;
     try {
       await db.delete('logs');
       await db.delete('network');
       await db.delete('errors');
+      await db.delete('alerts');
     } catch (_) {}
   }
 

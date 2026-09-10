@@ -53,6 +53,57 @@ abstract class DatabaseProvider {
   });
 }
 
+/// 键值型数据源（Hive / SharedPreferences 等）的公共工具
+/// Shared helpers for key-value data sources (Hive / SharedPreferences / etc.)
+///
+/// Hive 与 SharedPreferences 两个 provider 的分页、排序、过滤逻辑此前几乎
+/// 逐行重复，且各自带着同样的排序崩溃缺陷，这里收敛为共享实现。
+/// The Hive and SharedPreferences providers previously duplicated the paging,
+/// sorting and filtering logic almost line for line — and both carried the same
+/// sorting crash. The shared implementation lives here now.
+class KeyValueQuery {
+  KeyValueQuery._();
+
+  /// 默认每页行数 / Default page size
+  static const int defaultLimit = 50;
+
+  /// 安全排序：Hive 的 key 是 `dynamic`，同时存在 int 与 String 时
+  /// `List.sort()` 会用 `Comparable.compare` 直接抛 TypeError。
+  /// 这里同类型按自然序、不同类型按字符串序，永不抛异常。
+  /// Safe sort: Hive keys are `dynamic`, and mixing int and String makes
+  /// `List.sort()` (which uses `Comparable.compare`) throw a TypeError.
+  /// Same types compare naturally, mixed types fall back to string order —
+  /// this never throws.
+  static void sortKeys(List<dynamic> keys) {
+    keys.sort((a, b) {
+      if (a is Comparable &&
+          b is Comparable &&
+          a.runtimeType == b.runtimeType) {
+        try {
+          return a.compareTo(b);
+        } catch (_) {
+          // 同类型但不可比较（罕见实现），退回字符串比较。
+          // Same type but not comparable (rare); fall back to string compare.
+        }
+      }
+      return a.toString().compareTo(b.toString());
+    });
+  }
+
+  /// 校验分页参数 / Validate paging parameters
+  ///
+  /// `LIMIT <= 0` / 负 `OFFSET` 会让 `skip/take` 行为异常（如返回全量），
+  /// 这里统一收敛成安全值。
+  /// `LIMIT <= 0` or a negative `OFFSET` makes `skip/take` misbehave (e.g.
+  /// returning everything), so clamp to safe values.
+  static ({int limit, int offset}) clampPaging(int limit, int offset) {
+    return (
+      limit: limit <= 0 ? defaultLimit : limit,
+      offset: offset < 0 ? 0 : offset,
+    );
+  }
+}
+
 /// 数据库提供者注册表 / Database provider registry
 ///
 /// 用于管理所有已注册的数据库提供者，支持动态添加和移除

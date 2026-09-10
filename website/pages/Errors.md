@@ -6,7 +6,7 @@
 >
 > **v1.9.0 起可用**
 
-The Errors tab surfaces "the same crash happening repeatedly". When the inspector is running, `ErrorService` hooks `FlutterError.onError` (keeping the default red-screen / console behavior) and aggregates every exception by **type + stack signature**. Repeated instances of the same crash merge into one record that shows how many times it occurred and when it was first/last seen — instead of flooding the log with hundreds of identical stack traces.
+The Errors tab surfaces "the same crash happening repeatedly". When the inspector is running, `ErrorService` hooks both `FlutterError.onError` and `PlatformDispatcher.onError` (keeping the default red-screen / console behavior for both) and aggregates every exception by **type + stack signature**. Repeated instances of the same crash merge into one record that shows how many times it occurred and when it was first/last seen — instead of flooding the log with hundreds of identical stack traces.
 
 Errors 标签页用来快速发现"同一处崩溃反复出现"的问题。检查器运行时，`ErrorService` 会接管 `FlutterError.onError`（保留默认的红色报错与控制台行为），把每次异常按**类型 + 堆栈签名**去重聚合：同一处崩溃的多次发生会合并为一条记录，展示累计次数与首末次时间——而不是用成百上千条相同的堆栈刷屏日志。
 
@@ -15,6 +15,7 @@ Errors 标签页用来快速发现"同一处崩溃反复出现"的问题。检�
 | Source / 来源 | How / 方式 |
 |---------------|------------|
 | Flutter framework errors / Flutter 框架异常 | Hooks `FlutterError.onError` (default handler kept) / 接管 `FlutterError.onError`（保留默认处理） |
+| Framework-boundary & platform-channel errors / 框架边界外与平台通道异常 | `PlatformDispatcher.onError` (with save/restore) / `PlatformDispatcher.onError`（接管 + 还原） |
 | Uncaught async errors / 未捕获异步异常 | `runZonedGuarded` inside `runAppWithInspector()` / `runAppWithInspector()` 内部的 `runZonedGuarded` |
 | Manual reports / 手动上报 | `ErrorService.instance.report(exception, stackTrace)` — for gRPC / custom protocols / your own error paths / 用于 gRPC / 自定义协议或你自己的错误通道 |
 
@@ -75,7 +76,7 @@ ErrorService.instance.clear();
 | `report(exception, stack, [context])` | Manually report an exception / 手动上报异常 |
 | `restore(records)` | Restore persisted records (replay on launch; existing dedup ids are skipped) / 恢复持久化记录（启动回放；已存在的去重 id 跳过） |
 | `clear()` | Clear all aggregated records / 清空全部记录 |
-| `install()` / `uninstall()` | Hook / restore `FlutterError.onError` / 接管 / 还原 `FlutterError.onError` |
+| `install()` / `uninstall()` | Hook / restore `FlutterError.onError` **and** `PlatformDispatcher.onError` / 接管 / 还原 `FlutterError.onError` 与 `PlatformDispatcher.onError` |
 
 ### ErrorRecord / 异常记录
 
@@ -89,9 +90,9 @@ ErrorService.instance.clear();
 
 ## Session Persistence / 会话持久化
 
-Errors — together with logs and network requests — are asynchronously flushed to a local SQLite **ring buffer** (`zero_inspector_kit.db`). On the next launch, **logs and aggregated errors replay into their tabs**, so a crash you saw yesterday is still inspectable today even though the panel was never opened; network requests stay archived on disk for later export. Use the **storage icon** in the panel header to open the **Persisted data** manager: see the current row counts, **export the full session archive** as JSON, or clear the disk. See [Configuration](Configuration) (PersistenceService section) for details and the tuning parameters.
+Errors — together with logs, network requests **and alerts** — are asynchronously flushed to a local SQLite **ring buffer** (`zero_inspector_kit.db`). On the next launch, **logs, aggregated errors and alerts replay into their tabs**, so a crash you saw yesterday is still inspectable today even though the panel was never opened; network requests stay archived on disk for later export. Use the **storage icon** in the panel header to open the **Persisted data** manager: see the current row counts, **export the full session archive** as JSON, or clear the disk. See [Configuration](Configuration) (PersistenceService section) for details and the tuning parameters.
 
-异常与日志、网络请求一起被异步写入本地 SQLite **环形缓冲**（`zero_inspector_kit.db`）。**下次启动时，日志与聚合异常会回放入各自标签页**——即使昨天从没打开过面板，今天依然能复盘当时的崩溃现场；网络请求保留在磁盘存档，供之后导出。点击面板头部的**存储图标**可打开 **Persisted data** 管理弹层：查看当前行数、**导出完整会话存档** JSON，或清空磁盘。详见 [Configuration](Configuration)（PersistenceService 一节）的参数说明。
+异常与日志、网络请求、告警一起被异步写入本地 SQLite **环形缓冲**（`zero_inspector_kit.db`）。**下次启动时，日志、聚合异常与告警会回放入各自标签页**——即使昨天从没打开过面板，今天依然能复盘当时的崩溃现场；网络请求保留在磁盘存档，供之后导出。点击面板头部的**存储图标**可打开 **Persisted data** 管理弹层：查看当前行数、**导出完整会话存档** JSON，或清空磁盘。详见 [Configuration](Configuration)（PersistenceService 一节）的参数说明。
 
 ## Enable / Disable / 开关
 

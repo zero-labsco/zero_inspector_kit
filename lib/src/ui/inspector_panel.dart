@@ -152,8 +152,18 @@ class _InspectorPanelState extends State<InspectorPanel>
     super.dispose();
   }
 
-  /// 异常聚合变化 → 仅刷新标签栏上的错误红点（错误本身不频繁）/ Error count changed
+  /// 异常聚合变化 → 仅刷新标签栏上的错误红点 / Error count changed
+  ///
+  /// 与 [_onMonitorChanged] 一样做去重：此前每次 ErrorService notify 都重建
+  /// 整个面板（含当前 Tab 页），而红点只依赖记录条数。
+  /// Deduped like [_onMonitorChanged]: every ErrorService notify used to
+  /// rebuild the whole panel (including the current tab), while the badge only
+  /// depends on the record count.
+  int? _lastErrorCount;
   void _onErrorChanged() {
+    final current = ErrorService.instance.errors.length;
+    if (current == _lastErrorCount) return;
+    _lastErrorCount = current;
     if (mounted) setState(() {});
   }
 

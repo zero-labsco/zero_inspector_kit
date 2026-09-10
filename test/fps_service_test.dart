@@ -56,17 +56,60 @@ void main() {
 
   group('FrameRecord / 帧记录', () {
     test('isJanky detects frames over 16ms / 超过16ms为掉帧', () {
-      final janky = FrameRecord(timestamp: 0, durationUs: 20000);
-      final smooth = FrameRecord(timestamp: 0, durationUs: 10000);
-      expect(janky.isJanky, isTrue);
-      expect(smooth.isJanky, isFalse);
+      final janky = FrameRecord(
+        timestamp: 0,
+        buildDurationUs: 5000,
+        rasterDurationUs: 15000,
+        durationUs: 20000,
+      );
+      final smooth = FrameRecord(
+        timestamp: 0,
+        buildDurationUs: 4000,
+        rasterDurationUs: 6000,
+        durationUs: 10000,
+      );
+      expect(janky.isJanky(), isTrue);
+      expect(smooth.isJanky(), isFalse);
     });
 
     test('isJanky boundary at 16ms / 16ms 边界测试', () {
-      final atBoundary = FrameRecord(timestamp: 0, durationUs: 16000);
-      final justOver = FrameRecord(timestamp: 0, durationUs: 16001);
-      expect(atBoundary.isJanky, isFalse);
-      expect(justOver.isJanky, isTrue);
+      final atBoundary = FrameRecord(
+        timestamp: 0,
+        buildDurationUs: 6000,
+        rasterDurationUs: 10000,
+        durationUs: 16000,
+      );
+      final justOver = FrameRecord(
+        timestamp: 0,
+        buildDurationUs: 6000,
+        rasterDurationUs: 10001,
+        durationUs: 16001,
+      );
+      expect(atBoundary.isJanky(), isFalse);
+      expect(justOver.isJanky(), isTrue);
+    });
+
+    test('phased durations sum to total / 分项耗时之和等于总耗时', () {
+      final r = FrameRecord(
+        timestamp: 0,
+        buildDurationUs: 4000,
+        rasterDurationUs: 6000,
+        durationUs: 10000,
+      );
+      expect(r.buildDurationUs + r.rasterDurationUs, equals(r.durationUs));
+    });
+
+    test('isJanky honors adaptive threshold / 接受自适应阈值', () {
+      // 120Hz 设备每帧预算约 8.3ms：16ms 的帧在高刷下应判为掉帧。
+      // On a 120Hz device the per-frame budget is ~8.3ms: a 16ms frame is jank.
+      final frame = FrameRecord(
+        timestamp: 0,
+        buildDurationUs: 8000,
+        rasterDurationUs: 8000,
+        durationUs: 16000,
+      );
+      expect(frame.isJanky(8333), isTrue);
+      expect(frame.isJanky(), isFalse); // 默认 16ms 阈值不判掉帧
     });
   });
 

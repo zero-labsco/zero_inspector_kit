@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.11.0
+
+### Added / 新增
+- `ZeroInspectorKit.dispose()`：完整释放检查器占用的进程级资源（持久化刷盘 Timer、`FlutterError.onError` 接管、内存 / FPS 定时器、throttle notifier、持久化落盘），集成测试结束或宿主 App 运行时关闭采集（如隐私合规开关）后可彻底停采，再用 `init` 重新启用。 / `ZeroInspectorKit.dispose()` fully releases the inspector's process-wide resources (persistence flush Timer, `FlutterError.onError` hook, memory / FPS timers, throttle notifiers, on-disk persistence) so collection can be switched off entirely at runtime and re-enabled via `init`.
+- 可编辑重放编辑器 `InspectorReplayEditor`（`showReplayEditor`）与 `buildReplayRequest` 工具：详情页点 Replay 弹出底部面板，URL / Header / Body 只读，仅查询参数可编辑，重发时用修改后的参数重建 URL，并在面板内预览响应（状态码 / 耗时 / 前 400 字节）。 / An editable replay editor `InspectorReplayEditor` (`showReplayEditor`) plus the `buildReplayRequest` helper: a bottom sheet from the request detail lets you edit only the URL query parameters (URL / headers / body stay read-only), rebuilds the URL from the edited params on send, and previews the response in-panel.
+- 新增公开工具：`sensitive_data`、`inspector_version`；`fps_service` 由内部提升为公开导出，便于外部直接引用。 / New exported utilities: `sensitive_data`, `inspector_version`; `fps_service` is promoted to a public export.
+- FPS 分相耗时：单帧记录新增 `buildDurationUs` 与 `rasterDurationUs`（GPU 光栅化），掉帧列表项同时展示 build / raster 分项，便于定位是构建还是光栅化卡顿。 / FPS phased timing: each frame record now carries `buildDurationUs` and `rasterDurationUs` (GPU raster), and the janky-frame list shows the build / raster split so you can tell whether build or raster is the bottleneck.
+- 自适应卡顿阈值：掉帧阈值改按设备标称刷新率换算（60Hz≈16.7ms、120Hz≈8.3ms），高刷屏同样严格，不再被固定 16ms 放过。 / Adaptive jank threshold: the per-frame budget is now derived from the display refresh rate (≈16.7ms at 60Hz, ≈8.3ms at 120Hz) so high-refresh displays keep a tight bar.
+- `PlatformDispatcher.onError` 接入：异常聚合服务现在同时接管 `PlatformDispatcher.onError`（接管 + 还原），捕获 `FlutterError.onError` 漏掉的框架边界外 / 平台通道回包异常，一并聚合进 Errors Tab。 / `PlatformDispatcher.onError` hook: the error aggregator now also hooks `PlatformDispatcher.onError` (with save/restore), catching errors that `FlutterError.onError` misses — those thrown outside the framework boundary or from platform-channel replies — and aggregating them too.
+- 告警持久化：告警事件随日志/网络/异常一起异步落盘到 SQLite，崩溃或重启后可在 Alerts 标签回看；会话存档导出也包含 `alerts` 段。新增 `AlertService.restore` 与 `PersistenceService.loadAlerts`。 / Alert persistence: alert events now flush to disk alongside logs/network/errors, so they survive crashes and restarts and can be reviewed in the Alerts tab; the session archive export also includes an `alerts` section. New `AlertService.restore` and `PersistenceService.loadAlerts`.
+
+### Fixed / 修复
+- 拦截器请求体缓冲无上限导致大 body 经 `add` / `write` 上传 OOM（上限此前只实现在 `addStream` 上）：现 `add` / `write` 也按 512KB 上限缓冲，超限后直传底层请求，重放不再重复写入或截断大 body。 / Interceptor request-body buffering was unbounded, so uploading a large body through `add` / `write` could OOM (the cap only existed on `addStream`); `add` / `write` now also honor the 512KB cap and switch to pass-through, and replay no longer duplicates or truncates large bodies.
+- 二进制响应（gzip / brotli / protobuf / 图片）解码失败会抛异常、整条记录（含状态码）丢失：现降级为「字节数 + 前若干字节 hex 预览」，小体积二进制改用 base64 承载，面板可直接预览图片。 / Binary responses (gzip / brotli / protobuf / images) used to throw and lose the whole record (status code included); they now fall back to a byte count + leading hex preview, and small binary bodies are carried as base64 so the panel can preview them.
+- `AlertService` 节流表（`(source, message)`，source 多为完整 URL）长跑无界增长，造成确定性内存泄漏：现设 512 项硬上限 + 软阈值过期清扫，按插入顺序淘汰最旧项。 / `AlertService`'s throttle map (keyed by `(source, message)`, source often a full URL) grew unbounded over long runs — a deterministic leak; it now has a 512-entry hard cap plus an expiry sweep, evicting the oldest entries by insertion order.
+- Hive / SharedPreferences 查看器同键混含 `int` 与 `String` 时 `List.sort()` 抛 `TypeError`：抽出共享 `KeyValueQuery` 工具做安全排序与分页，永不抛异常。 / The Hive / SharedPreferences viewers threw `TypeError` from `List.sort()` when keys mixed `int` and `String`; a shared `KeyValueQuery` helper now does safe sorting and paging that never throws.
+- `LogLevel` 缩写文本此前在 `LogEntry` 与 `ExportService` 各有一份相同 switch，新增级别易漏改：收敛为单一 `LogLevelText.of`。 / The `LogLevel` abbreviation switch was duplicated in `LogEntry` and `ExportService`; it is now a single `LogLevelText.of` implementation.
+
 ## 1.10.1
 
 ### Changed / 变更
