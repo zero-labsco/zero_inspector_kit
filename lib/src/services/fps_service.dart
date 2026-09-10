@@ -14,14 +14,32 @@ class FrameRecord {
   /// 帧开始时间戳（微秒，来自 FramePhase.buildStart）/ Frame start timestamp (microseconds, from FramePhase.buildStart)
   final int timestamp;
 
+  /// build 阶段耗时（微秒）= buildFinish - buildStart（Widget 树构建，含 layout/paint 调度）
+  /// Build-phase duration (microseconds) = buildFinish - buildStart (widget tree construction).
+  final int buildDurationUs;
+
+  /// raster 阶段耗时（微秒）= rasterFinish - rasterStart（GPU 光栅化/合成）
+  /// Raster-phase duration (microseconds) = rasterFinish - rasterStart (GPU rasterization/compositing).
+  final int rasterDurationUs;
+
   /// 帧总耗时（微秒）= rasterFinish - buildStart，包含 build 和 raster 全过程
   /// Frame total duration (microseconds) = rasterFinish - buildStart, includes both build and raster phases
   final int durationUs;
 
-  /// 是否掉帧（>16ms）/ Whether frame is janky (>16ms)
-  bool get isJanky => durationUs > 16000;
+  /// 是否掉帧（默认 >16ms，可传入设备自适应阈值）/ Whether frame is janky
+  ///
+  /// 阈值默认 16ms（60fps 预算），但调用方应传入 [FpsService.jankThresholdUs]
+  /// 以按设备刷新率自适应（如 120Hz 设备约 8.3ms）。
+  /// Defaults to 16ms (60fps budget), but callers should pass the refresh-rate
+  /// adaptive [FpsService.jankThresholdUs] (≈8.3ms on a 120Hz device).
+  bool isJanky([int? thresholdUs]) => durationUs > (thresholdUs ?? 16000);
 
-  const FrameRecord({required this.timestamp, required this.durationUs});
+  const FrameRecord({
+    required this.timestamp,
+    required this.buildDurationUs,
+    required this.rasterDurationUs,
+    required this.durationUs,
+  });
 }
 
 /// FPS 监控服务 / FPS monitoring service
@@ -58,9 +76,15 @@ class FpsService extends ChangeNotifier {
 
   /// 掉帧阈值（微秒）/ Jank threshold (microseconds)
   ///
-  /// 60fps 下每帧耗时约 16.67ms，超过此值视为掉帧
-  /// At 60fps each frame takes ~16.67ms, exceeding this is considered jank
-  static const int _jankThresholdUs = 16000;
+  /// 自适应：按设备标称刷新率换算每帧预算（60Hz≈16.7ms、120Hz≈8.3ms），
+  /// 高刷设备上同样严格的卡顿判定，避免 120Hz 屏被宽松阈值放过。
+  /// Adaptive: the per-frame budget is derived from the display refresh rate
+  /// (≈16.7ms at 60Hz, ≈8.3ms at 120Hz) so high-refresh displays keep a tight
+  /// jank bar instead of being let through by a fixed 16ms cutoff.
+  int get _jankThresholdUs => (1000000 / _displayRefreshRate).round();
+
+  /// 公开的自适应掉帧阈值（微秒）/ Public adaptive jank threshold (microseconds)
+  int get jankThresholdUs => _jankThresholdUs;
 
   /// 低活跃判定：1 秒窗口内帧数不超过此值视为无持续动画渲染。
   /// Low-activity threshold: at most this many frames per 1s window means no
@@ -147,7 +171,7 @@ class FpsService extends ChangeNotifier {
 
   /// 最近一帧是否掉帧 / Whether the most recent frame is janky
   bool get lastFrameJanky =>
-      _frameRecords.isNotEmpty && _frameRecords.last.isJanky;
+      _frameRecords.isNotEmpty && _frameRecords.last.isJanky(_jankThresholdUs);
 
   // ==================== 公开方法 / Public methods ====================
 
@@ -209,6 +233,12 @@ class FpsService extends ChangeNotifier {
       final frameStartUs = timing.timestampInMicroseconds(
         FramePhase.buildStart,
       );
+      final buildFinishUs = timing.timestampInMicroseconds(
+        FramePhase.buildFinish,
+      );
+      final rasterStartUs = timing.timestampInMicroseconds(
+        FramePhase.rasterStart,
+      );
 
       // 帧总耗时 = rasterFinish - buildStart，包含 build 和 raster 全过程
       // Frame total duration = rasterFinish - buildStart, includes both
@@ -218,17 +248,21 @@ class FpsService extends ChangeNotifier {
       final rasterFinishUs = timing.timestampInMicroseconds(
         FramePhase.rasterFinish,
       );
+      final buildDurationUs = buildFinishUs - frameStartUs;
+      final rasterDurationUs = rasterFinishUs - rasterStartUs;
       final durationUs = rasterFinishUs - frameStartUs;
 
       // 添加记录 / Add record
       final record = FrameRecord(
         timestamp: frameStartUs,
+        buildDurationUs: buildDurationUs,
+        rasterDurationUs: rasterDurationUs,
         durationUs: durationUs,
       );
       _frameRecords.add(record);
       _totalFrameCount++;
 
-      // 检测掉帧 / Detect jank
+      // 检测掉帧 / Detect jank (adaptive threshold)
       if (durationUs > _jankThresholdUs) {
         _totalJankyCount++;
       }

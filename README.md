@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release updates the open-source license — the plugin is now **MPL-2.0** (commercial and closed-source use allowed; modified files must be published in source form). The `LICENSE` file is now the clean upstream MPL-2.0 text so pub.dev detects it, with the copyright notice and additional statements moved to [NOTICE](NOTICE). All users are encouraged to upgrade to the latest version (`^1.10.1`).
+> **🔔 Upgrade recommended:** This release adds an editable replay editor (edit only query params — URL/headers/body stay read-only), phased FPS timing (build + raster split) with an adaptive jank threshold, `PlatformDispatcher.onError` capture, and on-disk alert persistence that survives restarts. It also adds `ZeroInspectorKit.dispose()` for a full runtime teardown. All users are encouraged to upgrade to the latest version (`^1.11.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -57,16 +57,16 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 ## Features
 
 - **Zero-Invasion Integration** — One line of code, no changes to existing project code.
-- **Network Inspector** — Real-time capture of all HTTP (http & Dio) requests; modify bodies/headers via interceptor rules; batch cURL copy; sensitive-header masking; filterable by method/status/interception.
+- **Network Inspector** — Real-time capture of all HTTP (http & Dio) requests; modify bodies/headers via interceptor rules; in-app **replay editor** (edit only query params — URL/headers/body stay read-only — and preview the response); batch cURL copy; sensitive-header masking; filterable by method/status/interception.
 - **WebSocket / gRPC Capture** — Opt-in streaming-protocol capture (off by default, runtime toggle like Memory/FPS); WebSocket frames and gRPC calls appear in the Network list.
 - **Logging System** — Auto-captures `print()`, `debugPrint()`, and custom logs across multiple levels; integrates with third-party log libraries; auto-scroll (pausable), regex search, tag filtering and one-tap copy of a single log entry.
 - **Error Monitor** — Dedicated Errors tab (since v1.9.0): hooks `FlutterError.onError` + `runZonedGuarded`, aggregates & dedups crashes by type + stack signature with count and first/last seen; a red count badge sits on the Errors tab icon.
-- **Session Persistence** — Logs / network / errors are asynchronously flushed into the inspector's own `zero_inspector_kit.db` (since v1.9.0; a disk ring buffer that also shows up in the Database tab); on launch logs & errors replay into their tabs; export & share the full session archive from the panel header.
+- **Session Persistence** — Logs / network / errors / **alerts** are asynchronously flushed into the inspector's own `zero_inspector_kit.db` (since v1.9.0; a disk ring buffer that also shows up in the Database tab); on launch logs, errors & alerts replay into their tabs; export & share the full session archive (now including alerts) from the panel header.
 - **Database Viewer** — Inspect SQLite and other databases via custom providers.
 - **Memory Monitor** — Trend chart, Dart Heap, Native memory breakdown, leak detection, image-cache & storage stats (master switch to avoid overhead). Since v1.9.0 the leak detector also bridges Flutter's official `FlutterMemoryAllocations` to cut false positives.
-- **FPS Monitor** — Real-time FPS, jank detection, trend chart, frame records (master switch to avoid overhead).
-- **Route Tracker** — Navigation history and current route.
-- **Alert System** — Rule-based alerts on network/logs/memory/FPS with unread badge and throttling.
+- **FPS Monitor** — Real-time FPS, jank detection, trend chart, frame records with **phased build + raster timing** and an **adaptive jank threshold** derived from the display refresh rate (so 120Hz screens stay strict). Master switch to avoid overhead.
+- **Route Tracker** — Navigation history and current route (`navigatorObservers: [InspectorRouteObserver()]`).
+- **Alert System** — Rule-based alerts on network/logs/memory/FPS with unread badge and throttling; alerts are persisted to disk and survive app restarts.
 - **Floating Button** — Breathing-animation overlay button that auto-docks to screen edges, avoiding back-gesture conflicts.
 - **One-Click Bug Report** — Tap the bug icon in the panel header to share a ready-to-file snapshot (device model + OS + current memory + recent logs + recent network) via the system share sheet.
 - **Modern UI** — Dark theme with gradients and centralized, customizable colors.
@@ -102,7 +102,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.10.1
+  zero_inspector_kit: ^1.11.0
 ```
 
 ### GitHub
@@ -112,7 +112,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.10.1   # replace 1.10.1 with the version you need
+      ref: release/v1.11.0   # replace 1.11.0 with the version you need
 ```
 
 ---
@@ -243,7 +243,7 @@ InspectorLogInterceptor.instance.onLogCaptured = (entry) {
 
 > Available since v1.9.0
 
-The **Errors** tab answers "is the same crash happening repeatedly?" `ErrorService` hooks `FlutterError.onError` (keeping the default red-screen behavior) plus `runZonedGuarded` inside `runAppWithInspector()`, then aggregates each exception by **type + stack signature**: repeated crashes merge into one record with a **×N** count and first/last-seen time. Tap a row to expand the full stack sample, filter by search, and copy individual stacks. A red count badge on the Errors tab icon shows the number of aggregated records while the panel is open.
+The **Errors** tab answers "is the same crash happening repeatedly?" `ErrorService` hooks `FlutterError.onError` and `PlatformDispatcher.onError` (both with save/restore, default red-screen behavior kept) plus `runZonedGuarded` inside `runAppWithInspector()`, then aggregates each exception by **type + stack signature**: repeated crashes merge into one record with a **×N** count and first/last-seen time. Tap a row to expand the full stack sample, filter by search, and copy individual stacks. A red count badge on the Errors tab icon shows the number of aggregated records while the panel is open.
 
 ```dart
 import 'package:zero_inspector_kit/zero_inspector_kit.dart';
@@ -264,7 +264,7 @@ Toggle with `enableErrorCapture` in `init()` (default `true`). Full details on t
 
 > Available since v1.9.0
 
-Logs, network requests, and aggregated errors are asynchronously flushed into the inspector's own database file, **`zero_inspector_kit.db`** — a SQLite-backed disk ring buffer that also appears in the **Database** tab. On the next launch, **logs and aggregated errors replay into their tabs**; network requests stay archived on disk for later export. Data therefore survives app restarts even if you never opened the panel. Tap the **storage icon** in the panel header to open the **Persisted data** manager: see row counts per category, export the **full session archive** as JSON (share sheet), or clear the disk.
+Logs, network requests, aggregated errors and **alerts** are asynchronously flushed into the inspector's own database file, **`zero_inspector_kit.db`** — a SQLite-backed disk ring buffer that also appears in the **Database** tab. On the next launch, **logs, aggregated errors and alerts replay into their tabs**; network requests stay archived on disk for later export. Data therefore survives app restarts even if you never opened the panel. Tap the **storage icon** in the panel header to open the **Persisted data** manager: see row counts per category, export the **full session archive** (now including an `alerts` section) as JSON (share sheet), or clear the disk.
 
 ```dart
 // Reading persisted data programmatically (optional)
@@ -376,8 +376,9 @@ MemoryInspectorService.instance.clearLeakRecords(); // clear all
 Real-time frame analysis with a master switch (off by default).
 
 - **Master Switch:** top toggle; off = no timings callback, zero overhead.
-- **Metrics:** current FPS, jank rate, total frames, 30-second trend chart (60 points), janky-frame list (>16ms).
+- **Metrics:** current FPS, jank rate, total frames, 30-second trend chart (60 points), janky-frame list with **build + raster split** (each janky frame shows its build vs raster duration so you can tell which phase stalled).
 - **Accuracy (since v1.2.1):** uses real `buildStart` timestamps (not `DateTime.now()`) and `rasterFinish - buildStart` duration, catching GPU raster jank.
+- **Adaptive threshold:** the jank cutoff is derived from the display refresh rate (`1000ms / refreshRate`), so 60Hz≈16.7ms while a 120Hz screen uses a tight ≈8.3ms bar instead of being let through by a fixed 16ms.
 
 ```dart
 FpsService.instance.start();
@@ -439,6 +440,18 @@ Sensitive headers are masked the same way as in the Network tab (toggle "Sensiti
 ---
 
 ## API Reference
+
+### ZeroInspectorKit
+
+The top-level entry class. Call `init()` (or `runAppWithInspector()`) once to start collection; call `dispose()` to fully release the inspector's process-wide resources (persistence flush timer, `FlutterError.onError` / `PlatformDispatcher.onError` hooks, memory / FPS timers, throttle notifiers and on-disk persistence) so collection can be switched off entirely at runtime — e.g. behind a privacy-compliance toggle — and re-enabled later via `init()`.
+
+```dart
+// Fully stop collection (releases every process-wide resource).
+ZeroInspectorKit.instance.dispose();
+
+// Re-enable later with the same or different options.
+ZeroInspectorKit.instance.init();
+```
 
 ### FloatingInspectorButton
 

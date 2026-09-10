@@ -12,10 +12,6 @@ import 'theme/inspector_theme.dart';
 import 'widgets/widgets.dart';
 import 'inspector_toast.dart';
 
-import 'package:http/http.dart' as http;
-
-import '../utils/network_replay.dart';
-
 /// 状态码分组（用于筛选维度，公开以便单测）/ Status-code groups (for the
 /// filter dimension; exposed publicly so it can be unit-tested).
 /// 定义在 [network_request.dart] 的 [StatusGroup]。
@@ -277,6 +273,13 @@ class _NetworkViewerState extends State<NetworkViewer> {
   /// (empty = no status filter)
   final Set<StatusGroup> _statusFilters = {};
 
+  /// 选中的 host 集合（空 = 不按域名筛选）/ Selected hosts (empty = no host filter)
+  ///
+  /// 此前完全没有按域名筛选，而一个 App 通常同时请求多个后端，只能靠关键词
+  /// 硬搜。There was no host filter at all, even though an app typically talks
+  /// to several backends — keyword search was the only option.
+  final Set<String> _hostFilters = {};
+
   /// 拦截状态筛选（null = 全部；true = 已修改；false = 未修改）。
   /// Interception-status filter (null = all; true = modified; false = unmodified).
   bool? _modifiedFilter;
@@ -328,33 +331,6 @@ class _NetworkViewerState extends State<NetworkViewer> {
 
   /// 在 App 内重放该请求（用捕获的方法/URL/头/体重新发出一次）。
   /// Replay the request in-app (re-issue with captured method/URL/headers/body).
-  Future<void> _replayRequest(NetworkRequest r) async {
-    final client = http.Client();
-    try {
-      final request = buildReplayRequest(r);
-      final stop = DateTime.now();
-      final streamed = await client.send(request);
-      final response = await http.Response.fromStream(streamed);
-      final elapsed = DateTime.now().difference(stop);
-      final preview = response.body.length > 200
-          ? '${response.body.substring(0, 200)}…'
-          : response.body;
-      if (mounted) {
-        InspectorToast.show(
-          context,
-          'Replayed → ${response.statusCode} in ${elapsed.inMilliseconds}ms\n$preview',
-          duration: const Duration(seconds: 4),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        InspectorToast.show(context, 'Replay failed: $e');
-      }
-    } finally {
-      client.close();
-    }
-  }
-
   void _saveRule(RequestInterceptorRule rule) {
     InspectorService.instance.addInterceptorRule(rule);
     setState(() {
@@ -458,8 +434,11 @@ class _NetworkViewerState extends State<NetworkViewer> {
                             });
                           },
                         ),
+                      // 用轻量计数 getter，不要为取 .length 而拷贝整个列表。
+                      // Use the lightweight count getter instead of materializing
+                      // the whole list just to read its length.
                       InspectorCountBadge(
-                        '${InspectorService.instance.networkRequests.length}',
+                        '${InspectorService.instance.networkRequestCount}',
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -541,7 +520,8 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         InspectorIconButton(
                           icon: Icons.replay_rounded,
                           tooltip: 'Replay request',
-                          onTap: () => _replayRequest(_selectedRequest!),
+                          onTap: () =>
+                              showReplayEditor(context, _selectedRequest!),
                         ),
                       InspectorIconButton(
                         icon: Icons.content_copy_rounded,
@@ -586,6 +566,36 @@ class _NetworkViewerState extends State<NetworkViewer> {
                             InspectorToast.showOn(
                               messenger,
                               'Sharing ${requests.length} requests as JSON'
+                              '${_maskSensitive ? ' (sensitive hidden)' : ''}',
+                            );
+                          }
+                        },
+                      ),
+                      // HAR 导出入口：`netToHar` 早已实现，但 UI 从未传过
+                      // format，终端用户完全拿不到 HAR。
+                      // HAR export entry: `netToHar` has existed for a while,
+                      // but the UI never passed `format`, so users could not
+                      // reach it at all.
+                      InspectorIconButton(
+                        icon: Icons.file_download_rounded,
+                        tooltip: 'Export as HAR',
+                        onTap: () async {
+                          final messenger = Overlay.of(
+                            context,
+                            rootOverlay: true,
+                          );
+                          final requests =
+                              InspectorService.instance.networkRequests;
+                          if (requests.isEmpty) return;
+                          await ExportService.instance.exportNetAndShare(
+                            requests,
+                            maskSensitive: _maskSensitive,
+                            format: 'har',
+                          );
+                          if (mounted) {
+                            InspectorToast.showOn(
+                              messenger,
+                              'Sharing ${requests.length} requests as HAR'
                               '${_maskSensitive ? ' (sensitive hidden)' : ''}',
                             );
                           }
@@ -834,12 +844,28 @@ class _NetworkViewerState extends State<NetworkViewer> {
               onTap: () => setState(() => _modifiedFilter = false),
             ),
           ]),
+          // 按域名筛选：列表里出现过的 host 各给一个 chip。
+          // Host filter: one chip per host actually present in the list.
+          if (_availableHosts.isNotEmpty)
+            wrap('Host', [
+              for (final host in _availableHosts)
+                _filterChip(
+                  label: host,
+                  selected: _hostFilters.contains(host),
+                  onTap: () => setState(() {
+                    _hostFilters.contains(host)
+                        ? _hostFilters.remove(host)
+                        : _hostFilters.add(host);
+                  }),
+                ),
+            ]),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: () => setState(() {
                 _methodFilters.clear();
                 _statusFilters.clear();
+                _hostFilters.clear();
                 _modifiedFilter = null;
               }),
               child: Text(
@@ -897,6 +923,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
   String _filteredKeyword = '';
   Set<String> _filteredMethods = const {};
   Set<StatusGroup> _filteredStatus = const {};
+  Set<String> _filteredHosts = const {};
   bool? _filteredModified;
 
   List<NetworkRequest> _filterRequests(List<NetworkRequest> requests) {
@@ -904,6 +931,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
         _filteredKeyword == _searchKeyword &&
         _sameSet(_filteredMethods, _methodFilters) &&
         _sameSet(_filteredStatus, _statusFilters) &&
+        _sameSet(_filteredHosts, _hostFilters) &&
         _filteredModified == _modifiedFilter;
     if (_filteredRequestsCache != null &&
         identical(requests, _filteredRequestsSource) &&
@@ -937,6 +965,14 @@ class _NetworkViewerState extends State<NetworkViewer> {
       }).toList();
     }
 
+    // 按 host / 域名筛选（多选，空集合 = 不过滤）
+    // Filter by host (multi-select; empty set = no filter)
+    if (_hostFilters.isNotEmpty) {
+      result = result
+          .where((req) => _hostFilters.contains(_getHost(req.url)))
+          .toList();
+    }
+
     // 按拦截状态筛选 / Filter by interception status
     if (_modifiedFilter != null) {
       result = result
@@ -950,6 +986,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     _filteredKeyword = _searchKeyword;
     _filteredMethods = {..._methodFilters};
     _filteredStatus = {..._statusFilters};
+    _filteredHosts = {..._hostFilters};
     _filteredModified = _modifiedFilter;
     return result;
   }
@@ -1231,6 +1268,19 @@ class _NetworkViewerState extends State<NetworkViewer> {
     }
   }
 
+  /// 当前列表中出现过的 host（按字母序，最多 8 个，避免 chip 刷屏）
+  /// Hosts present in the current list (alphabetical, capped at 8 so the chips
+  /// don't flood the panel)
+  List<String> get _availableHosts {
+    final hosts = <String>{};
+    for (final r in InspectorService.instance.networkRequests) {
+      final host = _getHost(r.url);
+      if (host.isNotEmpty) hosts.add(host);
+    }
+    final sorted = hosts.toList()..sort();
+    return sorted.take(8).toList();
+  }
+
   Widget _buildRequestDetail(NetworkRequest request) {
     final hasRule =
         InspectorService.instance.findMatchingRule(
@@ -1334,7 +1384,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
           if (request.headers != null)
             _buildDetailSection('Headers', _formatJson(request.headers)),
           if (request.body != null)
-            _buildDetailSection('Body', _formatJson(request.body)),
+            _buildBodySection('Body', _formatJson(request.body)),
           const SizedBox(height: 20),
           _buildSectionTitle(
             'Response',
@@ -1347,7 +1397,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
           if (request.method == 'WS')
             _WsFramesView(request: request)
           else if (request.responseBody != null)
-            _buildDetailSection('Body', _formatJson(request.responseBody)),
+            _buildBodySection('Body', _formatJson(request.responseBody)),
           const SizedBox(height: 16),
           _buildTimelineCard(request),
         ],
@@ -1519,7 +1569,21 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
   }
 
-  Widget _buildDetailSection(String title, String content) {
+  Widget _buildDetailSection(String title, String content) =>
+      _buildBodySection(title, content, forcePlainText: true);
+
+  /// 详情分区：JSON 走折叠树、图片走缩略图预览，其余按等宽纯文本。
+  /// Detail section: JSON renders as a collapsible tree, images as a thumbnail
+  /// preview, everything else as monospaced plain text.
+  Widget _buildBodySection(
+    String title,
+    String content, {
+    bool forcePlainText = false,
+  }) {
+    final trimmed = content.trimLeft();
+    final isJson =
+        !forcePlainText && (trimmed.startsWith('{') || trimmed.startsWith('['));
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
@@ -1534,6 +1598,9 @@ class _NetworkViewerState extends State<NetworkViewer> {
             ),
           ),
           const SizedBox(height: 5),
+          // 图片优先：二进制响应现在以 base64 承载，可直接渲染。
+          // Images first: binary responses now carry base64 and render directly.
+          if (!forcePlainText) _buildImagePreviewIfAny(content),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
@@ -1544,18 +1611,31 @@ class _NetworkViewerState extends State<NetworkViewer> {
               ),
               border: Border.all(color: InspectorColors.border, width: 0.5),
             ),
-            child: Text(
-              content,
-              style: TextStyle(
-                color: InspectorColors.textPrimary,
-                fontSize: 11.5,
-                fontFamily: 'monospace',
-                height: 1.4,
-              ),
-            ),
+            child: isJson
+                ? InspectorJsonView(text: content)
+                : Text(
+                    content,
+                    style: TextStyle(
+                      color: InspectorColors.textPrimary,
+                      fontSize: 11.5,
+                      fontFamily: 'monospace',
+                      height: 1.4,
+                    ),
+                  ),
           ),
         ],
       ),
+    );
+  }
+
+  /// 图片响应的缩略图预览（非图片时不渲染）/ Thumbnail preview (nothing when not an image)
+  Widget _buildImagePreviewIfAny(String content) {
+    if (InspectorImagePreview.imageBytesOf(content) == null) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InspectorImagePreview(body: content),
     );
   }
 
@@ -1984,8 +2064,14 @@ class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
                 ),
               ),
               const SizedBox(height: 5),
-              TextField(
-                controller: TextEditingController(text: widget.request.url),
+              // 用 TextFormField(initialValue:) 而非 TextField(controller:)：
+              // 后者在 build 里创建 controller 且从不 dispose，每次重建泄漏一个。
+              // TextFormField owns and disposes its own controller.
+              // Use TextFormField(initialValue:) instead of
+              // TextField(controller:): the latter created a controller inside
+              // build and never disposed it, leaking one per rebuild.
+              TextFormField(
+                initialValue: widget.request.url,
                 readOnly: true,
                 enabled: false,
                 style: TextStyle(

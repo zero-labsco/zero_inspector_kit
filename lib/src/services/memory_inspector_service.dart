@@ -155,6 +155,27 @@ class MemoryInspectorService extends ChangeNotifier {
   /// 泄漏检测检查定时器 / Leak detection check timer
   Timer? _leakDetectionTimer;
 
+  /// VM Service 重连定时器 / VM Service reconnect timer
+  ///
+  /// 此前用无引用的 `Timer(...)` 创建，无法取消：用户在重连途中关闭内存监控后，
+  /// 重连仍会继续并在成功后 notifyListeners()。
+  /// Previously created as an unreferenced `Timer(...)`, so it could not be
+  /// cancelled: closing the memory monitor mid-retry left the reconnect running
+  /// and it still notified listeners once it eventually succeeded.
+  Timer? _vmServiceRetryTimer;
+
+  /// 复用的 VM Service WebSocket 长连接 / Reused persistent VM Service WebSocket
+  WebSocket? _vmServiceSocket;
+
+  /// 长连接的订阅 / Subscription backing the persistent socket
+  StreamSubscription? _vmServiceSocketSub;
+
+  /// 在途 RPC 调用（按 JSON-RPC id 索引）/ In-flight RPCs keyed by JSON-RPC id
+  final Map<int, Completer<Map<String, dynamic>>> _pendingVmRpc = {};
+
+  /// 单调递增的 JSON-RPC 请求 id / Monotonically increasing JSON-RPC request id
+  int _vmRpcId = 0;
+
   // ==================== 泄漏检测 / Leak Detection ====================
 
   /// 所有被追踪对象的记录（按 objectId 索引）/ All tracked object records (indexed by objectId)
@@ -491,6 +512,8 @@ class MemoryInspectorService extends ChangeNotifier {
     _storageTimer = null;
     _leakDetectionTimer?.cancel();
     _leakDetectionTimer = null;
+    _vmServiceRetryTimer?.cancel();
+    _vmServiceRetryTimer = null;
     _isMonitoring = false;
     _isEnabled = false;
 
@@ -516,6 +539,9 @@ class MemoryInspectorService extends ChangeNotifier {
     _vmServiceConnecting = false;
     _vmServiceRetryCount = 0;
     _vmServiceInitTriggered = false;
+    // 关闭复用的长连接，否则停止监控后 WebSocket 仍然挂着。
+    // Close the reused socket, otherwise it stays open after monitoring stops.
+    unawaited(_closeVmServiceSocket());
 
     // 清空 Dart Heap 缓存数据 / Clear Dart Heap cached data
     _currentHeapUsage = 0;
@@ -831,17 +857,29 @@ class MemoryInspectorService extends ChangeNotifier {
   }
 
   /// 安排 VM Service 重试连接 / Schedule VM Service retry connection
+  ///
+  /// 定时器持有引用以便 [stopMonitoring] 取消；回调内再次确认监控仍在进行，
+  /// 避免"监控已关闭但重连仍在网络上跑"。
+  /// The timer is retained so [stopMonitoring] can cancel it, and the callback
+  /// re-checks that monitoring is still active so a stopped monitor never keeps
+  /// reconnecting in the background.
   void _scheduleRetry() {
     if (_vmServiceRetryCount >= _vmServiceMaxRetries) {
       _vmServiceAvailable = false;
       return;
     }
+    if (!_isMonitoring) return;
 
     _vmServiceRetryCount++;
 
-    Timer(
+    _vmServiceRetryTimer?.cancel();
+    _vmServiceRetryTimer = Timer(
       Duration(milliseconds: _vmServiceRetryIntervalMs),
-      _tryConnectVmService,
+      () {
+        _vmServiceRetryTimer = null;
+        if (!_isMonitoring) return;
+        unawaited(_tryConnectVmService());
+      },
     );
   }
 
@@ -948,79 +986,119 @@ class MemoryInspectorService extends ChangeNotifier {
     String method,
     Map<String, dynamic> params,
   ) async {
-    if (_vmServiceWsUri == null) {
-      throw StateError('VM Service WebSocket URI is null');
-    }
+    final socket = await _ensureVmServiceSocket();
+    final id = ++_vmRpcId;
+    final completer = Completer<Map<String, dynamic>>();
+    _pendingVmRpc[id] = completer;
 
-    final socket = await WebSocket.connect(_vmServiceWsUri!);
-    try {
-      // JSON-RPC 2.0 请求 / JSON-RPC 2.0 request
-      final request = {
+    // JSON-RPC 2.0 请求 / JSON-RPC 2.0 request
+    socket.add(
+      jsonEncode(<String, dynamic>{
         'jsonrpc': '2.0',
         'method': method,
         'params': params,
-        'id': 1,
-      };
-      socket.add(jsonEncode(request));
+        'id': id,
+      }),
+    );
 
-      // 等待响应 / Wait for response
-      final completer = Completer<Map<String, dynamic>>();
-      late StreamSubscription sub;
-      sub = socket.listen(
-        (msg) {
-          if (completer.isCompleted) return;
-          try {
-            final decoded = jsonDecode(msg.toString()) as Map<String, dynamic>;
-            // 排除通知（没有 id 字段的是通知）/ Exclude notifications (no id field)
-            if (!decoded.containsKey('id') &&
-                !decoded.containsKey('result') &&
-                !decoded.containsKey('error')) {
-              return;
-            }
-            // 检查错误 / Check for error
-            if (decoded.containsKey('error')) {
-              completer.completeError(
-                Exception('RPC error: ${decoded['error']}'),
-              );
-              return;
-            }
-            // 返回 result 字段 / Return result field
-            final result = decoded['result'];
-            if (result is Map<String, dynamic>) {
-              completer.complete(result);
-            } else {
-              completer.complete(<String, dynamic>{});
-            }
-          } catch (e) {
-            completer.completeError(e);
-          }
-        },
-        onError: (e) {
-          if (!completer.isCompleted) {
-            completer.completeError(e);
-          }
-        },
-        onDone: () {
-          if (!completer.isCompleted) {
-            completer.completeError(
-              StateError('WebSocket closed before response received'),
-            );
-          }
-        },
-        cancelOnError: true,
-      );
-
+    try {
       // 设置超时 / Set timeout
-      final result = await completer.future.timeout(
+      return await completer.future.timeout(
         const Duration(seconds: 3),
         onTimeout: () {
           throw TimeoutException('WebSocket RPC timeout: $method');
         },
       );
-      await sub.cancel();
-      return result;
     } finally {
-      await socket.close();
+      // 无论成功 / 超时 / 异常都摘掉登记，避免挂起的 completer 泄漏。
+      // Unregister on every path (success, timeout, error) so completed or
+      // abandoned completers never accumulate.
+      _pendingVmRpc.remove(id);
+    }
+  }
+
+  /// 获取（必要时建立）VM Service WebSocket 长连接
+  /// Get (or establish) the persistent VM Service WebSocket connection
+  ///
+  /// 此前每次 RPC 都 `WebSocket.connect` + `close`，而采集由 500ms 定时器驱动
+  /// —— 等于每 500ms 做一次完整握手与拆除。
+  /// Previously every RPC did `WebSocket.connect` + `close` while collection is
+  /// driven by a 500ms timer — i.e. a full handshake and teardown twice a second.
+  Future<WebSocket> _ensureVmServiceSocket() async {
+    final existing = _vmServiceSocket;
+    if (existing != null && existing.closeCode == null) return existing;
+    await _closeVmServiceSocket();
+
+    final uri = _vmServiceWsUri;
+    if (uri == null) {
+      throw StateError('VM Service WebSocket URI is null');
+    }
+
+    final socket = await WebSocket.connect(uri);
+    _vmServiceSocket = socket;
+    _vmServiceSocketSub = socket.listen(
+      (msg) => _onVmServiceMessage(msg),
+      onError: (_) => unawaited(_closeVmServiceSocket()),
+      onDone: () => unawaited(_closeVmServiceSocket()),
+      cancelOnError: true,
+    );
+    return socket;
+  }
+
+  /// 分发 VM Service 响应：按 JSON-RPC `id` 匹配等待中的调用
+  /// Dispatch VM Service responses by JSON-RPC `id`
+  void _onVmServiceMessage(dynamic msg) {
+    Map<String, dynamic> decoded;
+    try {
+      decoded = jsonDecode(msg.toString()) as Map<String, dynamic>;
+    } catch (_) {
+      return;
+    }
+    // 通知（无 id）直接忽略 / Notifications (no id) are ignored
+    final id = decoded['id'];
+    if (id is! int) return;
+    final completer = _pendingVmRpc.remove(id);
+    if (completer == null || completer.isCompleted) return;
+
+    if (decoded.containsKey('error')) {
+      completer.completeError(Exception('RPC error: ${decoded['error']}'));
+      return;
+    }
+    final result = decoded['result'];
+    if (result is Map<String, dynamic>) {
+      completer.complete(result);
+    } else {
+      completer.complete(<String, dynamic>{});
+    }
+  }
+
+  /// 关闭长连接并让所有在途调用失败（避免永久挂起）
+  /// Close the persistent socket and fail all in-flight calls (no hangs)
+  Future<void> _closeVmServiceSocket() async {
+    final sub = _vmServiceSocketSub;
+    _vmServiceSocketSub = null;
+    if (sub != null) {
+      try {
+        await sub.cancel();
+      } catch (_) {}
+    }
+    final socket = _vmServiceSocket;
+    _vmServiceSocket = null;
+    if (socket != null) {
+      try {
+        await socket.close();
+      } catch (_) {}
+    }
+    if (_pendingVmRpc.isNotEmpty) {
+      final pending = _pendingVmRpc.values.toList();
+      _pendingVmRpc.clear();
+      for (final c in pending) {
+        if (!c.isCompleted) {
+          c.completeError(
+            StateError('WebSocket closed before response received'),
+          );
+        }
+      }
     }
   }
 

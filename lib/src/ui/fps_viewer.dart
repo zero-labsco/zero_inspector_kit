@@ -341,14 +341,20 @@ class _FpsViewerState extends State<FpsViewer> {
             ],
           ),
           const SizedBox(height: 12),
+          // RepaintBoundary 隔离图表重绘，避免连带同 layer 的整张卡片一起 repaint。
+          // 图表每秒随采样多次重绘，是页面里最热的自绘区域。
+          // Isolate chart repaints so the whole card in the same layer is not
+          // repainted with it — the chart redraws several times per second.
           SizedBox(
             height: 100,
             width: double.infinity,
-            child: CustomPaint(
-              painter: _FpsLineChartPainter(
-                values: history,
-                lineColor: InspectorColors.info,
-                gridColor: InspectorColors.divider,
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: _FpsLineChartPainter(
+                  values: history,
+                  lineColor: InspectorColors.info,
+                  gridColor: InspectorColors.divider,
+                ),
               ),
             ),
           ),
@@ -382,7 +388,9 @@ class _FpsViewerState extends State<FpsViewer> {
   /// 构建掉帧列表卡片 / Build janky frame list card
   Widget _buildJankyListCard() {
     final service = FpsService.instance;
-    final jankyFrames = service.frameRecords.where((f) => f.isJanky).toList();
+    final jankyFrames = service.frameRecords
+        .where((f) => f.isJanky(service.jankThresholdUs))
+        .toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -505,6 +513,16 @@ class _FpsViewerState extends State<FpsViewer> {
                             color: InspectorColors.error,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'build ${(frame.buildDurationUs / 1000).toStringAsFixed(1)} / '
+                          'raster ${(frame.rasterDurationUs / 1000).toStringAsFixed(1)}',
+                          style: TextStyle(
+                            color: InspectorColors.textHint,
+                            fontSize: 10,
                             fontFamily: 'monospace',
                           ),
                         ),
@@ -663,6 +681,11 @@ class _FpsLineChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FpsLineChartPainter oldDelegate) {
-    return oldDelegate.values != values;
+    // 颜色也要参与比较：此前只比 values，配色变化不会触发重绘。
+    // Colors must be compared too; only `values` was checked, so a theme color
+    // change never triggered a repaint.
+    return oldDelegate.values != values ||
+        oldDelegate.lineColor != lineColor ||
+        oldDelegate.gridColor != gridColor;
   }
 }

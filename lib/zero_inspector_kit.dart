@@ -31,6 +31,9 @@ export 'src/utils/environment.dart';
 export 'src/utils/inspector_internal_log.dart';
 export 'src/utils/inspector_log.dart';
 export 'src/utils/memory_leak_tracking.dart';
+export 'src/utils/sensitive_data.dart';
+export 'src/utils/inspector_version.dart';
+export 'src/utils/network_replay.dart';
 
 // 暴露更多公共能力，便于外部直接引用（无需 import 内部 lib/src/ 路径）。
 // Expose additional public capabilities so consumers can reference them directly
@@ -63,8 +66,10 @@ import 'src/ui/inspector_panel.dart';
 import 'src/models/log_entry.dart';
 import 'src/services/database_provider.dart';
 import 'src/services/sqlite_provider.dart';
+import 'src/services/fps_service.dart';
 import 'src/services/inspector_service.dart';
 import 'src/services/error_service.dart';
+import 'src/services/alert_service.dart';
 import 'src/services/persistence_service.dart';
 import 'src/services/memory_inspector_service.dart';
 import 'src/services/shared_prefs_provider.dart';
@@ -222,6 +227,35 @@ class ZeroInspectorKit {
     if (logs.isNotEmpty) InspectorService.instance.restoreLogs(logs);
     final errors = await PersistenceService.instance.loadErrors();
     if (errors.isNotEmpty) ErrorService.instance.restore(errors);
+    final alerts = await PersistenceService.instance.loadAlerts();
+    if (alerts.isNotEmpty) AlertService.instance.restore(alerts);
+  }
+
+  /// 完整释放检查器占用的资源 / Fully release the resources held by the inspector
+  ///
+  /// 各服务都是进程级单例，此前**没有任何一处**调用过它们的停止 / 释放方法，
+  /// 导致即使从未打开面板：持久化每 2s 的刷盘 Timer 常驻、`FlutterError.onError`
+  /// 被永久接管、内存 / FPS 定时器持续运行、throttle notifier 从不释放。
+  /// Every service is a process-wide singleton, and **nothing** ever called their
+  /// stop / dispose methods. Even with the panel never opened, the persistence
+  /// flush Timer kept ticking every 2s, `FlutterError.onError` stayed hijacked,
+  /// the memory / FPS timers kept running and the throttle notifiers were never
+  /// released.
+  ///
+  /// 典型场景：集成测试结束、或宿主 App 想在运行时彻底关闭调试采集（如隐私
+  /// 合规的"停止采集"开关）。调用后可用 [init] 重新启用。
+  /// Typical use: at the end of integration tests, or when the host app wants to
+  /// switch off debug collection at runtime (e.g. a privacy "stop collecting"
+  /// toggle). Call [init] again to re-enable.
+  static Future<void> dispose() async {
+    InspectorLogInterceptor.instance.stop();
+    InspectorHttpInterceptor.instance.stop();
+    ErrorService.instance.uninstall();
+    FpsService.instance.stop();
+    MemoryInspectorService.instance.stopMonitoring();
+    InspectorService.instance.disposeService();
+    await PersistenceService.instance.dispose();
+    _initialized = false;
   }
 
   /// 等待 Flutter binding 就绪后再初始化持久化，失败按递增间隔自动重试。

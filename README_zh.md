@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本次更新开源协议——插件改用 **MPL-2.0**（允许商用与闭源使用，修改过的文件需以源码形式公开）；`LICENSE` 改为标准 MPL-2.0 全文以便 pub.dev 正确识别，版权与附加声明移至 [NOTICE](NOTICE)。建议所有用户升级到最新版本（`^1.10.1`）。
+> **🔔 推荐升级：** 本次新增可编辑重放编辑器（仅可编辑查询参数——URL/请求头/请求体保持只读）、FPS 分阶段耗时（build + raster 分项）与自适应卡顿阈值、`PlatformDispatcher.onError` 捕获，以及可跨重启存活的告警持久化；并提供 `ZeroInspectorKit.dispose()` 做完整的运行时资源释放。建议所有用户升级到最新版本（`^1.11.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -56,16 +56,16 @@
 ## 功能特性
 
 - **零侵入集成**：一行代码，无需改动现有项目代码。
-- **网络检查器**：实时捕获所有 HTTP（http & Dio）请求；通过拦截规则修改请求体/请求头；批量复制 cURL；敏感请求头遮蔽；可按方法/状态码/拦截状态筛选。
+- **网络检查器**：实时捕获所有 HTTP（http & Dio）请求；通过拦截规则修改请求体/请求头；应用内**重放编辑器**（仅可编辑查询参数——URL/请求头/请求体保持只读——并预览响应）；批量复制 cURL；敏感请求头遮蔽；可按方法/状态码/拦截状态筛选。
 - **WebSocket / gRPC 抓取**：可选的流式协议抓取（默认关闭，运行时开关，与 Memory/FPS 一致）；WebSocket 帧与 gRPC 调用出现在 Network 列表中。
 - **日志系统**：自动捕获 `print()`、`debugPrint()` 及自定义日志，支持多级别与第三方日志库集成；自动滚动（可暂停）、正则搜索、按标签过滤与单条日志一键复制。
-- **异常监控**：独立的 Errors 标签页（v1.9.0 起）：接管 `FlutterError.onError` + `runZonedGuarded`，按类型 + 堆栈签名去重聚合崩溃，记录次数与首末次时间；Errors 标签图标带红色计数。
-- **会话持久化**：日志 / 网络 / 异常异步写入插件自有的 `zero_inspector_kit.db` 数据库（v1.9.0 起；磁盘环形缓冲，也会出现在 Database 标签页）；启动时日志与异常回放入各自标签页，网络请求留档供导出；可从面板头部导出完整会话存档并分享。
+- **异常监控**：独立的 Errors 标签页（v1.9.0 起）：接管 `FlutterError.onError` + `PlatformDispatcher.onError` + `runZonedGuarded`，按类型 + 堆栈签名去重聚合崩溃，记录次数与首末次时间；Errors 标签图标带红色计数。
+- **会话持久化**：日志 / 网络 / 异常 / **告警**异步写入插件自有的 `zero_inspector_kit.db` 数据库（v1.9.0 起；磁盘环形缓冲，也会出现在 Database 标签页）；启动时日志、异常与告警回放入各自标签页，网络请求留档供导出；可从面板头部导出完整会话存档（含告警段）并分享。
 - **数据库查看器**：支持 SQLite 及其他数据库，可自定义提供者。
 - **内存监控**：趋势图、Dart Heap、Native 内存分项、泄漏检测、图片缓存与存储统计（总开关避免开销）。v1.9.0 起泄漏检测额外桥接 Flutter 官方 `FlutterMemoryAllocations`，降低误报。
-- **FPS 监控**：实时帧率、掉帧检测、趋势图、帧记录（总开关避免开销）。
-- **路由追踪器**：导航历史与当前路由。
-- **告警系统**：针对网络/日志/内存/FPS 的告警规则，带未读红点与节流。
+- **FPS 监控**：实时帧率、掉帧检测、趋势图，带 **build + raster 分项耗时**的帧记录与按设备刷新率换算的**自适应卡顿阈值**（120Hz 屏幕同样严格）。总开关避免开销。
+- **路由追踪器**：导航历史与当前路由（`navigatorObservers: [InspectorRouteObserver()]`）。
+- **告警系统**：针对网络/日志/内存/FPS 的告警规则，带未读红点与节流；告警会持久化到磁盘并可跨启动存活。
 - **悬浮按钮**：呼吸动画的 Overlay 按钮，自动吸附屏幕边缘，避免返回手势冲突。
 - **一键 Bug 报告**：点击面板头部的虫子图标，即可一键生成并分享一份可直接贴进 issue 的快照（设备型号 + 系统 + 当前内存 + 最近日志 + 最近网络）。
 - **现代化 UI**：深色主题 + 渐变，集中式可定制配色。
@@ -101,7 +101,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.10.1
+  zero_inspector_kit: ^1.11.0
 ```
 
 ### GitHub
@@ -111,7 +111,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.10.1   # 将 1.10.1 替换为你需要的版本号
+      ref: release/v1.11.0   # 将 1.11.0 替换为你需要的版本号
 ```
 
 ---
@@ -242,7 +242,7 @@ InspectorLogInterceptor.instance.onLogCaptured = (entry) {
 
 > v1.9.0 起可用
 
-**Errors** 标签页回答的是"同一处崩溃是否反复出现？"。`ErrorService` 接管 `FlutterError.onError`（保留默认红色报错行为）与 `runAppWithInspector()` 内的 `runZonedGuarded`，将每次异常按**类型 + 堆栈签名**聚合：重复崩溃合并为一条记录，显示 **×N** 次数与首次/末次时间。点击行展开完整堆栈样本，支持搜索过滤与单条复制。面板打开时，Errors 标签图标上的红色计数会显示聚合记录条数。
+**Errors** 标签页回答的是"同一处崩溃是否反复出现？"。`ErrorService` 接管 `FlutterError.onError` 与 `PlatformDispatcher.onError`（均带还原、保留默认红色报错行为）以及 `runAppWithInspector()` 内的 `runZonedGuarded`，将每次异常按**类型 + 堆栈签名**聚合：重复崩溃合并为一条记录，显示 **×N** 次数与首次/末次时间。点击行展开完整堆栈样本，支持搜索过滤与单条复制。面板打开时，Errors 标签图标上的红色计数会显示聚合记录条数。
 
 ```dart
 import 'package:zero_inspector_kit/zero_inspector_kit.dart';
@@ -263,7 +263,7 @@ ErrorService.instance.clear();
 
 > v1.9.0 起可用
 
-日志、网络请求与聚合异常会被异步写入插件自有的数据库文件 **`zero_inspector_kit.db`**——一个基于 SQLite 的磁盘环形缓冲，也会出现在 **Database** 标签页中。**下次启动时，日志与聚合异常会回放入各自标签页**；网络请求保留在磁盘存档，供之后导出。因此即使从未打开过面板，数据也能跨重启保留。点击面板头部的**存储图标**打开 **Persisted data** 管理弹层：查看各类别行数、导出**完整会话存档** JSON（系统分享）或清空磁盘。
+日志、网络请求、聚合异常与**告警**会被异步写入插件自有的数据库文件 **`zero_inspector_kit.db`**——一个基于 SQLite 的磁盘环形缓冲，也会出现在 **Database** 标签页中。**下次启动时，日志、聚合异常与告警会回放入各自标签页**；网络请求保留在磁盘存档，供之后导出。因此即使从未打开过面板，数据也能跨重启保留。点击面板头部的**存储图标**打开 **Persisted data** 管理弹层：查看各类别行数、导出**完整会话存档**（现含 `alerts` 段）JSON（系统分享）或清空磁盘。
 
 ```dart
 // 编程方式读取持久化数据（可选）
@@ -376,8 +376,9 @@ MemoryInspectorService.instance.clearLeakRecords(); // 清空所有
 实时帧性能分析，顶部总开关控制数据采集（默认关闭以避免性能开销）。
 
 - **总开关**：FPS 面板顶部开关；关闭时无帧回调、零开销。
-- **指标**：当前 FPS、掉帧率、总帧数、30 秒趋势图（60 点）、掉帧列表（>16ms）。
+- **指标**：当前 FPS、掉帧率、总帧数、30 秒趋势图（60 点）、带 **build + raster 分项**的掉帧列表（每条掉帧会展示 build 与 raster 各自的耗时，便于定位是构建还是光栅化卡顿）。
 - **准确度（v1.2.1 起）**：使用真实 `buildStart` 时间戳（非 `DateTime.now()`），帧耗时取 `rasterFinish - buildStart`，可检测 GPU 光栅化卡顿。
+- **自适应阈值**：掉帧阈值按设备标称刷新率换算（`1000ms / 刷新率`），60Hz≈16.7ms，而 120Hz 屏幕使用严格的 ≈8.3ms，不再被固定 16ms 放过。
 
 ```dart
 FpsService.instance.start();
@@ -439,6 +440,18 @@ ZeroInspectorKit.runAppWithInspector(
 ---
 
 ## API 参考
+
+### ZeroInspectorKit
+
+顶层入口类。调用一次 `init()`（或 `runAppWithInspector()`）开始采集；调用 `dispose()` 完整释放检查器占用的进程级资源（持久化刷盘定时器、`FlutterError.onError` / `PlatformDispatcher.onError` 接管、内存 / FPS 定时器、节流 notifier 与磁盘持久化），从而在运行时彻底停采——例如配合隐私合规开关——之后可用 `init()` 重新启用。
+
+```dart
+// 彻底停止采集（释放全部进程级资源）
+ZeroInspectorKit.instance.dispose();
+
+// 之后用相同或不同参数重新启用
+ZeroInspectorKit.instance.init();
+```
 
 ### FloatingInspectorButton
 

@@ -92,7 +92,16 @@ class InspectorService {
   final ThrottledNotifier interceptorNotifier = ThrottledNotifier();
 
   /// 网络请求有序 ID 列表（头部插入，最新在前）/ Ordered network request ids (head insert, newest first)
-  final List<String> _networkOrder = [];
+  /// 网络请求 id 的有序表（最新在前）/ Ordered network request ids (newest first)
+  ///
+  /// 用 [ListQueue] 而非 [List]：此前用 `_networkOrder.insert(0, ...)` 头插，
+  /// 每次都要整体搬移元素（O(n)），高频请求下是纯浪费。
+  /// A [ListQueue] rather than a [List]: head-insertion via `insert(0, ...)`
+  /// shifted every element (O(n)) on each request.
+  final ListQueue<String> _networkOrder = ListQueue();
+
+  /// [networkRequests] 的缓存，变更时置 null 失效 / Cache for [networkRequests]; nulled on mutation
+  List<NetworkRequest>? _networkRequestsCache;
 
   /// 网络请求索引（id -> 请求），O(1) 查找，避免 WS 高频帧的线性扫描。
   /// Index (id -> request) for O(1) lookup, avoids the linear scan on WS high-freq frames.
@@ -182,6 +191,11 @@ class InspectorService {
     if (maxGlobalBodyBytes != null && maxGlobalBodyBytes > 0) {
       _maxGlobalBodyBytes = maxGlobalBodyBytes;
     }
+    // 上限被调小后立即裁剪，否则旧数据会一直留在列表里。
+    // Trim right away when a cap shrank, otherwise stale entries linger.
+    if (maxNetworkItems != null) _trimNetworkRequests();
+    if (maxLogItems != null) _trimQueue(_logEntries, _maxLogItems);
+    if (maxRouteItems != null) _trimQueue(_routeEntries, _maxRouteItems);
   }
 
   /// 获取拦截总开关状态 / Get interceptor master switch state
@@ -193,12 +207,26 @@ class InspectorService {
     interceptorNotifier.notifyThrottled();
   }
 
-  /// 获取网络请求列表（按时间倒序，最新在前；每次访问重建，引用共享对象）。
-  /// Get network requests newest-first; rebuilt on access (references shared objects).
-  UnmodifiableListView<NetworkRequest> get networkRequests =>
-      UnmodifiableListView(
-        _networkOrder.map((id) => _networkById[id]!).toList(),
-      );
+  /// 获取网络请求列表（按时间倒序，最新在前）。
+  /// Get network requests newest-first.
+  ///
+  /// 结果带缓存：UI 一次构建会访问该 getter 多达 7 次（其中一次仅为取
+  /// `.length`），此前每次都重建整个 List。变更时缓存失效。
+  /// Cached: a single UI build can hit this getter up to 7 times (one of them
+  /// just for `.length`), and each access used to rebuild the whole list. The
+  /// cache is invalidated on every mutation.
+  UnmodifiableListView<NetworkRequest> get networkRequests {
+    final cached = _networkRequestsCache;
+    if (cached != null) return UnmodifiableListView(cached);
+    final built = <NetworkRequest>[
+      for (final id in _networkOrder) ?_networkById[id],
+    ];
+    _networkRequestsCache = built;
+    return UnmodifiableListView(built);
+  }
+
+  /// 使网络列表缓存失效 / Invalidate the network list cache
+  void _invalidateNetworkCache() => _networkRequestsCache = null;
 
   /// 获取拦截规则列表（只读视图）/ Get interceptor rule list (read-only view)
   UnmodifiableListView<RequestInterceptorRule> get interceptorRules =>
@@ -222,7 +250,12 @@ class InspectorService {
   /// 添加网络请求记录 / Add network request record
   /// [request] 网络请求对象 / Network request object
   void addNetworkRequest(NetworkRequest request) {
-    _networkOrder.insert(0, request.id);
+    // 同一 id 重复登记会让列表出现重复行（历史上有过 ID 碰撞的先例），
+    // 这里做兜底去重。Guard against duplicate ids, which would otherwise show
+    // up as duplicate rows (ID collisions have happened before).
+    _networkOrder.remove(request.id);
+    _networkOrder.addFirst(request.id);
+    _invalidateNetworkCache();
     _networkById[request.id] = request;
     _trimNetworkRequests();
     _globalBodyBytes += _bodyBytesOf(request);
@@ -287,6 +320,9 @@ class InspectorService {
     _globalBodyBytes = _globalBodyBytes - oldSize + newSize < 0
         ? 0
         : _globalBodyBytes - oldSize + newSize;
+    // 请求对象被替换，缓存里的旧引用失效。
+    // The request object is replaced, so cached references go stale.
+    _invalidateNetworkCache();
     // O(1) 就地更新索引中的请求；不再为每次 WS 帧做 remove/addFirst 重排。
     // O(1) in-place index update; no per-WS-frame remove/addFirst reorder.
     _networkById[id] = updated;
@@ -473,6 +509,7 @@ class InspectorService {
     _routeEntries.clear();
     _interceptorRules.clear();
     _globalBodyBytes = 0;
+    _invalidateNetworkCache();
     networkNotifier.notifyThrottled();
     logNotifier.notifyThrottled();
     routeNotifier.notifyThrottled();
@@ -484,13 +521,24 @@ class InspectorService {
     _networkOrder.clear();
     _networkById.clear();
     _globalBodyBytes = 0;
+    _invalidateNetworkCache();
     networkNotifier.notifyThrottled();
   }
 
   /// 按 id 删除单条网络请求（批量删除用）/ Remove a single request by id
   void removeNetworkRequest(String id) {
     _networkOrder.remove(id);
-    _networkById.remove(id);
+    final removed = _networkById.remove(id);
+    // 释放被删请求占用的全局 body 预算，否则预算只增不减，
+    // 会让代理侧提前停止缓冲 body。
+    // Release the removed request's share of the global body budget; otherwise
+    // the budget only ever grows and the proxy stops buffering bodies early.
+    if (removed != null) {
+      _globalBodyBytes = _globalBodyBytes - _bodyBytesOf(removed) < 0
+          ? 0
+          : _globalBodyBytes - _bodyBytesOf(removed);
+    }
+    _invalidateNetworkCache();
     networkNotifier.notifyThrottled();
   }
 
@@ -524,6 +572,7 @@ class InspectorService {
   /// 裁剪网络请求队列到最大条目数，并从全局 body 预算中释放被淘汰请求的占用。
   /// Trim network request queue to the cap, releasing evicted requests' body budget.
   void _trimNetworkRequests() {
+    if (_networkOrder.length <= _maxNetworkItems) return;
     while (_networkOrder.length > _maxNetworkItems) {
       final removedId = _networkOrder.removeLast();
       final removed = _networkById.remove(removedId);
@@ -534,5 +583,6 @@ class InspectorService {
             : _globalBodyBytes - freed;
       }
     }
+    _invalidateNetworkCache();
   }
 }

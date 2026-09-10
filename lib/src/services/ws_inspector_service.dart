@@ -68,6 +68,9 @@ class WsInspectorService extends ChangeNotifier {
   /// 活跃会话表（sessionId -> 会话）/ Active sessions (sessionId -> session)
   final Map<String, _WsSession> _sessions = {};
 
+  /// 同时保留的会话数上限（按插入顺序淘汰最旧）/ Max concurrent sessions (oldest evicted)
+  static const int _maxSessions = 20;
+
   /// 自增计数器，保证 sessionId 唯一 / Monotonic counter for unique session ids
   int _counter = 0;
 
@@ -78,6 +81,15 @@ class WsInspectorService extends ChangeNotifier {
   /// 包装一个已建立的 [WebSocket]，开启抓取时记录收发帧。
   /// Wrap an established [WebSocket]; records frames when capture is enabled.
   InspectorWebSocket _wrap(WebSocket ws, String url) {
+    // 会话表此前只在 framesFor() 被惰性淘汰：用户从不点开 WS 详情时，
+    // _sessions 与每个 session.frames 全部常驻。这里在新建会话时主动淘汰最旧的。
+    // Sessions were only evicted lazily in framesFor(), so if the user never
+    // opened a WS detail view, _sessions and every session.frames stayed
+    // resident. Now the oldest sessions are evicted up front on creation.
+    while (_sessions.length >= _maxSessions) {
+      final oldestId = _sessions.keys.first;
+      _sessions.remove(oldestId);
+    }
     final id = _newId();
     _sessions[id] = _WsSession(
       id: id,
@@ -105,7 +117,7 @@ class WsInspectorService extends ChangeNotifier {
     final type = _frameTypeOf(data);
     final text = _framePreview(data, type);
     final byteSize = _byteSizeOf(data);
-    session.frames.add(
+    session.addFrame(
       WsFrame(
         outgoing: outgoing,
         type: type,
@@ -116,14 +128,16 @@ class WsInspectorService extends ChangeNotifier {
     );
 
     // 累积到对应网络记录的 responseBody，供详情页/导出查看（向后兼容）。
+    // 用会话内的 StringBuffer 摊还拼接，不再每帧复制整个字符串。
+    // Accumulate into the network record's responseBody for the detail view &
+    // export (back-compat). Uses the session StringBuffer so we no longer copy
+    // the whole string on every frame.
     // Accumulate into the network record's responseBody for the detail view & export (back-compat).
-    final existing = InspectorService.instance.findNetworkRequest(id);
-    final prev = existing?.responseBody?.toString() ?? '';
     final arrow = outgoing ? '→' : '←';
-    final line = '$arrow $text\n';
+    session.appendBody('$arrow $text\n');
     InspectorService.instance.updateNetworkRequest(
       id,
-      responseBody: prev + line,
+      responseBody: session.bodyBuffer.toString(),
     );
   }
 
@@ -132,7 +146,7 @@ class WsInspectorService extends ChangeNotifier {
     final session = _sessions[id];
     if (session == null) return;
     session.closed = true;
-    session.frames.add(
+    session.addFrame(
       WsFrame(
         outgoing: false,
         type: WsFrameType.close,
@@ -141,11 +155,10 @@ class WsInspectorService extends ChangeNotifier {
         at: DateTime.now(),
       ),
     );
-    final existing = InspectorService.instance.findNetworkRequest(id);
-    final prev = existing?.responseBody?.toString() ?? '';
+    session.appendBody('[connection closed]\n');
     InspectorService.instance.updateNetworkRequest(
       id,
-      responseBody: '$prev[connection closed]\n',
+      responseBody: session.bodyBuffer.toString(),
     );
   }
 
@@ -251,7 +264,48 @@ class _WsSession {
   /// 是否已关闭 / Whether the connection is closed
   bool closed = false;
 
+  /// 累积的帧文本（供网络详情页 / 导出查看）/ Accumulated frame text (detail view / export)
+  ///
+  /// 此前每次写帧都做 `prev + line` 的整串复制：高频 WS 下每帧复制整个 32KB
+  /// 预览串，是全项目最热的一条 O(n²) 路径。改为 [StringBuffer] 追加 + 超限时
+  /// 一次性裁剪，把摊还代价降到 O(1)。
+  /// Previously each frame did `prev + line`, copying the whole 32KB preview
+  /// string — the hottest O(n²) path in the project under high-frequency WS.
+  /// Now appends into a StringBuffer and truncates only when over the cap,
+  /// bringing the amortized cost down to O(1).
+  final StringBuffer bodyBuffer = StringBuffer();
+
+  /// 当前累积文本长度 / Current accumulated text length
+  int bodyLength = 0;
+
   _WsSession({required this.id, required this.url, required this.startTime});
+
+  /// 追加一段帧文本并在超限时保留尾部 / Append frame text, keeping the tail when over the cap
+  void appendBody(String text) {
+    bodyBuffer.write(text);
+    bodyLength += text.length;
+    if (bodyLength <= _maxSessionBodyChars) return;
+    final full = bodyBuffer.toString();
+    final keep = full.substring(full.length - _maxSessionBodyChars);
+    bodyBuffer
+      ..clear()
+      ..write(keep);
+    bodyLength = keep.length;
+  }
+
+  /// 单会话累积文本上限（字符）/ Per-session accumulated text cap (chars)
+  static const int _maxSessionBodyChars = 32 * 1024;
+
+  /// 单会话帧数上限（环形，超出丢弃最旧）/ Per-session frame cap (ring, oldest dropped)
+  static const int _maxSessionFrames = 500;
+
+  /// 追加一帧，超出帧数上限时丢弃最旧的 / Append a frame, dropping the oldest past the cap
+  void addFrame(WsFrame frame) {
+    frames.add(frame);
+    if (frames.length > _maxSessionFrames) {
+      frames.removeAt(0);
+    }
+  }
 }
 
 /// 单帧记录（WebSocket 抓取） / A single captured WebSocket frame

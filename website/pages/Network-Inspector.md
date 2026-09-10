@@ -153,6 +153,24 @@ From the request detail view, tap **Copy as cURL** to copy the request as a read
 
 在请求详情页点击 **Copy as cURL**，即可将请求复制为可直接运行的 cURL 命令（方法、URL、请求头、请求体），并遵循上方的敏感字段遮蔽开关。
 
+## Replay Editor / 重放编辑器
+
+> **Available since v1.11.0**
+>
+> **v1.11.0 起可用**
+
+Every request detail view has a **replay** action (↻ icon). It opens an editable sheet that lets you **re-issue the captured request in-app** and preview the response — handy for quickly re-running an endpoint without leaving the app.
+
+每个请求详情页都有**重放**操作（↻ 图标）。它会打开一个可编辑弹层，让你**在 App 内重新发出该请求**并预览响应——无需离开应用即可快速复跑某个接口。
+
+- **Only the URL query parameters are editable** — add / edit / remove `key=value` rows; the URL is rebuilt from them on send / **仅 URL 查询参数可编辑**——可增删改 `key=value` 行，发送时用其重建 URL
+- **URL, request headers and request body are read-only** by design (the captured values are re-sent verbatim) / **URL、请求头与请求体按设计只读**（以捕获到的原值原样重发）
+- On **Send**, the request is re-issued with the original method / headers / body and the edited query string; the sheet shows the returned status code, elapsed time, and a response preview / 点击 **Send** 后用原始方法 / 请求头 / 请求体加上修改后的查询串重新发出，弹层展示返回状态码、耗时与响应预览
+
+> This is distinct from the interceptor (which builds a durable modification rule applied to *future* matching requests). The replay editor makes a **one-off** call with editable query params — including GET requests, whose params can't be changed by the interceptor.
+>
+> 它与拦截器不同（拦截器生成作用于*后续*匹配请求的持久规则）。重放编辑器发起的是**一次性**调用，仅查询参数可改——包括 GET 请求（其参数拦截器无法修改）。
+
 ## Status Code Colors / 状态码颜色
 
 | Range | Color | Description |

@@ -4,10 +4,10 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'zero_inspector_kit'
-  s.version          = '1.10.1'
-  s.summary          = 'A Flutter plugin for in-app developer console.'
+  s.version          = '1.11.0'
+  s.summary          = 'An in-app developer console for Flutter: network, logs, database, memory, FPS, errors, alerts and routes.'
   s.description      = <<-DESC
-A Flutter plugin for in-app developer console with network request viewing, logging, database inspection, memory monitoring, FPS monitoring, and route tracking.
+An in-app developer console for Flutter that inspects HTTP/Dio traffic, WebSocket and gRPC streams, logs, databases, memory and FPS (with build/raster split), aggregates and persists errors and alerts, tracks routes, and exports a shareable session archive - all auto-disabled in release builds.
                        DESC
   s.homepage         = 'https://github.com/zero-labsco/zero_inspector_kit'
   s.license          = { :file => '../LICENSE' }
