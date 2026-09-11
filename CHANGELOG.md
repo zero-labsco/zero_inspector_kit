@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.11.1
+
+### Fixed / 修复
+- `InspectorRouteObserver` 路由参数不再直接 `as Map` 强转：任何非 Map 参数（自定义页面参数类、数据模型，或推断为 `Map<String, Object>` 的字面量）此前会在 `didPush` 中抛 `TypeError`，异常冒泡进 Navigator 中断当次导航并让 `Navigator._debugLocked` 卡死，导致之后所有跳转断言失败（点链接无反应）。现防御式归一化：`null` 保持原样、Map 做 String 键浅拷贝、其它对象尽量经 JSON（`toJson`）展开，否则降级为 `toString` 文本；`_logRoute` 外加 try/catch 并走 `InspectorInternalLog`，检查器自身失败不再影响宿主导航。新增 `test/route_observer_arguments_test.dart` 回归测试。 / `InspectorRouteObserver` no longer casts route arguments to `Map`: a non-Map argument (custom page-argument class, data model, or a `Map<String, Object>`-inferred literal) used to throw a `TypeError` inside `didPush`, bubbling into `Navigator` and aborting the navigation (leaving `Navigator._debugLocked` set so every later push failed its assertion — tapping a link did nothing). Arguments are now normalized defensively (null stays null, Map becomes a String-keyed shallow copy, other objects expand via JSON when possible or degrade to `toString`), and `_logRoute` is wrapped in try/catch reporting through `InspectorInternalLog` so an inspector failure can never break host navigation again. Adds `test/route_observer_arguments_test.dart` as a regression test.
+
 ## 1.11.0
 
 ### Added / 新增

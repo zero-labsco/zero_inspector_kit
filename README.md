@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release adds an editable replay editor (edit only query params — URL/headers/body stay read-only), phased FPS timing (build + raster split) with an adaptive jank threshold, `PlatformDispatcher.onError` capture, and on-disk alert persistence that survives restarts. It also adds `ZeroInspectorKit.dispose()` for a full runtime teardown. All users are encouraged to upgrade to the latest version (`^1.11.0`).
+> **🔔 Upgrade recommended:** This release fixes route arguments being cast directly to `Map`, which threw a `TypeError` for any non-Map argument (custom page-argument classes, data models, or `Map<String, Object>` literals) and aborted host-app navigation. Arguments are now normalized defensively (null kept / Map copied with String keys / JSON-expanded / `toString` fallback), and `_logRoute` is wrapped so an inspector failure can never break navigation again. All users are encouraged to upgrade to the latest version (`^1.11.1`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -102,7 +102,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.11.0
+  zero_inspector_kit: ^1.11.1
 ```
 
 ### GitHub
@@ -112,7 +112,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.11.0   # replace 1.11.0 with the version you need
+      ref: release/v1.11.1   # replace 1.11.1 with the version you need
 ```
 
 ---
