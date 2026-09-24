@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.13.0
+
+### Changed / 优化
+- 大 body 在解码前先剪枝：请求 / 响应体在 `utf8.decode` 之前按面板预览字符上限（`InspectorService.maxBodyPreviewBytes`，默认 32K 字符）裁剪字节前缀（上限取 `maxChars * 4 + 3`——UTF-8 单字符最多 4 字节，额外 3 字节用于避免把多字节字符切在中间导致 decode 抛错、被误判成「二进制响应」），不再为随后必然被截断丢弃的尾部付费：512 KB 缓冲对 32K 字符预览，纯 ASCII 场景解码量最多降到约 1/16、中文场景约 1/4。预览内容与长度完全不变，base64 / hex 的二进制兜底仍基于原始字节。 / Large bodies are trimmed before decoding: request/response bytes are clipped to the panel's preview char cap (`InspectorService.maxBodyPreviewBytes`, default 32K chars) before `utf8.decode` (cap = `maxChars * 4 + 3` — one UTF-8 char is at most 4 bytes, plus 3 so a multi-byte char is never cut in half, which used to make `utf8.decode` throw and misread the payload as binary). We no longer pay for the tail that truncation discards: with a 512 KB buffer against a 32K-char preview, decoding work drops to ~1/16 for ASCII payloads and ~1/4 for CJK. Preview content and length are unchanged, and the base64/hex binary fallback still reads the original bytes.
+- 新增 `InspectorService.maxBodyPreviewBytes` getter，供拦截器读取当前配置的预览上限（原来该上限是私有的，拦截器无法感知）。 / Adds the `InspectorService.maxBodyPreviewBytes` getter so interceptors can read the configured preview cap (it used to be private and invisible to them).
+
 ## 1.12.1
 
 ### Fixed / 修复

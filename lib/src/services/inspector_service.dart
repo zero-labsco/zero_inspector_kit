@@ -241,6 +241,13 @@ class InspectorService {
   /// 获取路由记录列表（只读视图）/ Get route record list (read-only view)
   UnmodifiableListView<RouteEntry> get routeEntries => _routeEntriesView;
 
+  /// 当前 body 预览字符上限（[configure] 可调，默认 32K 字符）。
+  /// 拦截器据此在解码前剪掉注定被截断的字节，避免白解码整段大 body。
+  /// Current body preview char cap (tunable via [configure], default 32K chars).
+  /// Interceptors use it to trim bytes that would be truncated anyway before
+  /// decoding, so a large body is not decoded in full for nothing.
+  int get maxBodyPreviewBytes => _maxBodyPreviewBytes;
+
   /// 轻量计数 getter，避免为取 .length 而拷贝 List / Lightweight count getters
   int get networkRequestCount => _networkOrder.length;
   int get logEntryCount => _logEntries.length;

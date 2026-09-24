@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本修复了多处网络抓取正确性 bug（非 443 端口的 https URL、直传模式下请求体规则的 `Content-Length` 错配、响应体未被消费时永远停在 pending、WebSocket/gRPC 记录从不落盘、`done` getter 返回不同响应代理），以及两行式集成（`init()` + `wrapApp()`）下漏捕的异步异常、无 VM Service 时的内存泄漏误报。建议所有用户升级到最新版本（`^1.12.1`）。
+> **🔔 推荐升级：** 本版本在大体积请求 / 响应体解码前先做剪枝，不再为了保留面板预览的前 32K 字符而完整解码 512 KB 的 body —— 纯 ASCII 载荷的解码量最多降到约 1/16，预览内容完全不变。建议所有用户升级到最新版本（`^1.13.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -101,7 +101,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.12.1
+  zero_inspector_kit: ^1.13.0
 ```
 
 ### GitHub
@@ -111,7 +111,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.12.1   # 将 1.12.1 替换为你需要的版本号
+      ref: release/v1.13.0   # 将 1.13.0 替换为你需要的版本号
 ```
 
 ---

@@ -419,7 +419,12 @@ class _InspectorRequestProxy implements HttpClientRequest {
       if (_requestId != null) {
         if (finalBodyBytes.isNotEmpty) {
           try {
-            final body = utf8.decode(finalBodyBytes);
+            final body = utf8.decode(
+              _bytesForPreviewDecode(
+                finalBodyBytes,
+                InspectorService.instance.maxBodyPreviewBytes,
+              ),
+            );
             InspectorService.instance.updateNetworkRequest(
               _requestId,
               body: body,
