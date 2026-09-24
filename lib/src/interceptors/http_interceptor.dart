@@ -10,6 +10,36 @@ import '../services/inspector_service.dart';
 part 'inspector_http_client.dart';
 part 'inspector_response_proxy.dart';
 
+/// 截取"注定能留在预览里"的字节前缀，避免解码整段随后被截断的 body。
+/// Trim the byte prefix guaranteed to survive preview truncation, so we never
+/// decode the tail that gets thrown away.
+///
+/// 面板对 body 只保留头部 [maxChars] 个字符（[NetworkRequest.copyWith] 按字符
+/// 截断），而缓冲字节最多可达 512 KB —— 直接 `utf8.decode` 整段会把绝大部分
+/// 解码成本花在随后被丢弃的尾巴上（512 KB 对 32 K 字符，纯 ASCII 下 16 倍浪费）。
+/// The panel keeps only the leading [maxChars] characters of a body
+/// ([NetworkRequest.copyWith] truncates by character), while the buffered bytes
+/// can reach 512 KB — decoding all of it spends most of the cost on a tail that
+/// is discarded right after (16x waste for pure ASCII).
+///
+/// UTF-8 中一个字符最多占 4 字节，因此 `maxChars * 4 + 3` 字节足以产出满额的
+/// [maxChars] 个字符；额外多取 3 字节是为了不把多字节字符切在中间 —— 那会让
+/// `utf8.decode` 抛错并被误判成"二进制响应"。
+/// One UTF-8 character is at most 4 bytes, so `maxChars * 4 + 3` bytes can
+/// always yield a full [maxChars] characters; the extra 3 bytes keep us from
+/// cutting a multi-byte character in half, which would make `utf8.decode` throw
+/// and get misread as a "binary response".
+///
+/// [maxChars] <= 0 表示不限制，原样返回（调用方未取到配置时的安全默认）。
+/// [maxChars] <= 0 means no limit — returns as-is (safe default when the caller
+/// could not read the configured cap).
+List<int> _bytesForPreviewDecode(List<int> bytes, int maxChars) {
+  if (maxChars <= 0) return bytes;
+  final limit = maxChars * 4 + 3;
+  if (bytes.length <= limit) return bytes;
+  return bytes.sublist(0, limit);
+}
+
 /// HTTP 请求拦截器 / HTTP request interceptor
 /// 通过 HttpOverrides 机制实现全局 HTTP 请求拦截 / Implement global HTTP request interception via HttpOverrides mechanism
 ///

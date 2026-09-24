@@ -77,7 +77,10 @@ class _InspectorResponseProxy implements HttpClientResponse {
         final lenText = len > 0 ? '$len' : 'unknown size';
         body = '[Response body too large to capture ($lenText)]';
       } else {
-        body = _decodeBodyOrHexPreview(_bodyBytes);
+        body = _decodeBodyOrHexPreview(
+          _bodyBytes,
+          maxChars: InspectorService.instance.maxBodyPreviewBytes,
+        );
       }
       InspectorService.instance.updateNetworkRequest(id, responseBody: body);
     } catch (_) {}
@@ -95,10 +98,17 @@ class _InspectorResponseProxy implements HttpClientResponse {
   /// (images, etc.) instead of only showing a hex dump.
   static const int _maxBase64PreviewBytes = 64 * 1024; // 64 KB
 
-  static String _decodeBodyOrHexPreview(List<int> bytes) {
+  /// [maxChars] 为面板的预览字符上限：解码前先按它剪掉多余的尾部字节
+  /// （见 [_bytesForPreviewDecode]）。base64 / hex 分支始终基于原始 [bytes]，
+  /// 与预览截断无关。
+  /// [maxChars] is the panel's preview char cap: trailing bytes beyond it are
+  /// trimmed before decoding (see [_bytesForPreviewDecode]). The base64 / hex
+  /// fallbacks always use the original [bytes] and are unaffected by trimming.
+  static String _decodeBodyOrHexPreview(List<int> bytes, {int maxChars = 0}) {
     if (bytes.isEmpty) return '';
+    final source = _bytesForPreviewDecode(bytes, maxChars);
     try {
-      return utf8.decode(bytes);
+      return utf8.decode(source);
     } catch (_) {
       const previewBytes = 64;
       final header =
