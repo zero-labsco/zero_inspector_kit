@@ -383,6 +383,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.2.2"
+  path_provider_ohos:
+    dependency: transitive
+    description:
+      name: path_provider_ohos
+      sha256: "6b479a99543743a9e0882f69521345b1ec78ceacb50ba155dffd43d01b1f84d0"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.2.1"
   path_provider_platform_interface:
     dependency: transitive
     description:
@@ -447,6 +455,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "13.3.0"
+  share_plus_ohos:
+    dependency: transitive
+    description:
+      name: share_plus_ohos
+      sha256: d14fe3f148dcbc049e912a2a9e257c15aaecd46f957000afffe4c932280bebc5
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "1.0.0"
   share_plus_platform_interface:
     dependency: transitive
     description:
@@ -525,7 +541,7 @@ packages:
     source: hosted
     version: "1.10.2"
   sqflite:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: sqflite
       sha256: "564cfed0746fe53140c23b70b308e045c3b31f17778f2f326ccb7d804ea0250a"
@@ -564,6 +580,15 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.4.0"
+  sqflite_sqlcipher:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: d8835f7aaa9daecde2ab097fb374d025600aab93
+      resolved-ref: d8835f7aaa9daecde2ab097fb374d025600aab93
+      url: "https://atomgit.com/flutter_ohos_plugin/sqflite_sqlcipher.git"
+    source: git
+    version: "3.4.0"
   stack_trace:
     dependency: transitive
     description:
@@ -738,7 +763,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.12.1"
+    version: "1.13.0"
 sdks:
   dart: ">=3.11.0 <4.0.0"
   flutter: ">=3.38.4"

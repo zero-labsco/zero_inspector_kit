@@ -12,5 +12,5 @@ class InspectorVersion {
 
   /// 当前版本号，必须与 `pubspec.yaml` 的 `version` 字段一致
   /// Current version; must match the `version` field in `pubspec.yaml`
-  static const String value = '1.12.1';
+  static const String value = '1.13.0';
 }

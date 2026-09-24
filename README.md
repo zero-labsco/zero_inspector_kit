@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release fixes several network-capture correctness bugs (https URL on non-443 ports, request-body rule `Content-Length` mismatch in pass-through mode, responses that are never consumed staying pending forever, WebSocket/gRPC records never being persisted, and the `done` getter returning a different response proxy) plus async errors being missed under the `init()` + `wrapApp()` two-liner and a memory-leak false-positive without VM Service. All users are encouraged to upgrade to the latest version (`^1.12.1`).
+> **🔔 Upgrade recommended:** This release trims large request/response bodies before UTF-8 decoding, so the inspector no longer decodes a 512 KB body just to keep the first 32K characters of the preview — up to ~16x less decoding work for ASCII payloads, with preview content unchanged. All users are encouraged to upgrade to the latest version (`^1.13.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -102,7 +102,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.12.1
+  zero_inspector_kit: ^1.13.0
 ```
 
 ### GitHub
@@ -112,7 +112,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.12.1   # replace 1.12.1 with the version you need
+      ref: release/v1.13.0   # replace 1.13.0 with the version you need
 ```
 
 ---
