@@ -55,6 +55,13 @@ class PersistenceService {
 
   Database? _db;
   bool _enabled = false;
+
+  /// 正在进行的 init 任务；用于并发防重入，避免两次 init 各 openDatabase
+  /// 导致前一个句柄泄漏。失败时置 null 以便 barrel 的重试循环再次尝试。
+  /// In-flight init task: prevents two concurrent `init`s from each opening a
+  /// database (leaking the first handle). Reset to null on failure so the host's
+  /// retry loop can try again once the binding is ready.
+  Completer<void>? _initFuture;
   int _maxRows = _defaultMaxRows;
   Duration _retention = _defaultRetention;
   Timer? _flushTimer;
@@ -79,6 +86,12 @@ class PersistenceService {
     Duration flushInterval = _defaultFlushInterval,
   }) async {
     if (_enabled) return;
+    // 并发防重入：已有 init 在跑则直接复用其结果，避免两个调用各 openDatabase
+    // 导致前一个句柄泄漏。
+    // Concurrency guard: reuse the in-flight init instead of opening a second DB.
+    if (_initFuture != null) return _initFuture!.future;
+    final c = Completer<void>();
+    _initFuture = c;
     _maxRows = maxRowsPerTable;
     _retention = retention;
     try {
@@ -123,12 +136,18 @@ class PersistenceService {
       _flushTimer?.cancel();
       _flushTimer = Timer.periodic(flushInterval, (_) => flush());
       await _trim();
+      c.complete();
     } catch (_) {
       // 桌面端未配置 sqflite FFI 等情况：降级为纯内存模式。
       // e.g. desktop without sqflite FFI: fall back to memory-only mode.
       _enabled = false;
       _db = null;
+      // 失败后允许重试（binding 就绪后再调 init 能重新打开）。
+      // Allow a later retry after failure (e.g. once the binding is ready).
+      _initFuture = null;
+      c.complete();
     }
+    return c.future;
   }
 
   /// 建索引：裁剪每 2s 跑 6 条 `NOT IN (SELECT id ... ORDER BY id DESC LIMIT n)`
@@ -454,5 +473,6 @@ class PersistenceService {
     } catch (_) {}
     _db = null;
     _enabled = false;
+    _initFuture = null;
   }
 }

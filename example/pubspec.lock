@@ -299,10 +299,10 @@ packages:
     dependency: transitive
     description:
       name: matcher
-      sha256: dc0b7dc7651697ea4ff3e69ef44b0407ea32c487a39fff6a4004fa585e901861
+      sha256: "31bd099b47c10cd1aeb55146a2d46ce0277630ecef3f7dae54ad7873f36696cd"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "0.12.19"
+    version: "0.12.20"
   material_color_utilities:
     dependency: transitive
     description:
@@ -315,10 +315,10 @@ packages:
     dependency: transitive
     description:
       name: meta
-      sha256: "23f08335362185a5ea2ad3a4e597f1375e78bce8a040df5c600c8d3552ef2394"
+      sha256: "307249ce4ff29d58a18e97f6345f539382eb9c9c29ecda628900f31de0443dd9"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "1.17.0"
+    version: "1.19.0"
   mime:
     dependency: transitive
     description:
@@ -383,14 +383,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.2.2"
-  path_provider_ohos:
-    dependency: transitive
-    description:
-      name: path_provider_ohos
-      sha256: "6b479a99543743a9e0882f69521345b1ec78ceacb50ba155dffd43d01b1f84d0"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "2.2.1"
   path_provider_platform_interface:
     dependency: transitive
     description:
@@ -455,14 +447,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "13.3.0"
-  share_plus_ohos:
-    dependency: transitive
-    description:
-      name: share_plus_ohos
-      sha256: d14fe3f148dcbc049e912a2a9e257c15aaecd46f957000afffe4c932280bebc5
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.0.0"
   share_plus_platform_interface:
     dependency: transitive
     description:
@@ -541,7 +525,7 @@ packages:
     source: hosted
     version: "1.10.2"
   sqflite:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: sqflite
       sha256: "564cfed0746fe53140c23b70b308e045c3b31f17778f2f326ccb7d804ea0250a"
@@ -580,15 +564,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.4.0"
-  sqflite_sqlcipher:
-    dependency: "direct main"
-    description:
-      path: "."
-      ref: d8835f7aaa9daecde2ab097fb374d025600aab93
-      resolved-ref: d8835f7aaa9daecde2ab097fb374d025600aab93
-      url: "https://atomgit.com/flutter_ohos_plugin/sqflite_sqlcipher.git"
-    source: git
-    version: "3.4.0"
   stack_trace:
     dependency: transitive
     description:
@@ -641,10 +616,10 @@ packages:
     dependency: transitive
     description:
       name: test_api
-      sha256: "8161c84903fd860b26bfdefb7963b3f0b68fee7adea0f59ef805ecca346f0c7a"
+      sha256: "2a122cbe059f8b610d3a5415f42e255b6c17b1f21eee1d960f31080237fb4f11"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "0.7.10"
+    version: "0.7.12"
   typed_data:
     dependency: transitive
     description:
@@ -697,10 +672,10 @@ packages:
     dependency: transitive
     description:
       name: vector_math
-      sha256: d530bd74fea330e6e364cda7a85019c434070188383e1cd8d9777ee586914c5b
+      sha256: "92b9910f66ed1057fd4da7b040ae7c74cafacf885bdc81be496928d5049b032d"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "2.2.0"
+    version: "2.4.3"
   vm_service:
     dependency: transitive
     description:
@@ -763,7 +738,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.13.0"
+    version: "1.14.0"
 sdks:
   dart: ">=3.11.0 <4.0.0"
   flutter: ">=3.38.4"

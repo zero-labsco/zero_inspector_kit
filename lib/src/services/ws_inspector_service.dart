@@ -68,6 +68,14 @@ class WsInspectorService extends ChangeNotifier {
   /// 活跃会话表（sessionId -> 会话）/ Active sessions (sessionId -> session)
   final Map<String, _WsSession> _sessions = {};
 
+  /// 会话 body 同步到 InspectorService 的节流时间戳：每帧都 `updateNetworkRequest`
+  /// 会把整串 body 复制 + 重新统计字节（O(n²)），故按 10Hz 限频；关闭时由 `_onClose`
+  /// 兜底同步最终 body。
+  /// Throttle timestamp for syncing session body to InspectorService: calling
+  /// `updateNetworkRequest` every frame copies the whole body + re-counts bytes
+  /// (O(n²)), so we cap it at ~10Hz; `_onClose` syncs the final body regardless.
+  int _lastBodySyncAt = 0;
+
   /// 同时保留的会话数上限（按插入顺序淘汰最旧）/ Max concurrent sessions (oldest evicted)
   static const int _maxSessions = 20;
 
@@ -135,16 +143,28 @@ class WsInspectorService extends ChangeNotifier {
     // Accumulate into the network record's responseBody for the detail view & export (back-compat).
     final arrow = outgoing ? '→' : '←';
     session.appendBody('$arrow $text\n');
-    InspectorService.instance.updateNetworkRequest(
-      id,
-      responseBody: session.bodyBuffer.toString(),
-    );
+    // 10Hz 限频同步 body（见 [_lastBodySyncAt]）；关闭时由 _onClose 兜底同步最终值。
+    // Sync the body at ~10Hz (see [_lastBodySyncAt]); the final value is synced by
+    // _onClose on close.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - _lastBodySyncAt >= 100) {
+      _lastBodySyncAt = nowMs;
+      InspectorService.instance.updateNetworkRequest(
+        id,
+        responseBody: session.bodyBuffer.toString(),
+      );
+    }
   }
 
   /// 连接关闭：追加关闭标记帧 / Connection closed: append a close marker frame
   void _onClose(String id) {
     final session = _sessions[id];
     if (session == null) return;
+    // 幂等：close() 与底层流 onDone 都会触发，重复触发会再追加一条关闭帧并以
+    // statusCode:101 覆盖记录。已关闭则直接返回。
+    // Idempotent: both `close()` and the inner stream's `onDone` call this, so a
+    // duplicate would append another close frame and overwrite statusCode with 101.
+    if (session.closed) return;
     session.closed = true;
     session.addFrame(
       WsFrame(

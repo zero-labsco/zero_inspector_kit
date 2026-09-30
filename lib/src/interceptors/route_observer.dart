@@ -62,9 +62,14 @@ class InspectorRouteObserver extends RouteObserver<PageRoute<dynamic>> {
     }
   }
 
+  /// 全局自增序号，避免同一毫秒内 didPush + didReplace 生成相同 id 导致碰撞。
+  /// A global auto-increment counter so didPush + didReplace within the same
+  /// millisecond can never collide on an id.
+  static int _seq = 0;
+
   /// 生成唯一路由记录ID / Generate unique route record ID
   String _generateId() {
-    return 'route_${DateTime.now().millisecondsSinceEpoch}';
+    return 'route_${_seq++}';
   }
 }
 

@@ -1,6 +1,6 @@
 name: zero_inspector_kit
 description: One-line in-app developer console for Flutter — HTTP/WebSocket/gRPC inspection, logs, database, memory leaks, FPS jank, routes, alerts, bug reports. Auto-disabled in release.
-version: 1.13.0
+version: 1.14.0
 topics:
   - logging
   - debug
@@ -45,39 +45,6 @@ dependencies:
   collection: ^1.19.1
   share_plus: ^13.2.0
   device_info_plus: ^13.2.0
-  # OpenHarmony 平台实现（federated 子包，"追加"而非"替换"）。
-  # OpenHarmony platform implementations (federated sub-packages: appended, NOT replaced).
-  # 它们通过 `implements:` 声明自己实现的 app-facing 包，只在 ohos 构建时被注册；
-  # Android / iOS 依旧使用官方的 path_provider_android / path_provider_foundation 等，
-  # 行为完全不变（inert）。加在这里是为了让使用者 pub get 即自动获得，无需手动配置。
-  # They declare `implements:` and are registered for ohos only; Android / iOS keep using the
-  # official implementations and stay unaffected (inert). Declared here so consumers get them
-  # automatically via `flutter pub get`.
-  path_provider_ohos: ^2.2.1
-  share_plus_ohos: ^1.0.0
-  # OpenHarmony 的 SQLite 后端 / SQLite backend on OpenHarmony:
-  # sqflite 官方版没有 ohos 原生实现，改用已适配 ohos 的 sqflite_sqlcipher。
-  # 它同源于 sqflite_common（类型、参数完全一致），且**不传 password 时即为明文 SQLite**
-  # （Dart 侧 password==null 不传参 → 原生 encrypt=false），因此能正常打开用户已有的
-  # 普通数据库。由 lib/src/services/sqlite_backend.dart 统一按平台分派。
-  # The official sqflite has no ohos implementation, so we use the ohos-ready
-  # sqflite_sqlcipher. It shares sqflite_common types and behaves as **plain SQLite when no
-  # password is given** (Dart omits the param → native encrypt=false), so existing
-  # unencrypted databases open fine. Dispatch lives in
-  # lib/src/services/sqlite_backend.dart.
-  #
-  # ⚠️ git 依赖 / git dependency：pub.dev 禁止发布含 git 依赖的包，
-  # 因此**本分支（鸿蒙适配）不得用于 pub.dev 发布**，发布请走不含本依赖的分支。
-  # ⚠️ pub.dev rejects packages with git dependencies, so this branch (OHOS adaptation)
-  # MUST NOT be used for pub.dev publishing — publish from a branch without this dependency.
-  sqflite_sqlcipher:
-    git:
-      url: https://atomgit.com/flutter_ohos_plugin/sqflite_sqlcipher.git
-      ref: d8835f7aaa9daecde2ab097fb374d025600aab93
-  # - device_info_plus_ohos 的 environment 为 sdk ">=2.19.6 <3.0.0" 且缺少 implements 声明，
-  #   与本包约束冲突且不会生效，故不引入；ohos 上设备信息回退为 OS 名称。
-  #   device_info_plus_ohos requires sdk ">=2.19.6 <3.0.0" and lacks `implements`, so it is
-  #   incompatible/ineffective and is not added; device info falls back to the OS name on ohos.
 
 dev_dependencies:
   flutter_test:
@@ -92,10 +59,4 @@ flutter:
         package: com.zerolabsco.zero_inspector_kit
         pluginClass: ZeroInspectorKitPlugin
       ios:
-        pluginClass: ZeroInspectorKitPlugin
-      # OpenHarmony / HarmonyOS NEXT 平台实现
-      # OpenHarmony / HarmonyOS NEXT platform implementation
-      # pluginClass 必须与 ohos 侧 getUniqueClassName() 的返回值完全一致
-      # pluginClass must exactly match getUniqueClassName() on the ohos side
-      ohos:
         pluginClass: ZeroInspectorKitPlugin

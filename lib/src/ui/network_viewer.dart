@@ -131,6 +131,10 @@ class _WsFramesViewState extends State<_WsFramesView> {
             Switch(
               value: _autoScroll,
               onChanged: (v) => setState(() => _autoScroll = v),
+              activeThumbColor: InspectorColors.accent,
+              activeTrackColor: InspectorColors.accent.withValues(alpha: 0.5),
+              inactiveThumbColor: InspectorColors.textSecondary,
+              inactiveTrackColor: InspectorColors.border,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ],
@@ -206,7 +210,11 @@ class _WsFramesViewState extends State<_WsFramesView> {
                 const SizedBox(height: 2),
                 Text(
                   f.text,
-                  style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    color: InspectorColors.textPrimary,
+                  ),
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1919,6 +1927,9 @@ class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
                 onChanged: (value) =>
                     _updateRule(_rule.copyWith(enabled: value)),
                 activeThumbColor: InspectorColors.accent,
+                activeTrackColor: InspectorColors.accent.withValues(alpha: 0.5),
+                inactiveThumbColor: InspectorColors.textSecondary,
+                inactiveTrackColor: InspectorColors.border,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               Text(

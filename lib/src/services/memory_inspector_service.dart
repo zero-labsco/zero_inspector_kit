@@ -152,6 +152,12 @@ class MemoryInspectorService extends ChangeNotifier {
   /// 存储统计刷新定时器 / Storage stats refresh timer
   Timer? _storageTimer;
 
+  /// 存储统计重入守卫：_refreshStorageStats 会整树递归统计，耗时较长，3s 定时器可能在
+  /// 上一次未完成时再次触发，导致多份全量遍历并发。加锁后跳过重叠的触发。
+  /// Re-entrancy guard for storage stats: _refreshStorageStats walks the whole tree
+  /// and can be slow, so the 3s timer may overlap a previous run. Skip overlapping runs.
+  bool _storageStatsRunning = false;
+
   /// 泄漏检测检查定时器 / Leak detection check timer
   Timer? _leakDetectionTimer;
 
@@ -170,6 +176,12 @@ class MemoryInspectorService extends ChangeNotifier {
   /// 长连接的订阅 / Subscription backing the persistent socket
   StreamSubscription? _vmServiceSocketSub;
 
+  /// 正在进行中的建连任务：并发调用 [_ensureVmServiceSocket] 时复用同一结果，
+  /// 避免两个调用各建一个 WebSocket，先建的订阅被覆盖后永不 close（泄漏）。
+  /// In-flight connect task: concurrent [_ensureVmServiceSocket] calls share one
+  /// result, so two calls never open two WebSockets (leaking the first handle).
+  Future<WebSocket>? _connectingSocket;
+
   /// 在途 RPC 调用（按 JSON-RPC id 索引）/ In-flight RPCs keyed by JSON-RPC id
   final Map<int, Completer<Map<String, dynamic>>> _pendingVmRpc = {};
 
@@ -183,6 +195,12 @@ class MemoryInspectorService extends ChangeNotifier {
   /// 包含 tracking、verifying、leaked、released 四种状态的记录
   /// Contains records in all four states: tracking, verifying, leaked, released
   final Map<int, LeakRecord> _trackedRecords = {};
+
+  /// 内存刷新重入守卫：[_refreshMemoryData] 最长阻塞 3s（WebSocket 超时）/2s（HTTP），
+  /// 慢网络下会重叠多次重入，导致并发请求堆积、快照重复注入、RSS 彼此覆盖。
+  /// Re-entrancy guard for memory refresh: [_refreshMemoryData] can block up to 3s,
+  /// so on slow networks several calls overlap and stack up; this prevents it.
+  bool _refreshing = false;
 
   /// 获取所有泄漏检测记录的只读快照 / Get read-only snapshot of all leak detection records
   List<LeakRecord> get leakRecords => _trackedRecords.values.toList();
@@ -668,35 +686,45 @@ class MemoryInspectorService extends ChangeNotifier {
   /// 同时合并最近一次 Native 内存数据到快照
   /// Also merges last Native memory data into snapshot
   Future<void> _refreshMemoryData() async {
-    // 1. 始终采集进程 RSS（来自 ProcessInfo，无需网络）
-    // 1. Always collect process RSS (from ProcessInfo, no network required)
-    // 注：Native 定时器（3 秒）会用更准确的 RSS 覆盖此值
-    // Note: Native timer (3s) will overwrite this with more accurate RSS
+    // 重入守卫：_fetchDartHeapData 最长阻塞 3s（WebSocket 超时）/2s（HTTP），
+    // 慢网络下 Timer 会重叠调用本函数，导致并发请求堆积、快照重复注入、RSS 互相覆盖。
+    // Re-entrancy guard: _fetchDartHeapData can block up to 3s, so the timer would
+    // otherwise overlap calls and stack concurrent requests / duplicate snapshots.
+    if (_refreshing) return;
+    _refreshing = true;
     try {
-      _currentProcessRss = ProcessInfo.currentRss;
-    } catch (_) {}
+      // 1. 始终采集进程 RSS（来自 ProcessInfo，无需网络）
+      // 1. Always collect process RSS (from ProcessInfo, no network required)
+      // 注：Native 定时器（3 秒）会用更准确的 RSS 覆盖此值
+      // Note: Native timer (3s) will overwrite this with more accurate RSS
+      try {
+        _currentProcessRss = ProcessInfo.currentRss;
+      } catch (_) {}
 
-    // 2. 如果 VM Service 已可用，则采集 Dart Heap 数据
-    // 2. If VM Service is available, collect Dart Heap data
-    if (_vmServiceAvailable && _vmServiceHttpUri != null) {
-      await _fetchDartHeapData();
+      // 2. 如果 VM Service 已可用，则采集 Dart Heap 数据
+      // 2. If VM Service is available, collect Dart Heap data
+      if (_vmServiceAvailable && _vmServiceHttpUri != null) {
+        await _fetchDartHeapData();
+      }
+
+      // 3. 创建并保存快照（合并 Native + Dart Heap 数据）
+      // 3. Create and save snapshot (merging Native + Dart Heap data)
+      final snapshot = _buildSnapshot();
+      _memorySnapshots.add(snapshot);
+
+      // 4. 限制历史快照数量，移除最旧的数据
+      // 4. Limit snapshot count, remove oldest data
+      while (_memorySnapshots.length > _maxSnapshots) {
+        _memorySnapshots.removeAt(0);
+      }
+
+      // 告警检测：以进程 RSS（MB）为准 / Alert: use process RSS in MB
+      AlertService.instance.checkMemory(_currentProcessRss / (1024 * 1024));
+
+      _liveNotifier.notifyListeners();
+    } finally {
+      _refreshing = false;
     }
-
-    // 3. 创建并保存快照（合并 Native + Dart Heap 数据）
-    // 3. Create and save snapshot (merging Native + Dart Heap data)
-    final snapshot = _buildSnapshot();
-    _memorySnapshots.add(snapshot);
-
-    // 4. 限制历史快照数量，移除最旧的数据
-    // 4. Limit snapshot count, remove oldest data
-    while (_memorySnapshots.length > _maxSnapshots) {
-      _memorySnapshots.removeAt(0);
-    }
-
-    // 告警检测：以进程 RSS（MB）为准 / Alert: use process RSS in MB
-    AlertService.instance.checkMemory(_currentProcessRss / (1024 * 1024));
-
-    _liveNotifier.notifyListeners();
   }
 
   /// 构建当前内存快照 / Build current memory snapshot
@@ -1039,6 +1067,22 @@ class MemoryInspectorService extends ChangeNotifier {
   Future<WebSocket> _ensureVmServiceSocket() async {
     final existing = _vmServiceSocket;
     if (existing != null && existing.closeCode == null) return existing;
+    // 并发防重入：已有建连在跑则复用其 Future，避免两个调用各开一个 WebSocket。
+    // Concurrency guard: reuse the in-flight connect instead of opening a second one.
+    if (_connectingSocket != null) return _connectingSocket!;
+    final future = _doConnectVmServiceSocket();
+    _connectingSocket = future;
+    try {
+      return await future;
+    } finally {
+      // 无论成功失败都清空，失败后可重试。
+      // Clear on every path so a failed connect can be retried.
+      _connectingSocket = null;
+    }
+  }
+
+  /// 实际建立 VM Service WebSocket 连接 / Actually establish the VM Service socket
+  Future<WebSocket> _doConnectVmServiceSocket() async {
     await _closeVmServiceSocket();
 
     final uri = _vmServiceWsUri;
@@ -1329,6 +1373,8 @@ class MemoryInspectorService extends ChangeNotifier {
 
   /// 刷新存储统计数据 / Refresh storage statistics data
   Future<void> _refreshStorageStats() async {
+    if (_storageStatsRunning) return;
+    _storageStatsRunning = true;
     try {
       final results = await Future.wait([
         getDocumentsDirSize(),
@@ -1339,7 +1385,12 @@ class MemoryInspectorService extends ChangeNotifier {
       _cachedCacheSize = results[1];
       _cachedDatabaseSize = results[2];
       notifyListeners();
-    } catch (_) {}
+    } catch (_) {
+      // 保留上一次成功的结果，避免统计失败时 UI 抖动为 0。
+      // Keep the last successful result so a failed refresh doesn't reset the UI to 0.
+    } finally {
+      _storageStatsRunning = false;
+    }
   }
 
   /// 获取所有数据库文件总大小（字节）/ Get total database file size (bytes)
@@ -1452,6 +1503,10 @@ class MemoryInspectorService extends ChangeNotifier {
     final releaseAfter = expectedReleaseAfter ?? _defaultExpectedReleaseAfter;
 
     final record = LeakRecord(
+      // 对外“追踪 ID”沿用 identityHashCode（与公开 API 契约及既有测试保持一致），
+      // 同对象重复 track 时 key 相同从而覆盖旧记录；不同对象 hash 碰撞属极罕见边界。
+      // The public "tracking id" stays identityHashCode to keep the API contract and
+      // existing tests stable; re-tracking the same object overwrites via the same key.
       objectId: identityHashCode(object),
       objectType: object.runtimeType.toString(),
       weakRef: WeakReference<Object>(object),
@@ -1476,10 +1531,23 @@ class MemoryInspectorService extends ChangeNotifier {
   /// [objectIdOrObject] 可以是对象本身或对象的 hashCode（trackObject 返回值）
   /// Can be the object itself or object's hashCode (return value of trackObject)
   void untrackObject(Object objectIdOrObject) {
-    final id = objectIdOrObject is int
-        ? objectIdOrObject
-        : identityHashCode(objectIdOrObject);
-    final removed = _trackedRecords.remove(id);
+    int? id;
+    if (objectIdOrObject is int) {
+      id = objectIdOrObject;
+    } else {
+      // 传入对象本身：用 identical 匹配弱引用持有的对象。不能用 identityHashCode
+      // 反查——它不再唯一，会误删另一条记录。
+      // Object passed: match via identical on the weak-referenced target. Do NOT
+      // use identityHashCode (no longer unique) or it would remove the wrong record.
+      for (final r in _trackedRecords.values) {
+        final target = r.weakRef.target;
+        if (target != null && identical(target, objectIdOrObject)) {
+          id = r.objectId;
+          break;
+        }
+      }
+    }
+    final removed = id != null ? _trackedRecords.remove(id) : null;
     if (removed != null) {
       notifyListeners();
     }
@@ -1601,11 +1669,12 @@ class MemoryInspectorService extends ChangeNotifier {
       unawaited(triggerGc());
     }
 
-    // 超过最大数量时，清理最旧的已释放记录
-    // When exceeding max count, clean up oldest released records
+    // 超过最大数量时，清理最旧的记录（按优先级级联淘汰）
+    // When exceeding max count, evict oldest records (cascading by priority)
     if (_trackedRecords.length > _maxTrackedRecords) {
+      final before = _trackedRecords.length;
       _trimExcessRecords();
-      changed = true;
+      if (_trackedRecords.length < before) changed = true;
     }
 
     if (changed) {
@@ -1613,26 +1682,61 @@ class MemoryInspectorService extends ChangeNotifier {
     }
   }
 
-  /// 清理超出数量的已释放记录 / Clean up released records exceeding quantity limit
+  /// 清理超出数量的记录 / Clean up records exceeding the quantity limit
   ///
-  /// 优先保留 leaked、verifying、tracking 状态的记录
-  /// Prioritize keeping leaked, verifying, tracking state records
-  /// 仅在总数超过 [_maxTrackedRecords] 时，移除最旧的 released 记录
-  /// Only remove oldest released records when total exceeds [_maxTrackedRecords]
+  /// 此前只删 released，导致 verifying / tracking / leaked 永不淘汰、无界增长
+  /// （release / 真机无 VM Service 时 verifying 记录尤其会堆积）。
+  /// 现在按优先级 leaked > verifying > tracking > released 逐档淘汰最旧者，
+  /// 直到回到 [_maxTrackedRecords] 以内；leaked 最后才动，尽量保留已确认泄漏。
+  /// Previously only `released` was evicted, so verifying / tracking / leaked grew
+  /// unbounded (verifying especially piles up on release / real-device without VM
+  /// Service). Now evict by priority leaked > verifying > tracking > released,
+  /// oldest first, until back under [_maxTrackedRecords]; leaked is touched last.
   void _trimExcessRecords() {
     if (_trackedRecords.length <= _maxTrackedRecords) return;
 
-    // 提取已释放记录，按 trackedAt 从旧到新排序
-    // Extract released records, sorted by trackedAt from oldest to newest
-    final releasedRecords =
-        _trackedRecords.values
-            .where((r) => r.status == LeakStatus.released)
-            .toList()
-          ..sort((a, b) => a.trackedAt.compareTo(b.trackedAt));
+    List<LeakRecord> oldestFirst(List<LeakRecord> list) =>
+        (list..sort((a, b) => a.trackedAt.compareTo(b.trackedAt)));
+
+    final released = oldestFirst(
+      _trackedRecords.values
+          .where((r) => r.status == LeakStatus.released)
+          .toList(),
+    );
+    final verifying = oldestFirst(
+      _trackedRecords.values
+          .where((r) => r.status == LeakStatus.verifying)
+          .toList(),
+    );
+    final tracking = oldestFirst(
+      _trackedRecords.values
+          .where((r) => r.status == LeakStatus.tracking)
+          .toList(),
+    );
+    final leaked = oldestFirst(
+      _trackedRecords.values
+          .where((r) => r.status == LeakStatus.leaked)
+          .toList(),
+    );
 
     int needRemove = _trackedRecords.length - _maxTrackedRecords;
-    for (final r in releasedRecords) {
-      if (needRemove <= 0) break;
+    for (final r in released) {
+      if (needRemove <= 0) return;
+      _trackedRecords.remove(r.objectId);
+      needRemove--;
+    }
+    for (final r in verifying) {
+      if (needRemove <= 0) return;
+      _trackedRecords.remove(r.objectId);
+      needRemove--;
+    }
+    for (final r in tracking) {
+      if (needRemove <= 0) return;
+      _trackedRecords.remove(r.objectId);
+      needRemove--;
+    }
+    for (final r in leaked) {
+      if (needRemove <= 0) return;
       _trackedRecords.remove(r.objectId);
       needRemove--;
     }

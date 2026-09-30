@@ -16,13 +16,26 @@ class _InspectorHttpClient implements HttpClient {
     int port,
     String path,
   ) {
-    // 非标 https 端口（如 8443）也按 https 记录，仅影响展示 URL。
-    final scheme = (port == 443 || port == 8443) ? 'https' : 'http';
+    // 仅当调用方直接使用 `HttpClient.open(...)`（不带 scheme 信息）时才需要猜测。
+    // 常规 `getUrl` 走 openUrl，已带正确 scheme。常见非标 TLS 端口（如 8443/7443/
+    // 9443）也按 https 处理，避免把 https 请求错记成 http（并避免对 TLS 端口发起
+    // 明文连接）。这是 best-effort：任意 TLS 端口无法仅凭端口判断。
+    // Only guessed when the caller uses `HttpClient.open(...)` directly (no scheme).
+    // The normal `getUrl` path goes through openUrl with the correct scheme. Common
+    // non-standard TLS ports (8443/7443/9443) are treated as https so we don't
+    // mislabel https as http (or open a plaintext socket to a TLS port).
+    final scheme = _isTlsPort(port) ? 'https' : 'http';
     return openUrl(
       method,
       Uri(scheme: scheme, host: host, port: port, path: path),
     );
   }
+
+  /// 常见 TLS 端口集合（best-effort 判定 https）。/ Common TLS ports (best-effort).
+  static const Set<int> _tlsPorts = {443, 8443, 7443, 9443, 8444, 9444};
+
+  /// 仅凭端口 best-effort 判断是否为 https。/ Best-effort https detection by port.
+  static bool _isTlsPort(int port) => _tlsPorts.contains(port);
 
   static const String _dioRequestIdHeader = 'x-inspector-request-id';
 
@@ -627,7 +640,7 @@ class _InspectorRequestProxy implements HttpClientRequest {
       _request.abort(exception, stackTrace);
 
   @override
-  HttpConnectionInfo? get connectionInfo => null;
+  HttpConnectionInfo? get connectionInfo => _request.connectionInfo;
 
   @override
   List<Cookie> get cookies => _request.cookies;
