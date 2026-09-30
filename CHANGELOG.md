@@ -21,6 +21,10 @@
   - 修复 `inspector_response_proxy` gzip 解压后 `contentLength` 仍以压缩前长度下发导致面板字节数偏差。
 - Fixed `environment.isInspectorEnabled` ignoring `--dart-define=INSPECTOR_ENABLED=false` in debug by using `String.fromEnvironment`.
   - 修复 `environment.isInspectorEnabled` 在 debug 下 `--dart-define=INSPECTOR_ENABLED=false` 失效（改用 `String.fromEnvironment` 区分"未设置 vs false"）。
+- Fixed WebSocket frame body text in the network detail view rendering in default black on the dark card background (illegible); it now uses `InspectorColors.textPrimary`.
+  - 修复网络详情页 WebSocket 帧正文在深色卡片背景上以默认黑色渲染、看不清的问题，现改用 `InspectorColors.textPrimary`。
+- Fixed `Switch` controls (WebSocket auto-scroll toggle and interceptor rule "Request Matching") using the default purple Material theme instead of the project's mint-green accent; they now use `InspectorColors.accent` for both thumb and track.
+  - 修复开关控件（WebSocket 自动滚动开关、拦截规则"Request Matching"开关）使用默认紫色 Material 主题而非项目薄荷绿的问题，现 thumbs/track 均使用 `InspectorColors.accent`。
 
 ### Changed / 优化
 - Hardened sensitive-data masking: no longer falls back to the original body on error; supports Unicode-unescaped JSON keys; recurses into object/array values; widens the Bearer regex; adds phone/ID PII patterns.
