@@ -131,7 +131,7 @@ class _WsFramesViewState extends State<_WsFramesView> {
             Switch(
               value: _autoScroll,
               onChanged: (v) => setState(() => _autoScroll = v),
-              activeColor: InspectorColors.accent,
+              activeThumbColor: InspectorColors.accent,
               activeTrackColor: InspectorColors.accent.withValues(alpha: 0.5),
               inactiveThumbColor: InspectorColors.textSecondary,
               inactiveTrackColor: InspectorColors.border,
@@ -1926,7 +1926,7 @@ class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
                 value: _rule.enabled,
                 onChanged: (value) =>
                     _updateRule(_rule.copyWith(enabled: value)),
-                activeColor: InspectorColors.accent,
+                activeThumbColor: InspectorColors.accent,
                 activeTrackColor: InspectorColors.accent.withValues(alpha: 0.5),
                 inactiveThumbColor: InspectorColors.textSecondary,
                 inactiveTrackColor: InspectorColors.border,
