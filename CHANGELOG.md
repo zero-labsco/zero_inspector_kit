@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.14.0
+
+### Fixed / 修复
+- 修复内存泄漏追踪的若干隐患：`_trackedRecords` 改为按优先级 `leaked > verifying > tracking > released` 级联淘汰最旧者，封住此前仅删 `released`、其余状态无界增长的内存风险（release / 真机无 VM Service 时 `verifying` 记录尤其会堆积）；VM Service WebSocket 增加“连接中”并发保护避免重复建连泄漏；内存刷新增加重入守卫。追踪 ID 仍沿用 `identityHashCode` 以兼容公开 API 与既有测试。 / Fixed several memory-leak tracking issues: `_trackedRecords` now evicts oldest entries by priority `leaked > verifying > tracking > released`, closing the previous unbounded-growth hole where only `released` was trimmed (verifying records piled up especially on release / real-device without VM Service); guarded the VM Service WebSocket against concurrent reconnect leaks; added a reentrancy guard to the memory refresh. The tracking id stays `identityHashCode` to keep the public API and existing tests stable.
+- 修复资源泄漏：`InspectorService.notifyThrottled` 的兜底 Timer 改为可取消（避免瞬时堆积大量 Timer）；`WsInspectorService` 重复 `close` 去重；`LogInterceptor` 在 `FlutterError.onError` 原本为 null 时正确恢复。 / Fixed resource leaks: made the throttle fallback `Timer` cancelable (avoids transient piles of timers); de-duplicated `WsInspectorService` double-close; restored `FlutterError.onError` to null when it was originally null.
+- 修复 `AlertService` 节流 key 含易变数值导致 1s 冷却失效的问题（key 改为 `source + rule.id`）。 / Fixed `AlertService` throttle key containing volatile numbers that defeated the 1s cooldown (key is now `source + rule.id`).
+- 修复 `PersistenceService.init` 并发穿透导致重复 `openDatabase`（旧句柄泄漏），改用 `_initFuture` 串行化。 / Fixed `PersistenceService.init` concurrent re-entry opening two databases (leaking the old handle) by serializing via `_initFuture`.
+- 修复 Dio 抓包：无响应（超时/网络错）时以 `statusCode: -1` 占位避免请求永挂“进行中”；`responseType: stream` 不再持有未关闭的 `ResponseBody`（socket 泄漏），`bytes` 时按预览上限截断。 / Fixed Dio capture: a timeout/no-response now gets a `statusCode: -1` placeholder instead of hanging forever; `responseType: stream` no longer holds an unclosed `ResponseBody` (socket leak), and `bytes` is truncated to the preview cap.
+- 修复路由 id 用毫秒时间戳会碰撞（`didPush`+`didReplace` 同毫秒），改用全局自增计数器。 / Fixed route id collisions from millisecond timestamps by switching to a global auto-increment counter.
+- 修复拦截规则“修改响应头”静默不生效（`responseHeaders` 仅定义未应用）；HTTP client 仅按 `443/8443` 猜 scheme 会误判其它 TLS 端口为 http，并转发真实的 `connectionInfo`。 / Fixed interceptor rules' response-header rewrite being silently ignored; the HTTP client now infers scheme beyond just `443/8443` and forwards the real `connectionInfo`.
+- 修复 `inspector_response_proxy` gzip 解压后 `contentLength` 仍以压缩前长度下发导致面板字节数偏差。 / Fixed `contentLength` after gzip decompression still reporting the pre-compression length.
+- 修复 `environment.isInspectorEnabled` 在 debug 下 `--dart-define=INSPECTOR_ENABLED=false` 失效（改用 `String.fromEnvironment` 区分“未设置 vs false”）。 / Fixed `environment.isInspectorEnabled` ignoring `--dart-define=INSPECTOR_ENABLED=false` in debug by using `String.fromEnvironment`.
+
+### Changed / 优化
+- 敏感数据脱敏加固：失败不再原样回退（fail-open）而是保守脱敏；支持 JSON key 的 Unicode 转义（`\u0077` 等）反转义后匹配；敏感键值为对象/数组时也递归脱敏；Bearer 正则覆盖 `:` 等字符；新增手机号/身份证号 PII 正则。 / Hardened sensitive-data masking: no longer falls back to the original body on error; supports Unicode-unescaped JSON keys; recurses into object/array values; widens the Bearer regex; adds phone/ID PII patterns.
+- 性能：FPS 帧列表改用 `ListQueue` 消除每帧 O(n) 搬移；WS 会话 body 汇总降频到 10Hz；存储统计增加防重入。 / Perf: FPS frame list uses `ListQueue` to remove per-frame O(n) shifts; WS session body aggregation is throttled to 10Hz; storage stats gained re-entrancy protection.
+- `InspectorService.maxBodyPreviewBytes` 单位由“UTF-16 字符”改为真实字节，避免中文 / gzip base64 场景低估约 2-3 倍预算。 / `InspectorService.maxBodyPreviewBytes` now counts real bytes instead of UTF-16 chars, avoiding ~2-3x under-budgeting for CJK / gzip base64.
+
 ## 1.13.0
 
 ### Changed / 优化

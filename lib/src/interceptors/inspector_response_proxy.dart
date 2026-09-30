@@ -144,7 +144,18 @@ class _InspectorResponseProxy implements HttpClientResponse {
   String get reasonPhrase => _response.reasonPhrase;
 
   @override
-  HttpHeaders get headers => _response.headers;
+  HttpHeaders get headers {
+    final rule = _getRule();
+    // 命中响应头修改规则时，把规则里的响应头叠加到底层 headers 上返回，
+    // 让业务方实际读到被修改后的响应头（此前 responseHeaders 被定义却从未生效）。
+    // When a response-header rule matches, overlay the rule's headers on top of the
+    // underlying headers so the consumer sees the modified response (previously
+    // `responseHeaders` was defined but never applied).
+    if (rule?.responseHeaders != null && rule!.responseHeaders!.isNotEmpty) {
+      return _MergedHttpHeaders(_response.headers, rule.responseHeaders!);
+    }
+    return _response.headers;
+  }
 
   @override
   int get contentLength {
@@ -153,6 +164,15 @@ class _InspectorResponseProxy implements HttpClientResponse {
       final body = rule!.responseBody;
       final bodyStr = body is String ? body : jsonEncode(body);
       return utf8.encode(bodyStr).length;
+    }
+    // gzip 等自动解压后，_response.contentLength 是压缩前（线上）长度，与业务方实际
+    // 读到的解压字节数不一致；流消费完成后转发解压后的真实字节数，避免面板显示的
+    // 长度与 body 对不上。
+    // After auto-decompression, _response.contentLength is the pre-compression (wire)
+    // length and mismatches the decompressed bytes the consumer actually reads; once
+    // the stream is consumed, report the real decompressed length.
+    if (compressionState == HttpClientResponseCompressionState.compressed) {
+      return _bodyCaptured ? _bodyBytes.length : _response.contentLength;
     }
     return _response.contentLength;
   }
@@ -415,4 +435,117 @@ class _InspectorResponseProxy implements HttpClientResponse {
 
   @override
   Stream<T> cast<T>() => _wrappedStream.cast<T>();
+}
+
+/// 叠加了拦截规则响应头的 [HttpHeaders] 视图。
+/// 仅在存在 `responseHeaders` 规则时构造，叠加层覆盖底层同名头、并补充底层没有的键。
+/// 写入方法直接委托给底层（规则只影响“展示给业务方的响应头”，不改写真实响应）。
+/// A [HttpHeaders] view that overlays interceptor-rule response headers. Built only
+/// when a `responseHeaders` rule exists; the overlay replaces same-named headers and
+/// adds keys missing from the base. Writes delegate to the base (rules only affect
+/// the headers the consumer observes, never the real response).
+class _MergedHttpHeaders implements HttpHeaders {
+  final HttpHeaders _inner;
+  final Map<String, String> _overlay;
+
+  _MergedHttpHeaders(this._inner, this._overlay);
+
+  String? _overlayValue(String name) {
+    for (final k in _overlay.keys) {
+      if (k.toLowerCase() == name.toLowerCase()) return _overlay[k];
+    }
+    return null;
+  }
+
+  List<String>? _merged(String name) {
+    final o = _overlayValue(name);
+    if (o != null) return [o];
+    return _inner[name];
+  }
+
+  @override
+  String? value(String name) => _overlayValue(name) ?? _inner.value(name);
+
+  @override
+  List<String>? operator [](String name) => _merged(name);
+
+  @override
+  void forEach(void Function(String name, List<String> values) action) {
+    final emitted = <String>{};
+    _inner.forEach((name, values) {
+      emitted.add(name.toLowerCase());
+      action(name, _merged(name) ?? values);
+    });
+    for (final e in _overlay.entries) {
+      if (!emitted.contains(e.key.toLowerCase())) action(e.key, [e.value]);
+    }
+  }
+
+  @override
+  void add(String name, Object value, {bool preserveHeaderCase = false}) =>
+      _inner.add(name, value, preserveHeaderCase: preserveHeaderCase);
+  @override
+  void set(String name, Object value, {bool preserveHeaderCase = false}) =>
+      _inner.set(name, value, preserveHeaderCase: preserveHeaderCase);
+  @override
+  void remove(String name, Object value) => _inner.remove(name, value);
+  @override
+  void removeAll(String name) => _inner.removeAll(name);
+  @override
+  void clear() => _inner.clear();
+  @override
+  void noFolding(String name) => _inner.noFolding(name);
+
+  @override
+  DateTime? get date => _parseDate(value(HttpHeaders.dateHeader));
+  @override
+  set date(DateTime? value) => _inner.date = value;
+  @override
+  DateTime? get expires => _parseDate(value(HttpHeaders.expiresHeader));
+  @override
+  set expires(DateTime? value) => _inner.expires = value;
+  @override
+  DateTime? get ifModifiedSince =>
+      _parseDate(value(HttpHeaders.ifModifiedSinceHeader));
+  @override
+  set ifModifiedSince(DateTime? value) => _inner.ifModifiedSince = value;
+  @override
+  String? get host => value(HttpHeaders.hostHeader);
+  @override
+  set host(String? value) => _inner.host = value;
+  @override
+  int? get port => int.tryParse(value('port') ?? '');
+  @override
+  set port(int? value) => _inner.port = value;
+  @override
+  ContentType? get contentType {
+    final v = value(HttpHeaders.contentTypeHeader);
+    return v == null ? null : ContentType.parse(v);
+  }
+
+  @override
+  set contentType(ContentType? value) => _inner.contentType = value;
+  @override
+  bool get chunkedTransferEncoding => value('transfer-encoding') == 'chunked';
+  @override
+  set chunkedTransferEncoding(bool value) =>
+      _inner.chunkedTransferEncoding = value;
+  @override
+  bool get persistentConnection => value('connection') == 'keep-alive';
+  @override
+  set persistentConnection(bool value) => _inner.persistentConnection = value;
+
+  @override
+  int get contentLength => _inner.contentLength;
+  @override
+  set contentLength(int value) => _inner.contentLength = value;
+
+  static DateTime? _parseDate(String? value) {
+    if (value == null) return null;
+    try {
+      return HttpDate.parse(value);
+    } catch (_) {
+      return null;
+    }
+  }
 }

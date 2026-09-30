@@ -121,13 +121,13 @@ class AlertService {
     for (final rule in _rules) {
       if (!rule.enabled || rule.kind != AlertKind.httpStatus) continue;
       if (r.statusCode != null && r.statusCode! >= rule.threshold) {
-        _fire(r.url, 'HTTP ${r.statusCode} ${r.method}');
+        _fire(r.url, 'HTTP ${r.statusCode} ${r.method}', throttleKey: rule.id);
       }
     }
     for (final rule in _rules) {
       if (!rule.enabled || rule.kind != AlertKind.requestDuration) continue;
       if (r.duration != null && r.duration! >= rule.threshold) {
-        _fire(r.url, 'Slow ${r.duration}ms ${r.method}');
+        _fire(r.url, 'Slow ${r.duration}ms ${r.method}', throttleKey: rule.id);
       }
     }
   }
@@ -138,7 +138,11 @@ class AlertService {
       if (!rule.enabled || rule.kind != AlertKind.logLevel) continue;
       // ERROR=4, WTF=5 / LogLevel ordinal
       if (e.level.index >= rule.threshold) {
-        _fire(e.tag ?? 'log', '${e.level.name}: ${e.message}');
+        _fire(
+          e.tag ?? 'log',
+          '${e.level.name}: ${e.message}',
+          throttleKey: rule.id,
+        );
       }
     }
   }
@@ -148,7 +152,11 @@ class AlertService {
     for (final rule in _rules) {
       if (!rule.enabled || rule.kind != AlertKind.memoryMb) continue;
       if (mb >= rule.threshold) {
-        _fire('memory', '${mb.toStringAsFixed(0)} MB used');
+        _fire(
+          'memory',
+          '${mb.toStringAsFixed(0)} MB used',
+          throttleKey: rule.id,
+        );
       }
     }
   }
@@ -158,20 +166,29 @@ class AlertService {
     for (final rule in _rules) {
       if (!rule.enabled || rule.kind != AlertKind.fpsLow) continue;
       if (fps > 0 && fps < rule.threshold) {
-        _fire('fps', 'FPS dropped to ${fps.toStringAsFixed(0)}');
+        _fire(
+          'fps',
+          'FPS dropped to ${fps.toStringAsFixed(0)}',
+          throttleKey: rule.id,
+        );
       }
     }
   }
 
   /// 触发一条告警：入队并累加未读 / Fire an alert: enqueue and bump unread
   ///
-  /// 同 (source, message) 在 [_perSourceCooldownMs] 毫秒内重复触发会被节流，
+  /// 同 (source, [throttleKey]) 在 [_perSourceCooldownMs] 毫秒内重复触发会被节流，
   /// 避免高频检查（如 500ms 内存/FPS 轮询、慢请求循环）淹没告警缓冲。
-  /// Repeated firings for the same (source, message) within
-  /// [_perSourceCooldownMs] are throttled to avoid alert storms.
-  void _fire(String source, String message) {
+  /// 注意：[throttleKey] 取**规则级稳定标识**（如 `rule.id`），不要包含随时间
+  /// 波动的数值（内存 MB、耗时 ms 等）——此前 key 直接用了含数值的 [message]，
+  /// 数值一变 key 就变，1s 冷却完全失效，内存页每个轮询 tick 都产生新告警。
+  /// Repeated firings for the same (source, [throttleKey]) within
+  /// [_perSourceCooldownMs] are throttled. [throttleKey] must be a stable
+  /// per-rule identity, not the volatile [message] (which embeds MB / ms), or the
+  /// cooldown never holds.
+  void _fire(String source, String message, {String? throttleKey}) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    final key = (source, message);
+    final key = (source, throttleKey ?? message);
     final last = _lastFiredAt[key];
     if (last != null && now - last < _perSourceCooldownMs) {
       return;

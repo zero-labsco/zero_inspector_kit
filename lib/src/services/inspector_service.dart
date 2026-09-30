@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -54,11 +55,10 @@ class ThrottledNotifier extends ChangeNotifier {
       binding.scheduleFrame();
       binding.addPostFrameCallback((_) => doNotify());
     } catch (_) {
-      // 无绑定可用：退回 Timer 兜底。
-      // No binding available: fall back to a Timer.
+      // 无绑定可用：退回一次性 Timer 兜底（触发后自动回收，不会常驻）。
+      // No binding available: fall back to a one-shot Timer (auto-reclaimed).
       Timer(const Duration(milliseconds: 16), doNotify);
     }
-    Timer(const Duration(milliseconds: 500), doNotify);
   }
 
   /// 重置帧排程标志（dispose 时调用）/ Reset the frame-scheduling flag (on dispose)
@@ -161,11 +161,16 @@ class InspectorService {
       ? 0
       : _maxGlobalBodyBytes - _globalBodyBytes;
 
-  /// 估算一条请求的 body 字节占用（字符数近似）/ Estimate a request's buffered body bytes (char-count approximation)
+  /// 估算一条请求的 body 字节占用（UTF-8 字节，与全局预算单位一致）。
+  /// Estimate a request's buffered body bytes (UTF-8, consistent with the budget unit).
+  /// 此前用字符串长度（UTF-16 码元）近似，中文 / gzip base64 会低估约 2-3 倍。
+  /// Previously used string length (UTF-16 code units), underestimating ~2-3x for CJK.
   static int _bodyBytesOf(NetworkRequest r) {
     var n = 0;
-    if (r.body != null) n += r.body.toString().length;
-    if (r.responseBody != null) n += r.responseBody.toString().length;
+    if (r.body != null) n += utf8.encode(r.body.toString()).length;
+    if (r.responseBody != null) {
+      n += utf8.encode(r.responseBody.toString()).length;
+    }
     return n;
   }
 
@@ -341,8 +346,10 @@ class InspectorService {
     // would be too expensive to write every time.
     if (statusCode != null) {
       PersistenceService.instance.enqueueNetwork(updated);
+      // 告警检查同样只在响应真正到达时进行；进行中的请求（statusCode 为 null）
+      // 每帧都跑 checkNetwork 纯属浪费。/ Alert check only on real arrival too.
+      AlertService.instance.checkNetwork(updated);
     }
-    AlertService.instance.checkNetwork(updated);
     networkNotifier.notifyThrottled();
   }
 

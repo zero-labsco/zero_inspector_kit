@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// 敏感数据脱敏 / Sensitive data masking
 ///
 /// 集中处理导出 / 复制 / 分享前的脱敏，覆盖三个此前完全没覆盖的泄漏面：
@@ -186,8 +188,11 @@ class SensitiveData {
   );
 
   /// `Bearer <token>` 形式的凭据 / `Bearer <token>` credentials
+  /// 字符集包含 `:`，避免 `Bearer aaa:bbb` 仅前缀被掩而尾部泄漏。
+  /// The charset includes `:` so `Bearer aaa:bbb` is masked fully, not just the
+  /// prefix.
   static final RegExp _bearer = RegExp(
-    r'(Bearer\s+)[A-Za-z0-9\-._~+/=]+',
+    r'(Bearer\s+)[A-Za-z0-9\-._~+/=:]+',
     caseSensitive: false,
   );
 
@@ -196,47 +201,99 @@ class SensitiveData {
     r'\bey[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}',
   );
 
+  /// PII：中国大陆手机号（11 位，1[3-9] 开头）/ PII: mainland China mobile number
+  static final RegExp _phone = RegExp(r'1[3-9]\d{9}');
+
+  /// PII：中国大陆身份证号（18 位，末位可为 X）/ PII: mainland China ID card
+  static final RegExp _idCard = RegExp(r'(?<!\d)\d{17}[\dXx](?!\d)');
+
   /// 遮蔽 body 中的敏感内容 / Mask sensitive content in a body
   ///
-  /// 先按 JSON 字段脱敏，再兜底处理 Bearer 凭据与 JWT，
-  /// 最后失败时原样返回（脱敏不应导致内容丢失）。
-  /// Masks JSON fields first, then falls back to Bearer credentials and JWTs,
-  /// returning the input unchanged on failure (masking must not lose content).
+  /// 优先走结构化递归脱敏：能正确处理 JSON key 的 Unicode 转义（如 `\u0077`）、
+  /// 嵌套对象 / 数组中的敏感键与对象型敏感值；非合法 JSON 时回退到正则 / Bearer /
+  /// JWT 的字符级脱敏，并在正则未命中 PII 后再做手机号 / 身份证兜底。任何一步
+  /// 失败都**不再原样回退（fail-open）**，而是保守返回全脱敏占位，避免泄露原文。
+  /// Prefers structured recursive masking, which correctly handles Unicode-escaped
+  /// JSON keys (e.g. `\u0077`), nested objects / arrays, and object-valued secrets.
+  /// For non-JSON it falls back to regex / Bearer / JWT masking plus phone / ID
+  /// PII, and on any failure it **no longer returns the original (fail-open)** but
+  /// a conservative fully-masked placeholder to avoid leaking the cleartext.
   static String maskBody(String body) {
     if (body.isEmpty) return body;
     try {
-      var out = body.replaceAllMapped(_jsonPair, (m) {
-        final rawKey = m.group(1)!;
-        final key = rawKey.substring(1, rawKey.length - 1);
-        if (!isSensitiveKey(key)) return m.group(0)!;
-        final value = m.group(3)!;
-        // 字符串值替换为带引号的占位符，其余字面量直接替换，保持 JSON 合法。
-        // Quote the placeholder for string values, replace literals as-is, so
-        // the result stays valid JSON.
-        final maskedValue = value.startsWith('"') ? '"$placeholder"' : 'null';
-        return '$rawKey${m.group(2)}$maskedValue';
-      });
-      out = out.replaceAllMapped(_bearer, (m) => '${m.group(1)}$placeholder');
-      out = out.replaceAllMapped(_jwt, (_) => placeholder);
-      return out;
+      final decoded = jsonDecode(body);
+      final masked = _maskJsonValue(decoded);
+      return jsonEncode(masked);
     } catch (_) {
-      return body;
+      try {
+        var out = body.replaceAllMapped(_jsonPair, (m) {
+          final key = _decodeJsonKey(m.group(1)!);
+          if (!isSensitiveKey(key)) return m.group(0)!;
+          final value = m.group(3)!;
+          // 字符串值替换为带引号的占位符，其余字面量直接替换，保持 JSON 合法。
+          // Quote the placeholder for string values, replace literals as-is, so
+          // the result stays valid JSON.
+          final maskedValue = value.startsWith('"') ? '"$placeholder"' : 'null';
+          return '${m.group(1)}${m.group(2)}$maskedValue';
+        });
+        out = _applyTokenAndPii(out);
+        return out;
+      } catch (_) {
+        // 兜底：保守脱敏，绝不原样回退。
+        // Fallback: conservative masking, never fail-open.
+        return placeholder;
+      }
     }
   }
 
-  /// 对任意文本做兜底脱敏（Bearer / JWT），用于非 JSON 内容
-  /// Best-effort masking (Bearer / JWT) for non-JSON content
+  /// 解码 JSON key（含 `\uXXXX` 转义）/ Decode a JSON key (handles `\uXXXX` escapes)
+  static String _decodeJsonKey(String rawKey) {
+    try {
+      return jsonDecode(rawKey) as String;
+    } catch (_) {
+      return rawKey.substring(1, rawKey.length - 1);
+    }
+  }
+
+  /// 递归脱敏一个已解码的 JSON 值 / Recursively mask a decoded JSON value
+  static dynamic _maskJsonValue(dynamic value) {
+    if (value is Map) {
+      return value.map((k, v) {
+        final key = k is String ? k : k.toString();
+        // 敏感键：无论值是标量、对象还是数组，一律脱敏为 null（保持合法 JSON）。
+        // Sensitive key: mask the value to null regardless of scalar / object /
+        // array, keeping the result valid JSON.
+        if (isSensitiveKey(key)) return MapEntry(k, null);
+        return MapEntry(k, _maskJsonValue(v));
+      });
+    } else if (value is List) {
+      return value.map(_maskJsonValue).toList();
+    }
+    return value;
+  }
+
+  /// 同时应用 Bearer / JWT / 手机号 / 身份证 脱敏 / Apply Bearer / JWT / phone / ID masking
+  static String _applyTokenAndPii(String text) {
+    var out = text.replaceAllMapped(
+      _bearer,
+      (m) => '${m.group(1)}$placeholder',
+    );
+    out = out.replaceAllMapped(_jwt, (_) => placeholder);
+    out = out.replaceAll(_phone, placeholder);
+    out = out.replaceAll(_idCard, placeholder);
+    return out;
+  }
+
+  /// 对任意文本做兜底脱敏（Bearer / JWT / PII），用于非 JSON 内容
+  /// Best-effort masking (Bearer / JWT / PII) for non-JSON content
   static String maskText(String text) {
     if (text.isEmpty) return text;
     try {
-      var out = text.replaceAllMapped(
-        _bearer,
-        (m) => '${m.group(1)}$placeholder',
-      );
-      out = out.replaceAllMapped(_jwt, (_) => placeholder);
-      return out;
+      return _applyTokenAndPii(text);
     } catch (_) {
-      return text;
+      // 兜底：保守脱敏，绝不原样回退。
+      // Fallback: conservative masking, never fail-open.
+      return placeholder;
     }
   }
 

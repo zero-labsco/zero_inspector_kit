@@ -173,13 +173,28 @@ class NetworkRequest {
     );
   }
 
-  /// 将 [value] 截断为不超过 [maxBytes] 字符的头部预览；超长时附截断提示。
-  /// Truncate [value] to a head preview no longer than [maxBytes] chars; append a note when clipped.
+  /// 将 [value] 截断为不超过 [maxBytes] **字节**（UTF-8）的头部预览；超长时附截断提示。
+  /// 此前按 UTF-16 字符数截断，中文 / gzip base64 场景下会低估约 2-3 倍预算，导致
+  /// body 实际比上限长很多。现在按真实字节数截断，与全局 body 预算的单位一致。
+  /// Truncate [value] to a head preview no longer than [maxBytes] **UTF-8 bytes**.
+  /// Previously it counted UTF-16 chars, underestimating the budget ~2-3x for CJK /
+  /// gzip base64; now it matches the global body budget's unit (bytes).
   static dynamic _truncate(dynamic value, int maxBytes) {
     if (value == null) return value;
     final str = value.toString();
-    if (str.length <= maxBytes) return str;
-    return '${str.substring(0, maxBytes)}\n'
-        '[… truncated ${str.length - maxBytes} chars …]';
+    final bytes = utf8.encode(str);
+    if (bytes.length <= maxBytes) return str;
+    // 按字节截断后再解码为合法字符串，避免截断在字符中途产生乱码。
+    // Truncate by bytes, then decode back to a valid string (no mid-codeunit split).
+    var end = maxBytes;
+    while (end > 0) {
+      try {
+        final slice = utf8.decode(bytes.sublist(0, end));
+        return '$slice\n[… truncated ${bytes.length - end} bytes …]';
+      } on FormatException {
+        end--;
+      }
+    }
+    return '[… truncated ${bytes.length} bytes …]';
   }
 }
