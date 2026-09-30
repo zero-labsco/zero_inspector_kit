@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release fixes a batch of resource-leak and correctness issues across the inspector: unreleased UI controllers/scroll positions, a duplicated WebSocket connection, double-closed WS sessions, a broken alert throttle, persistence double-init, memory-leak tracking mis-keying, plus Dio failure/stream edge cases and sensitive-data masking gaps. All users are encouraged to upgrade to the latest version (`^1.14.0`).
+> **🔔 Upgrade recommended:** This release fixes a batch of resource-leak and correctness issues across the inspector: unreleased UI controllers/scroll positions, a duplicated WebSocket connection, double-closed WS sessions, a broken alert throttle, persistence double-init, memory-leak tracking mis-keying, plus Dio failure/stream edge cases and sensitive-data masking gaps. All users are encouraged to upgrade to the latest version (`^1.14.1`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -102,7 +102,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.14.0
+  zero_inspector_kit: ^1.14.1
 ```
 
 ### GitHub
@@ -112,7 +112,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.14.0   # replace 1.14.0 with the version you need
+      ref: release/v1.14.1   # replace 1.14.1 with the version you need
 ```
 
 ---

@@ -3,10 +3,15 @@ import UIKit
 
 public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
     private var logs: [String] = []
+    /// 系统内存压力状态，由内存压力监听维护，驱动 lowMemory 字段
+    /// System memory-pressure state, maintained by the memory-pressure monitor and driving the lowMemory field
+    private var isUnderMemoryPressure = false
+    private var memoryPressureSource: DispatchSourceMemoryPressure?
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "zero_inspector_kit", binaryMessenger: registrar.messenger())
         let instance = ZeroInspectorKitPlugin()
+        instance.setupMemoryPressureMonitoring()
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
 
@@ -42,7 +47,7 @@ public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
     /// - virtualMemory:         虚拟内存 / Virtual memory
     /// - totalMem:              设备物理内存总量 / Device total physical memory
     /// - availMem:              设备可用物理内存 / Device available physical memory
-    /// - lowMemory:            是否处于低内存状态 / Whether in low memory state
+    /// - lowMemory:            是否处于低内存状态（iOS 为系统内存压力，非低电量模式）/ Whether in low memory state (on iOS: system memory pressure, not Low Power Mode)
     private func getProcessMemoryInfo() -> [String: Any] {
         var info: [String: Any] = [:]
 
@@ -100,11 +105,12 @@ public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
         // 4. Get available memory via NSProcessInfo (iOS 11+)
         if #available(iOS 11.0, *) {
             info["availMem"] = Int(ProcessInfo.processInfo.physicalMemory - getUsedMemory())
-            info["lowMemory"] = ProcessInfo.processInfo.isLowPowerModeEnabled
         } else {
             info["availMem"] = 0
-            info["lowMemory"] = false
         }
+        // lowMemory 反映系统内存压力（而非低电量模式 isLowPowerModeEnabled），由内存压力监听维护
+        // lowMemory reflects system memory pressure (not Low Power Mode / isLowPowerModeEnabled), maintained by the memory-pressure monitor
+        info["lowMemory"] = isUnderMemoryPressure
 
         // 5. iOS 没有 Dalvik/Native PSS 分项，统一填 0 以保持 Map 结构一致
         // 5. iOS doesn't have Dalvik/Native PSS breakdown, fill 0 to keep Map structure consistent
@@ -124,6 +130,25 @@ public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
         info["graphics"] = 0
 
         return info
+    }
+
+    /// 监听系统内存压力，维护 isUnderMemoryPressure 供 lowMemory 字段使用
+    /// Observe system memory pressure and maintain isUnderMemoryPressure for the lowMemory field
+    private func setupMemoryPressureMonitoring() {
+        let source = DispatchSource.makeMemoryPressureSource(
+            eventMask: [.critical, .normal],
+            queue: DispatchQueue.main
+        )
+        source.setEventHandler { [weak self] in
+            let flags = source.memoryPressureFlags
+            if flags.contains(.critical) {
+                self?.isUnderMemoryPressure = true
+            } else if flags.contains(.normal) {
+                self?.isUnderMemoryPressure = false
+            }
+        }
+        source.resume()
+        memoryPressureSource = source
     }
 
     /// 获取已使用物理内存（粗略估算）/ Get used physical memory (rough estimate)
