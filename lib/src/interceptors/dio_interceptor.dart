@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import '../models/network_request.dart';
@@ -95,7 +97,7 @@ class InspectorDioInterceptor extends InspectorDioInterceptorBase {
     final request = _findRequestByIdOrUrl(requestId, requestUrl);
     InspectorService.instance.updateNetworkRequest(
       request.id,
-      responseBody: response['data'],
+      responseBody: _previewBody(response['data']),
       statusCode: response['statusCode'] as int?,
     );
   }
@@ -107,11 +109,54 @@ class InspectorDioInterceptor extends InspectorDioInterceptorBase {
     final requestId = _extractRequestId(error['requestOptions']);
     final requestUrl = error['requestOptions']?['uri']?.toString() ?? '';
     final request = _findRequestByIdOrUrl(requestId, requestUrl);
+    // 无 HTTP 响应（超时 / 网络错误等）：response 为 null，statusCode 用 -1 占位，
+    // 否则 updateNetworkRequest 只在 statusCode != null 时才写耗时，请求会永挂“进行中”。
+    // No HTTP response (timeout / network error): `response` is null, so use -1 as
+    // a placeholder; otherwise a request would hang "in progress" forever.
+    final statusCode = error['response']?['statusCode'] as int?;
     InspectorService.instance.updateNetworkRequest(
       request.id,
-      responseBody: error['response']?['data'] ?? error['message'],
-      statusCode: error['response']?['statusCode'] as int?,
+      responseBody: _previewBody(
+        error['response']?['data'] ?? error['message'],
+      ),
+      statusCode: statusCode ?? -1,
     );
+  }
+
+  /// 把 Dio 的 `data` 转成可安全存入 body 的值，规避两类问题：
+  /// - `responseType: stream` 时 data 是 ResponseBody（单次可读流）：既不读取也不
+  ///   close 会泄漏底层 socket，且 `toString()` 只会变成 "Instance of 'ResponseBody'"。
+  ///   这里按 run-time 特征识别（持有 `stream` 成员、且非字符串/Map/List），异步排空
+  ///   流以释放底层连接，body 记为 null（面板显示无 body）。本文件刻意不依赖 dio 包，
+  ///   故不引用 [ResponseBody] 类型，改用动态特征判断。
+  /// - `responseType: bytes` 时 data 是原始字节列表，直接持有会常驻内存且 `toString()`
+  ///   巨大；按预览上限截断后存 base64 字符串。
+  /// Convert Dio `data` into a value safe to store as the body, avoiding two issues:
+  /// a stream ResponseBody (socket leak + useless toString) and unbounded byte lists.
+  /// This file deliberately does not depend on the `dio` package, so we detect the
+  /// stream case by its runtime shape (a `stream` member that is a Stream) instead of
+  /// referencing the `ResponseBody` type.
+  dynamic _previewBody(dynamic data) {
+    if (data != null && data is! String && data is! Map && data is! List) {
+      // 可能是 ResponseBody：尝试读取 .stream 是否为 Stream，是则排空后记为 null。
+      // Possibly a ResponseBody: try to read `.stream`; drain it and record null.
+      try {
+        final s = data.stream;
+        if (s is Stream) {
+          unawaited(s.listen((_) {}).asFuture().catchError((_) {}));
+          return null;
+        }
+      } catch (_) {
+        // 没有 .stream 成员，按普通对象处理。
+        // No `.stream` member; treat as a normal object.
+      }
+    }
+    if (data is List<int>) {
+      final cap = InspectorService.instance.maxBodyPreviewBytes;
+      final bytes = data.length > cap ? data.sublist(0, cap) : data;
+      return base64Encode(bytes);
+    }
+    return data;
   }
 
   /// 从 requestOptions 中提取 request ID / Extract request ID from requestOptions

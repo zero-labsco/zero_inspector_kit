@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:ui' show FramePhase;
 
 import 'package:flutter/scheduler.dart';
@@ -107,7 +108,10 @@ class FpsService extends ChangeNotifier {
   double _currentFps = 0;
 
   /// 最近帧耗时列表 / Recent frame duration list
-  final List<FrameRecord> _frameRecords = [];
+  /// 用 [ListQueue] 替代 List：每帧从头部淘汰旧记录是 O(1)（原 List.removeRange 是 O(n)）。
+  /// Uses [ListQueue] instead of List: dropping old records from the head is O(1)
+  /// (the previous List.removeRange was O(n) per frame).
+  final ListQueue<FrameRecord> _frameRecords = ListQueue();
 
   /// 最近一秒内的帧时间戳 / Frame timestamps in the most recent second
   final List<int> _recentFrameTimestamps = [];
@@ -271,9 +275,9 @@ class FpsService extends ChangeNotifier {
       _recentFrameTimestamps.add(frameStartUs);
     }
 
-    // 限制历史记录数量 / Limit history size
-    if (_frameRecords.length > _maxFrameRecords) {
-      _frameRecords.removeRange(0, _frameRecords.length - _maxFrameRecords);
+    // 限制历史记录数量：从头部淘汰最旧的，O(1) 每次 / Cap history: drop oldest from head, O(1) each
+    while (_frameRecords.length > _maxFrameRecords) {
+      _frameRecords.removeFirst();
     }
   }
 

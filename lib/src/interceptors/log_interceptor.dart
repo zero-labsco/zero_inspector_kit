@@ -133,11 +133,14 @@ class InspectorLogInterceptor {
   }
 
   /// 恢复原始的 FlutterError.onError / Restore original FlutterError.onError
+  ///
+  /// 即使原始值为 null 也要恢复回去——此前只在非 null 时恢复，导致原本没有注册
+  /// 自定义 onError 的宿主在 stop 后，检查器的回调仍常驻（且拿不到 Flutter 默认的
+  /// 错误呈现）。/ Even when the original was null we must restore it; otherwise a
+  /// host with no custom handler keeps our callback alive after stop.
   void _restoreFlutterOnError() {
-    if (_originalFlutterOnError != null) {
-      FlutterError.onError = _originalFlutterOnError!;
-      _originalFlutterOnError = null;
-    }
+    FlutterError.onError = _originalFlutterOnError;
+    _originalFlutterOnError = null;
   }
 
   /// 捕获日志并添加到服务中 / Capture log and add to service
