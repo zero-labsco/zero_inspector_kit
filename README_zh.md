@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本修复了一批检查器内的资源泄漏与正确性问题：未释放的 UI 控制器 / 滚动位置、重复的 WebSocket 连接、重复关闭的 WS 会话、失效的告警节流、持久化重复初始化、泄漏追踪的 key 冲突，以及 Dio 失败 / stream 边界、敏感数据脱敏缺口等。建议所有用户升级到最新版本（`^1.14.1`）。
+> **🔔 推荐升级：** 本版本修复了 iOS 端的一个正确性问题：`getProcessMemoryInfo` 的 `lowMemory` 字段此前返回的是 `isLowPowerModeEnabled`（低电量 / 省电模式），而非真实的低内存状态，与 Android / OHOS 语义不符；现改用 `DispatchSource` 内存压力监听返回真实的系统内存压力状态。建议所有用户升级到最新版本（`^1.14.1`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
