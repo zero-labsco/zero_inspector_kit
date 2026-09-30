@@ -140,10 +140,12 @@ public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
             queue: DispatchQueue.main
         )
         source.setEventHandler { [weak self] in
-            let flags = source.memoryPressureFlags
-            if flags.contains(.critical) {
+            // source.data 携带内存压力事件 flags（与 memoryPressureFlags 等价，但跨工具链稳定可用）
+            // source.data carries the memory-pressure event flags (equivalent to memoryPressureFlags, stable across toolchains)
+            let flags = source.data
+            if (flags & DispatchSource.MemoryPressureEvent.critical.rawValue) != 0 {
                 self?.isUnderMemoryPressure = true
-            } else if flags.contains(.normal) {
+            } else if (flags & DispatchSource.MemoryPressureEvent.normal.rawValue) != 0 {
                 self?.isUnderMemoryPressure = false
             }
         }
