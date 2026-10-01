@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.14.1
+
+### Fixed / 修复
+- Fixed iOS `lowMemory` field semantics: it previously reported `ProcessInfo.isLowPowerModeEnabled` (Low Power / low-battery mode) instead of the actual low-memory state, which mismatched the field's meaning and the Android/OHOS implementations. It now reflects the real system memory pressure via a `DispatchSource` memory-pressure monitor (`DISPATCH_MEMORYPRESSURE_CRITICAL` / `NORMAL`).
+  - 修复 iOS `lowMemory` 字段语义错误：此前返回的是 `isLowPowerModeEnabled`（低电量 / 省电模式），与字段本意及 Android / OHOS 实现不符。现改用 `DispatchSource` 内存压力监听（`DISPATCH_MEMORYPRESSURE_CRITICAL` / `NORMAL`）返回真实的系统内存压力状态。
+
 ## 1.14.0
 
 ### Fixed / 修复
