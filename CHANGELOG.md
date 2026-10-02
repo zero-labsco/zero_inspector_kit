@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased / 未发布
+
+### Added / 新增
+- Added Swift Package Manager (SPM) support for iOS. The iOS native code now ships as a Swift package (`ios/zero_inspector_kit/Package.swift`, library `zero-inspector-kit`, iOS 13.0 or later), so projects that have migrated off CocoaPods can consume the plugin. CocoaPods support is retained, as Flutter requires plugins to support both until further notice.
+  - 新增 iOS 端 Swift Package Manager（SPM）支持。iOS 原生代码现以 Swift 包形式提供（`ios/zero_inspector_kit/Package.swift`，库名 `zero-inspector-kit`，iOS 13.0 及以上），便于已从 CocoaPods 迁移的项目接入。仍保留 CocoaPods 支持，因为 Flutter 要求插件暂时同时支持两者。
+
+### Changed / 优化
+- Moved the iOS native sources from `ios/Classes` and `ios/Resources` into the Swift package layout at `ios/zero_inspector_kit/Sources/zero_inspector_kit/`; the podspec now points at the new paths, and `PrivacyInfo.xcprivacy` (present but previously unused) is now bundled.
+  - 将 iOS 原生源码从 `ios/Classes` 与 `ios/Resources` 迁移到 Swift 包布局 `ios/zero_inspector_kit/Sources/zero_inspector_kit/`；podspec 同步指向新路径，并打包此前存在但未生效的 `PrivacyInfo.xcprivacy`。
+
 ## 1.14.1
 
 ### Fixed / 修复
