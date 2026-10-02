@@ -13,7 +13,7 @@ An in-app developer console for Flutter that inspects HTTP/Dio traffic, WebSocke
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'AmisKwok' => 'amiskwok@zerolabsco.com' }
   s.source           = { :path => '.' }
-  s.source_files = 'Classes/**/*'
+  s.source_files = 'zero_inspector_kit/Sources/zero_inspector_kit/**/*.swift'
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
 
@@ -25,5 +25,5 @@ An in-app developer console for Flutter that inspects HTTP/Dio traffic, WebSocke
   # required reason APIs, update the PrivacyInfo.xcprivacy file to describe your
   # plugin's privacy impact, and then uncomment this line. For more information,
   # see https://developer.apple.com/documentation/bundleresources/privacy_manifest_files
-  # s.resource_bundles = {'zero_inspector_kit_privacy' => ['Resources/PrivacyInfo.xcprivacy']}
+  s.resource_bundles = {'zero_inspector_kit_privacy' => ['zero_inspector_kit/Sources/zero_inspector_kit/PrivacyInfo.xcprivacy']}
 end
