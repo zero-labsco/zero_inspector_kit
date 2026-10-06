@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release fixes an iOS correctness bug: the `lowMemory` field in `getProcessMemoryInfo` previously reported `ProcessInfo.isLowPowerModeEnabled` (Low Power / low-battery mode) instead of the actual low-memory state, mismatching Android/OHOS. It now reflects real system memory pressure via a `DispatchSource` memory-pressure monitor. All users are encouraged to upgrade to the latest version (`^1.14.1`).
+> **🔔 Upgrade recommended:** This release adds Swift Package Manager (SPM) support for iOS (CocoaPods support is retained), and fixes iOS available-memory reporting: it was previously estimated as "device total memory minus this process RSS", which badly over-reported available memory, and now uses `os_proc_available_memory()`. All users are encouraged to upgrade to the latest version (`^1.15.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -102,7 +102,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.14.1
+  zero_inspector_kit: ^1.15.0
 ```
 
 ### GitHub
@@ -112,7 +112,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.14.1   # replace 1.14.1 with the version you need
+      ref: release/v1.15.0   # replace 1.15.0 with the version you need
 ```
 
 ---

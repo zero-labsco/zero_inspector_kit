@@ -109,7 +109,13 @@ class MemorySnapshot {
   /// 设备物理内存总量（字节）/ Device total physical memory (bytes)
   final int deviceTotalMem;
 
-  /// 设备可用物理内存（字节）/ Device available physical memory (bytes)
+  /// 可用物理内存（字节）/ Available physical memory (bytes)
+  ///
+  /// Android 为系统级可用内存（`ActivityManager.MemoryInfo.availMem`）；
+  /// iOS 为 `os_proc_available_memory()`，语义是「当前进程可用内存预算」，并非系统级空闲内存。
+  /// On Android this is system-wide available memory (`ActivityManager.MemoryInfo.availMem`);
+  /// on iOS it is `os_proc_available_memory()`, i.e. the memory available to the current process
+  /// (a footprint budget), not system-wide free memory.
   final int deviceAvailMem;
 
   /// 是否处于低内存状态 / Whether in low memory state

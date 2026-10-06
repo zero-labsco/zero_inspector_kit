@@ -1,8 +1,3 @@
-# Exclude the GitHub Pages documentation site from the published package.
-# The docs/ folder is served via the docs/github-pages branch (GitHub Pages),
-# not distributed through pub.dev.
-docs/
-
 # Project-internal agent/IDE data — must not be published to pub.dev.
 .codebuddy/
 

@@ -1,0 +1,69 @@
+name: Build & publish docs
+
+# Builds the Nextra site from website/ and publishes website/out/ to the root of
+# the gh-pages branch. GitHub Pages must be pointed at that branch once
+# (Settings > Pages > Source: "Deploy from a branch", branch: gh-pages,
+# folder: / (root)). The branch is not protected, so the bot can push to it,
+# which is not possible on the protected main branch.
+#
+# 从 website/ 构建 Nextra 站点，并把 website/out/ 发布到 gh-pages 分支根目录。
+# GitHub Pages 需在仓库设置里一次性指向该分支（Settings > Pages > Source:
+# "Deploy from a branch"，branch: gh-pages，folder: / (root)）。
+# 该分支不受保护，bot 可以推送；受保护的 main 分支则不行。
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'website/**'
+      - 'pubspec.yaml'
+  workflow_dispatch:
+
+# Serialize runs so two concurrent builds cannot fight over the branch.
+concurrency:
+  group: docs-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # v7 targets the Node.js 24 runtime; v4 targeted Node.js 20, which GitHub
+      # is deprecating (it was being force-run on Node.js 24 with a warning).
+      # v7 使用 Node.js 24 runtime；v4 面向已弃用的 Node.js 20（会被强制以 Node 24 运行并告警）。
+      - uses: actions/setup-node@v7
+        with:
+          # Node.js 20 has reached end of maintenance; 22 is the LTS used to
+          # build the site. Node.js 20 已结束维护期，改用 LTS 版本 22 构建站点。
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install website dependencies
+        run: npm ci
+        working-directory: website
+
+      # --ci forces the build: CI checks out a clean tree, so the script's
+      # change detection (staged / unstaged diff) would otherwise skip it.
+      # The result lands in website/out/, with .nojekyll added by the script.
+      - name: Build site
+        run: node website/scripts/sync-docs.mjs --ci
+
+      # force_orphan keeps gh-pages at a single commit holding only the built
+      # site, so the branch does not accumulate build history.
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: website/out
+          force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: '41898282+github-actions[bot]@users.noreply.github.com'
+          commit_message: 'chore(docs): publish built site'
