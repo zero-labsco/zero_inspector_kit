@@ -30,7 +30,7 @@ This project is licensed under MPL-2.0. By participating, you are expected to up
 
 - Flutter >= 3.3.0 (stable channel)
 - Dart >= 3.11.0
-- Node.js (only needed to preview the docs site locally: `cd website && npm ci && npm run build`. The `docs/` build runs in CI, so committing does not require Node)
+- Node.js (only needed to preview the docs site locally: `cd website && npm ci && npm run build`. The site build runs in CI, so committing does not require Node)
 - Android Studio / Xcode (for platform-specific testing)
 - Git
 
@@ -160,7 +160,7 @@ Name test files `<source_file>_test.dart` and place them under `test/` mirroring
 ## Pull Request Process
 
 1. **Update CHANGELOG.md** under an `## [Unreleased]` section (or create one if missing). Describe what changed and why.
-2. **Update documentation** if your change affects public API or user-facing behavior (README.md, README_zh.md, docs/).
+2. **Update documentation** if your change affects public API or user-facing behavior (README.md, README_zh.md, `website/pages/`).
 3. **Bilingual comments** must be added for any new code.
 4. **CI must pass** — the CI workflow runs format check, analyze, and tests on every PR.
 5. **Keep PRs focused** — one feature/fix per PR makes review faster.
