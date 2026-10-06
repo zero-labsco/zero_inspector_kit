@@ -298,7 +298,8 @@ class MemoryInspectorService extends ChangeNotifier {
   int _deviceTotalMem = 0;
   int get deviceTotalMem => _deviceTotalMem;
 
-  /// 设备可用物理内存 / Device available physical memory
+  /// 可用物理内存（Android 为系统级，iOS 为当前进程可用预算）/ Available physical memory
+  /// (system-wide on Android; the current process budget on iOS)
   int _deviceAvailMem = 0;
   int get deviceAvailMem => _deviceAvailMem;
 
