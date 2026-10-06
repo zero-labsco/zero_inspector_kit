@@ -34,7 +34,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      # v7 targets the Node.js 24 runtime; v4 targeted Node.js 20, which GitHub
+      # is deprecating (it was being force-run on Node.js 24 with a warning).
+      # v7 使用 Node.js 24 runtime；v4 面向已弃用的 Node.js 20（会被强制以 Node 24 运行并告警）。
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
