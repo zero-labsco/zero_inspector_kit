@@ -2,31 +2,42 @@
 /**
  * sync-docs.mjs
  *
- * Git pre-commit helper for the Nextra documentation site.
+ * Builds the Nextra documentation site into `website/out/`.
  *
  * What it does:
  *   1. Detects whether this commit touches the website *source* (anything under
- *      website/ except website/out, website/.next, website/node_modules).
- *   2. If nothing changed -> exits 0 immediately (no build, docs/ untouched).
- *   3. If something changed:
- *        a. Reads the package version from pubspec.yaml (single source of truth)
- *           and injects it into website/pages/*.md placeholders (__ZIK_VERSION__).
- *        b. Runs `npm run build` to produce out/.
- *        c. Replaces the contents of docs/ with website/out/ (this removes the
- *           old docsify files: index.html, _Sidebar.md, _Footer.md, etc.).
- *        d. Stages the new docs/ so the commit includes the built site.
- *        e. Restores the original website/pages/*.md (placeholders are kept in
- *           the repo; only the build output ever contains the real version).
+ *      website/ except website/out, website/.next, website/node_modules), or
+ *      whether the pubspec.yaml version changed. If neither, it exits 0 without
+ *      building.
+ *   2. Reads the package version from pubspec.yaml (the single source of truth)
+ *      and injects it into the `website/pages/*.md` placeholders
+ *      (__ZIK_VERSION__).
+ *   3. Runs `npm run build`, producing `website/out/`.
+ *   4. Writes `website/out/.nojekyll`. GitHub Pages runs Jekyll by default,
+ *      which silently drops every file or directory whose name starts with an
+ *      underscore (for example `_next`, `_meta`) — that would strip all CSS and
+ *      JS and leave the site unstyled.
+ *   5. Restores the original `website/pages/*.md`. The placeholder stays in the
+ *      repository; only the build output ever contains the real version.
  *
- * Run automatically via .git/hooks/pre-commit. Safe to run manually too.
+ * `website/out/` is what CI publishes to the `gh-pages` branch, see
+ * .github/workflows/docs.yml. The repository no longer keeps a generated
+ * `docs/` directory on `main`, so this script never writes into `docs/`.
+ *
+ * Flags:
+ *   --ci       Build even when the working tree shows no website/pubspec
+ *              changes. CI checks out a clean tree, where the change detection
+ *              in step 1 would otherwise always skip.
+ *   --dry-run  Print what would happen without building.
+ *
+ * The flags can also be set with the SYNC_DOCS_CI=1 / SYNC_DOCS_DRYRUN=1
+ * environment variables. Safe to run manually.
  */
 
 import { execSync } from 'node:child_process';
 import {
-  cpSync,
   readdirSync,
   readFileSync,
-  rmSync,
   writeFileSync,
   existsSync,
 } from 'node:fs';
@@ -38,7 +49,6 @@ const websiteDir = join(scriptDir, '..');
 const repoRoot = join(scriptDir, '..', '..');
 const pagesDir = join(websiteDir, 'pages');
 const outDir = join(websiteDir, 'out');
-const docsDir = join(repoRoot, 'docs');
 
 const PLACEHOLDER = '__ZIK_VERSION__';
 
@@ -73,7 +83,7 @@ function websiteSourceChanged() {
 
 // The package version in pubspec.yaml is the single source of truth for the
 // website's version string. Bumping it alone (without touching website/ source)
-// must still trigger a rebuild so docs/ picks up the new version.
+// must still trigger a rebuild so the published site picks up the new version.
 function pubspecVersionChanged() {
   let staged = '';
   try {
@@ -113,51 +123,26 @@ function restoreOriginals() {
   backups.clear();
 }
 
-// Build a set of relative paths (files + dirs) present in `dir`, rooted at `dir`.
-function listRelative(dir) {
-  const acc = new Set();
-  const walk = (cur, prefix) => {
-    for (const e of readdirSync(cur, { withFileTypes: true })) {
-      const rel = prefix ? `${prefix}/${e.name}` : e.name;
-      acc.add(rel);
-      if (e.isDirectory()) walk(join(cur, e.name), rel);
-    }
-  };
-  if (existsSync(dir)) walk(dir, '');
-  return acc;
-}
-
-function syncOutToDocs() {
+function writeNojekyll() {
   if (!existsSync(outDir)) {
     throw new Error('website/out does not exist — build may have failed');
   }
-
-  // Incremental sync instead of blindly wiping docs/:
-  // 1. Delete only the *orphan* entries in docs/ that no longer exist in out/.
-  //    This is a small, scattered set (not a bulk tree wipe) so it does not
-  //    trip bulk-delete guards in non-interactive environments.
-  // 2. Copy out/ -> docs/ recursively. cpSync overwrites existing files
-  //    individually (no bulk rm), so the existing tree is replaced in place.
-  const outPaths = listRelative(outDir);
-  for (const rel of listRelative(docsDir)) {
-    if (!outPaths.has(rel)) {
-      rmSync(join(docsDir, rel), { recursive: true, force: true });
-    }
-  }
-  cpSync(outDir, docsDir, { recursive: true });
-
   // GitHub Pages runs Jekyll by default, which silently drops any file or
   // directory whose name begins with an underscore (e.g. _next, _meta). That
   // strips all CSS/JS from the static export and leaves the site unstyled.
   // An empty .nojekyll disables Jekyll so the build is served verbatim.
-  writeFileSync(join(docsDir, '.nojekyll'), '');
+  writeFileSync(join(outDir, '.nojekyll'), '');
 }
 
 function main() {
   const dryRun =
     process.argv.includes('--dry-run') || process.env.SYNC_DOCS_DRYRUN === '1';
+  // --ci forces a rebuild. CI runs on a clean checkout where neither the staged
+  // nor the unstaged diff contains anything, so change detection would skip.
+  const ci =
+    process.argv.includes('--ci') || process.env.SYNC_DOCS_CI === '1';
 
-  if (!websiteSourceChanged() && !pubspecVersionChanged()) {
+  if (!ci && !websiteSourceChanged() && !pubspecVersionChanged()) {
     console.log(
       '[sync-docs] No website source or pubspec version changes — skipping build.',
     );
@@ -169,22 +154,23 @@ function main() {
   if (dryRun) {
     console.log(
       `[sync-docs][dry-run] Website source changed (v${version}). ` +
-        `Would build and sync website/out/ -> docs/. ` +
+        `Would build website/out/ for publication to the gh-pages branch. ` +
         `Placeholder ${PLACEHOLDER} would become ${version}.`,
     );
     return;
   }
 
   console.log(
-    `[sync-docs] Website source changed (v${version}) — building and syncing to docs/`,
+    `[sync-docs] Building site (v${version}) into website/out/ ...`,
   );
 
   injectVersion(version);
   try {
     execSync('npm run build', { cwd: websiteDir, stdio: 'inherit' });
-    syncOutToDocs();
-    run('git add docs/');
-    console.log('[sync-docs] docs/ updated and staged.');
+    writeNojekyll();
+    console.log(
+      '[sync-docs] website/out/ is ready to publish to the gh-pages branch.',
+    );
   } finally {
     restoreOriginals();
   }

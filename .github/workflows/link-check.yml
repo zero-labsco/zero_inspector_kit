@@ -15,7 +15,13 @@ on:
       - 'README.md'
       - 'README_zh.md'
       - 'CHANGELOG.md'
-      - 'docs/**'
+      # website/pages/ is intentionally NOT scanned: the Nextra source uses
+      # extensionless route links (for example /Custom-Database-Provider) that
+      # lychee resolves as local files and reports as missing, which are false
+      # positives. Those routes are validated by the site build itself.
+      # 刻意不扫描 website/pages/：Nextra 源码使用无扩展名的路由链接（例如
+      # /Custom-Database-Provider），lychee 会按本地文件解析并误报缺失。
+      # 这些站内路由由站点构建本身保证。
   # Allow manual runs from the Actions tab.
   # 允许在 Actions 页手动触发。
   workflow_dispatch:
@@ -44,7 +50,7 @@ jobs:
             --retry-wait-time 2
             --max-retries 2
             --exclude "https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/.*"
-            README.md README_zh.md CHANGELOG.md "docs/**"
+            README.md README_zh.md CHANGELOG.md
           fail: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

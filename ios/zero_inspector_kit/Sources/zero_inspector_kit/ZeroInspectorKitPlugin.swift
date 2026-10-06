@@ -1,3 +1,4 @@
+import Darwin
 import Flutter
 import UIKit
 
@@ -101,10 +102,15 @@ public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
         // 3. Get device physical memory via NSProcessInfo
         info["totalMem"] = Int(ProcessInfo.processInfo.physicalMemory)
 
-        // 4. 通过 NSProcessInfo 获取可用内存（iOS 11+）
-        // 4. Get available memory via NSProcessInfo (iOS 11+)
-        if #available(iOS 11.0, *) {
-            info["availMem"] = Int(ProcessInfo.processInfo.physicalMemory - getUsedMemory())
+        // 4. 可用内存（iOS 13+）/ Available memory (iOS 13+)
+        // 此前用「设备总物理内存 - 本进程 RSS」估算，忽略其它进程占用，会严重高估可用内存。
+        // Previously estimated as "device total physical memory - this process RSS", which ignored
+        // other processes and badly over-reported available memory.
+        // 现改用 os_proc_available_memory()：语义为「当前进程可用内存预算」（并非系统级空闲内存）。
+        // Now uses os_proc_available_memory(): its semantics are "memory available to the current
+        // process" (not system-wide free memory).
+        if #available(iOS 13.0, *) {
+            info["availMem"] = Int(os_proc_available_memory())
         } else {
             info["availMem"] = 0
         }
@@ -128,6 +134,9 @@ public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
         info["totalRss"] = 0
         info["totalSwapPss"] = 0
         info["graphics"] = 0
+        // iOS 没有类似 Android ActivityManager.MemoryInfo.threshold 的低内存阈值 API，填 0 保持 Map 结构一致
+        // iOS has no low-memory threshold API like Android's ActivityManager.MemoryInfo.threshold; fill 0 to keep the Map structure consistent
+        info["threshold"] = 0
 
         return info
     }
@@ -151,21 +160,6 @@ public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
         }
         source.resume()
         memoryPressureSource = source
-    }
-
-    /// 获取已使用物理内存（粗略估算）/ Get used physical memory (rough estimate)
-    private func getUsedMemory() -> UInt64 {
-        var taskInfo = task_basic_info_data_t()
-        var count = mach_msg_type_number_t(MemoryLayout<task_basic_info_data_t>.size / MemoryLayout<integer_t>.size)
-        let kerr = withUnsafeMutablePointer(to: &taskInfo) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                task_info(mach_task_self_, task_flavor_t(TASK_BASIC_INFO), $0, &count)
-            }
-        }
-        if kerr == KERN_SUCCESS {
-            return UInt64(taskInfo.resident_size)
-        }
-        return 0
     }
 
     private func getConsoleLogs(limit: Int) -> [String] {
