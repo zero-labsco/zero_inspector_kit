@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本修复了 iOS 端的一个正确性问题：`getProcessMemoryInfo` 的 `lowMemory` 字段此前返回的是 `isLowPowerModeEnabled`（低电量 / 省电模式），而非真实的低内存状态，与 Android / OHOS 语义不符；现改用 `DispatchSource` 内存压力监听返回真实的系统内存压力状态。建议所有用户升级到最新版本（`^1.14.1`）。
+> **🔔 推荐升级：** 本版本新增 iOS 端 Swift Package Manager（SPM）支持（仍保留 CocoaPods），并修复 iOS 可用内存上报错误：此前按「设备总内存减去本进程 RSS」估算会严重高估可用内存，现改用 `os_proc_available_memory()`。建议所有用户升级到最新版本（`^1.15.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -101,7 +101,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.14.1
+  zero_inspector_kit: ^1.15.0
 ```
 
 ### GitHub
@@ -111,7 +111,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.14.1   # 将 1.14.1 替换为你需要的版本号
+      ref: release/v1.15.0   # 将 1.15.0 替换为你需要的版本号
 ```
 
 ---

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased / 未发布
+## 1.15.0
 
 ### Added / 新增
 - Added Swift Package Manager (SPM) support for iOS. The iOS native code now ships as a Swift package (`ios/zero_inspector_kit/Package.swift`, library `zero-inspector-kit`, iOS 13.0 or later), so projects that have migrated off CocoaPods can consume the plugin. CocoaPods support is retained, as Flutter requires plugins to support both until further notice.
@@ -9,6 +9,10 @@
 ### Changed / 优化
 - Moved the iOS native sources from `ios/Classes` and `ios/Resources` into the Swift package layout at `ios/zero_inspector_kit/Sources/zero_inspector_kit/`; the podspec now points at the new paths, and `PrivacyInfo.xcprivacy` (present but previously unused) is now bundled.
   - 将 iOS 原生源码从 `ios/Classes` 与 `ios/Resources` 迁移到 Swift 包布局 `ios/zero_inspector_kit/Sources/zero_inspector_kit/`；podspec 同步指向新路径，并打包此前存在但未生效的 `PrivacyInfo.xcprivacy`。
+
+### Fixed / 修复
+- Fixed iOS `availMem` reporting: it was estimated as "device total physical memory minus this process RSS", which ignored other processes and badly over-reported available memory (for example reporting roughly 5.8 GB when only about 800 MB was actually free). It now uses `os_proc_available_memory()` on iOS 13+, whose semantics are the memory available to the current process. The now-unused `getUsedMemory()` helper was removed.
+  - 修复 iOS `availMem` 上报错误：此前按「设备总物理内存减去本进程 RSS」估算，忽略其它进程占用，会严重高估可用内存（例如实际仅剩约 800MB 时上报约 5.8GB）。现改用 `os_proc_available_memory()`（iOS 13+），语义为当前进程可用内存。同时移除了不再使用的 `getUsedMemory()` 辅助方法。
 
 ## 1.14.1
 
