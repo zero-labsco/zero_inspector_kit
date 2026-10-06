@@ -30,7 +30,7 @@ This project is licensed under MPL-2.0. By participating, you are expected to up
 
 - Flutter >= 3.3.0 (stable channel)
 - Dart >= 3.11.0
-- Node.js (required by the pre-commit `docs-sync` hook; without it `git commit` fails the hook)
+- Node.js (only needed to preview the docs site locally: `cd website && npm ci && npm run build`. The `docs/` build runs in CI, so committing does not require Node)
 - Android Studio / Xcode (for platform-specific testing)
 - Git
 

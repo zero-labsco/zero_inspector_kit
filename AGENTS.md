@@ -117,7 +117,7 @@ Notes / 说明:
      / 每条变更必须英中双语（英文为主、中文为辅，EN-primary, ZH-secondary）。不要用 ` / ` 斜杠分隔中英文（太不显眼）。改用嵌套子条目：英文描述作为一级条目，中文翻译缩进为其下方子条目，且**不要**加"中文：" / "EN:" 这类显式标签。小节标题保持 `### Fixed / 修复`、`### Changed / 优化`、`### Added / 新增` 形式。
    - **Changelog scope rule / 变更日志范围规则:** Only changes to `lib/` (i.e. published-package runtime behavior) earn a CHANGELOG entry. Pure documentation updates (`README*.md`, `website/`, `docs/`) and `example/` changes must NOT get a CHANGELOG entry — they do not change the released package's runtime behavior. The single exception is a **pure version-bump commit**: bumping the version legitimately updates the CHANGELOG (and the doc version strings) as part of cutting the release, which is allowed. / 只有 `lib/` 的改动（即已发布包的运行行为）才进 CHANGELOG；纯文档（`README*.md`、`website/`、`docs/`）与 `example/` 的改动不应写进 CHANGELOG——它们不改变发布包的运行行为。唯一的例外是「单纯 bump 版本」的提交：为发版而更新 CHANGELOG（及文档版本号）是允许的。
    - Grep sanity check before committing: `grep -rn "old_version" README.md README_zh.md website/pages` must return NOTHING (only legitimate historical prose may remain; the `__ZIK_VERSION__` placeholder is expected and is not a real version).
-   **Website (Nextra docs site):** `website/` is built and synced to `docs/` automatically by the `pre-commit` hook (`website/scripts/sync-docs.mjs`). Version references in `website/pages/*.md` use the `__ZIK_VERSION__` placeholder, which is filled from `pubspec.yaml` at build time — bumping `pubspec.yaml` propagates to the site automatically. Never edit `docs/` by hand; it is regenerated on every commit that touches `website/`.
+   **Website (Nextra docs site):** `website/` is built and synced into `docs/` by CI — `.github/workflows/docs.yml` runs `website/scripts/sync-docs.mjs --ci` whenever `website/**` or `pubspec.yaml` changes on `main`. Version references in `website/pages/*.md` use the `__ZIK_VERSION__` placeholder, which is filled from `pubspec.yaml` at build time — bumping `pubspec.yaml` propagates to the site automatically. `docs/` is generated output: never edit it by hand, and do not commit it from feature branches (CI updates it on `main` only).
 2. Update `README.md` / `CHANGELOG.md` as needed.
 3. Locally verify before pushing:
    - `dart format .` — must report no changes. The `dart-format-fix.yml` CI workflow auto-commits any formatting diff back to the PR branch, so keep the tree formatted locally to avoid surprise commits.
@@ -142,10 +142,11 @@ Notes / 说明:
 When re-tagging after a fix, force-update both the `vX.Y.Z` tag and the `release/vX.Y.Z` archive branch to the new commit so the publish job runs against the corrected tree.
 
 ### Documentation site (GitHub Pages)
-- Source content lives in `docs/`. The legacy `wiki/` directory was removed; `docs/` is now the single source of truth.
-- Publishing branch: `docs/github-pages`; GitHub Pages serves the `/docs` folder of that branch.
+- Source content lives in `website/` (Nextra). `docs/` holds the **generated** output on `main` and is never edited by hand.
+- GitHub Pages serves the `/docs` folder of the `main` branch (Source: "Deploy from a branch"). Keep that setting as is.
 - Live site: https://zero-labsco.github.io/zero_inspector_kit/
-- To update docs: edit `docs/` on `docs/github-pages`, commit, push; Pages redeploys automatically.
+- Builds run in CI, not locally: pushes to `main` touching `website/**` or `pubspec.yaml` trigger `docs.yml`, which builds and commits `docs/` as `github-actions[bot]`. Pushes made with `GITHUB_TOKEN` do not trigger workflows, so this cannot loop.
+- To preview locally: `cd website && npm ci && npm run build`, or `node website/scripts/sync-docs.mjs --ci` (which also syncs the result into `docs/`).
 - `pubspec.yaml` has a `documentation:` field pointing to the site (rendered on pub.dev). Keep it in sync after the site URL is stable.
 
 ## New feature development checklist
@@ -156,5 +157,5 @@ When re-tagging after a fix, force-update both the `vX.Y.Z` tag and the `release
 - [ ] Run `flutter analyze` and `flutter test` locally before pushing.
 - [ ] Use a typed branch (`feat/...`) and a Conventional Commits PR title.
 - [ ] Ensure the 3 required status checks pass before requesting review/merge.
-- [ ] For user-facing changes, update `README.md` and the `website/` source (the `docs/` site is built and synced automatically by the pre-commit hook).
+- [ ] For user-facing changes, update `README.md` and the `website/` source (the `docs/` site is rebuilt by the `docs.yml` CI workflow once the change lands on `main`).
 - [ ] For releases, bump `version` AND follow the **Mandatory version-bump checklist** under "Release and publish" above (pubspec, iOS podspec, README.md, README_zh.md, `website/pages/*.md` via the `__ZIK_VERSION__` placeholder, CHANGELOG.md — grep for the old version string to confirm nothing is left). Tag `vX.Y.Z` (triggers publish), and optionally push a `release/vX.Y.Z` archive branch via explicit refspec.

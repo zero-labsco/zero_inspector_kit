@@ -1,0 +1,53 @@
+name: Build & sync docs
+
+# Builds the Nextra site from website/ and commits the built output back to
+# docs/ on main. GitHub Pages is configured to serve the /docs folder of main,
+# so the commit is all that is needed for the site to update.
+# 从 website/ 构建 Nextra 站点，并把构建产物提交回 main 的 docs/。
+# GitHub Pages 配置为提供 main 的 /docs 目录，因此只需提交即可更新站点。
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'website/**'
+      - 'pubspec.yaml'
+  workflow_dispatch:
+
+# Serialize runs so two concurrent builds cannot race on the docs/ commit.
+concurrency:
+  group: docs-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install website dependencies
+        run: npm ci
+        working-directory: website
+
+      # --ci forces the build: CI checks out a clean tree, so the script's
+      # change detection (staged / unstaged diff) would otherwise skip it.
+      - name: Build site and sync into docs/
+        run: node website/scripts/sync-docs.mjs --ci
+
+      # Commits as github-actions[bot]. A push made with GITHUB_TOKEN does not
+      # trigger other workflows, so this cannot loop.
+      - name: Commit built docs
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore(docs): sync built site'
+          file_pattern: 'docs/**'

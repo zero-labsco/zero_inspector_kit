@@ -18,7 +18,12 @@
  *        e. Restores the original website/pages/*.md (placeholders are kept in
  *           the repo; only the build output ever contains the real version).
  *
- * Run automatically via .git/hooks/pre-commit. Safe to run manually too.
+ * Run automatically via .git/hooks/pre-commit, or by CI through
+ * .github/workflows/docs.yml with `--ci`. Safe to run manually too.
+ *
+ * `--ci` forces a build even when the working tree shows no website/pubspec
+ * changes. CI checks out a clean tree, so the change detection in step 1/2
+ * would otherwise find nothing and always skip the build.
  */
 
 import { execSync } from 'node:child_process';
@@ -156,8 +161,12 @@ function syncOutToDocs() {
 function main() {
   const dryRun =
     process.argv.includes('--dry-run') || process.env.SYNC_DOCS_DRYRUN === '1';
+  // --ci forces a rebuild. CI runs on a clean checkout where neither the staged
+  // nor the unstaged diff contains anything, so change detection would skip.
+  const ci =
+    process.argv.includes('--ci') || process.env.SYNC_DOCS_CI === '1';
 
-  if (!websiteSourceChanged() && !pubspecVersionChanged()) {
+  if (!ci && !websiteSourceChanged() && !pubspecVersionChanged()) {
     console.log(
       '[sync-docs] No website source or pubspec version changes — skipping build.',
     );
