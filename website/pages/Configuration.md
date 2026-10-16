@@ -16,6 +16,7 @@
 | `enableNetworkTimeline` | bool | `true` | Prefer the network timeline (waterfall) in request details / 网络详情页默认展示时间轴（瀑布图） |
 | `customButton` | Widget? | `null` | Custom floating button widget / 自定义悬浮按钮 |
 | `onLogCaptured` | `void Function(LogEntry)?` | `null` | Log capture callback for third-party integration / 日志捕获回调 |
+| `onErrorReport` | `void Function(ErrorRecord)?` | `null` | Error reporting callback (since v1.16.0) for third-party integration (Sentry / Crashlytics) / 异常上报回调（v1.16.0 起），接入第三方（Sentry / Crashlytics） |
 | `maxNetworkItems` | int? | `100` | Network request cache cap / 网络请求缓存上限 |
 | `maxLogItems` | int? | `500` | Log entry cache cap / 日志条目缓存上限 |
 | `maxRouteItems` | int? | `200` | Route record cache cap / 路由记录缓存上限 |
@@ -48,6 +49,26 @@ ZeroInspectorKit.init(
   },
 );
 ```
+
+### With Error Report Callback / 带异常上报回调
+
+```dart
+ZeroInspectorKit.init(
+  // Fires on every aggregated occurrence (repeat hits included)
+  // 每次聚合都会触发（含重复命中）
+  onErrorReport: (record) {
+    Crashlytics.recordError(
+      record.message,
+      record.sampleStack,
+      reason: '${record.type} x${record.count}',
+    );
+  },
+);
+```
+
+See the [Errors](Errors) page (Third-Party Reporting section) for the full contract.
+
+完整契约见 [Errors](Errors) 页（Third-Party Reporting 一节）。
 
 ## ConditionalInspector / 条件检查器组件
 

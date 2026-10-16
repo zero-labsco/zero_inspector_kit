@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release adds Swift Package Manager (SPM) support for iOS (CocoaPods support is retained), and fixes iOS available-memory reporting: it was previously estimated as "device total memory minus this process RSS", which badly over-reported available memory, and now uses `os_proc_available_memory()`. All users are encouraged to upgrade to the latest version (`^1.15.0`).
+> **🔔 Upgrade recommended:** This release adds an `onErrorReport` callback hook that forwards aggregated errors (including repeat hits) to third-party reporters like Sentry / Firebase Crashlytics. All users are encouraged to upgrade to the latest version (`^1.16.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -60,7 +60,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 - **Network Inspector** — Real-time capture of all HTTP (http & Dio) requests; modify bodies/headers via interceptor rules; in-app **replay editor** (edit only query params — URL/headers/body stay read-only — and preview the response); batch cURL copy; sensitive-header masking; filterable by method/status/interception.
 - **WebSocket / gRPC Capture** — Opt-in streaming-protocol capture (off by default, runtime toggle like Memory/FPS); WebSocket frames and gRPC calls appear in the Network list.
 - **Logging System** — Auto-captures `print()`, `debugPrint()`, and custom logs across multiple levels; integrates with third-party log libraries; auto-scroll (pausable), regex search, tag filtering and one-tap copy of a single log entry.
-- **Error Monitor** — Dedicated Errors tab (since v1.9.0): hooks `FlutterError.onError` + `runZonedGuarded`, aggregates & dedups crashes by type + stack signature with count and first/last seen; a red count badge sits on the Errors tab icon.
+- **Error Monitor** — Dedicated Errors tab (since v1.9.0): hooks `FlutterError.onError` + `runZonedGuarded`, aggregates & dedups crashes by type + stack signature with count and first/last seen; a red count badge sits on the Errors tab icon; optional `onErrorReport` hook (since v1.16.0) forwards aggregated errors to Sentry / Firebase Crashlytics.
 - **Session Persistence** — Logs / network / errors / **alerts** are asynchronously flushed into the inspector's own `zero_inspector_kit.db` (since v1.9.0; a disk ring buffer that also shows up in the Database tab); on launch logs, errors & alerts replay into their tabs; export & share the full session archive (now including alerts) from the panel header.
 - **Database Viewer** — Inspect SQLite and other databases via custom providers.
 - **Memory Monitor** — Trend chart, Dart Heap, Native memory breakdown, leak detection, image-cache & storage stats (master switch to avoid overhead). Since v1.9.0 the leak detector also bridges Flutter's official `FlutterMemoryAllocations` to cut false positives.
@@ -102,7 +102,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.15.0
+  zero_inspector_kit: ^1.16.0
 ```
 
 ### GitHub
@@ -112,7 +112,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.15.0   # replace 1.15.0 with the version you need
+      ref: release/v1.16.0   # replace 1.16.0 with the version you need
 ```
 
 ---
@@ -257,6 +257,23 @@ final ErrorRecord latest = ErrorService.instance.errors.first;
 // Clear all records
 ErrorService.instance.clear();
 ```
+
+Forward every aggregated error — repeat hits included — to a third-party reporter such as Sentry or Firebase Crashlytics with the `onErrorReport` callback:
+
+```dart
+ZeroInspectorKit.init(
+  onErrorReport: (ErrorRecord record) {
+    // record carries type, message, signature, count and first/last seen
+    Crashlytics.recordError(
+      record.message,
+      record.sampleStack,
+      reason: '${record.type} x${record.count}',
+    );
+  },
+);
+```
+
+The callback fires once per occurrence (so a recurring crash reports each time with an updated `×N` count); records restored from disk on launch are **not** re-reported. A throwing callback never breaks the inspector — failures are logged internally only.
 
 Toggle with `enableErrorCapture` in `init()` (default `true`). Full details on the [Errors page](website/pages/Errors.md).
 
