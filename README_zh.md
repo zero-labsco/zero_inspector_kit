@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本新增 iOS 端 Swift Package Manager（SPM）支持（仍保留 CocoaPods），并修复 iOS 可用内存上报错误：此前按「设备总内存减去本进程 RSS」估算会严重高估可用内存，现改用 `os_proc_available_memory()`。建议所有用户升级到最新版本（`^1.15.0`）。
+> **🔔 推荐升级：** 本版本新增 `onErrorReport` 异常上报回调钩子，可把聚合后的异常（含重复命中）转发到 Sentry / Firebase Crashlytics 等第三方上报服务。建议所有用户升级到最新版本（`^1.16.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -59,7 +59,7 @@
 - **网络检查器**：实时捕获所有 HTTP（http & Dio）请求；通过拦截规则修改请求体/请求头；应用内**重放编辑器**（仅可编辑查询参数——URL/请求头/请求体保持只读——并预览响应）；批量复制 cURL；敏感请求头遮蔽；可按方法/状态码/拦截状态筛选。
 - **WebSocket / gRPC 抓取**：可选的流式协议抓取（默认关闭，运行时开关，与 Memory/FPS 一致）；WebSocket 帧与 gRPC 调用出现在 Network 列表中。
 - **日志系统**：自动捕获 `print()`、`debugPrint()` 及自定义日志，支持多级别与第三方日志库集成；自动滚动（可暂停）、正则搜索、按标签过滤与单条日志一键复制。
-- **异常监控**：独立的 Errors 标签页（v1.9.0 起）：接管 `FlutterError.onError` + `PlatformDispatcher.onError` + `runZonedGuarded`，按类型 + 堆栈签名去重聚合崩溃，记录次数与首末次时间；Errors 标签图标带红色计数。
+- **异常监控**：独立的 Errors 标签页（v1.9.0 起）：接管 `FlutterError.onError` + `PlatformDispatcher.onError` + `runZonedGuarded`，按类型 + 堆栈签名去重聚合崩溃，记录次数与首末次时间；Errors 标签图标带红色计数；v1.16.0 起新增 `onErrorReport` 钩子，可把聚合异常转发到 Sentry / Firebase Crashlytics。
 - **会话持久化**：日志 / 网络 / 异常 / **告警**异步写入插件自有的 `zero_inspector_kit.db` 数据库（v1.9.0 起；磁盘环形缓冲，也会出现在 Database 标签页）；启动时日志、异常与告警回放入各自标签页，网络请求留档供导出；可从面板头部导出完整会话存档（含告警段）并分享。
 - **数据库查看器**：支持 SQLite 及其他数据库，可自定义提供者。
 - **内存监控**：趋势图、Dart Heap、Native 内存分项、泄漏检测、图片缓存与存储统计（总开关避免开销）。v1.9.0 起泄漏检测额外桥接 Flutter 官方 `FlutterMemoryAllocations`，降低误报。
@@ -101,7 +101,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.15.0
+  zero_inspector_kit: ^1.16.0
 ```
 
 ### GitHub
@@ -111,7 +111,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.15.0   # 将 1.15.0 替换为你需要的版本号
+      ref: release/v1.16.0   # 将 1.16.0 替换为你需要的版本号
 ```
 
 ---
@@ -256,6 +256,23 @@ final ErrorRecord latest = ErrorService.instance.errors.first;
 // 清空所有记录
 ErrorService.instance.clear();
 ```
+
+通过 `init()` 的 `onErrorReport` 回调（v1.16.0 起），可把每次聚合的异常（含重复命中）转发到 Sentry / Firebase Crashlytics 等第三方上报服务：
+
+```dart
+ZeroInspectorKit.init(
+  onErrorReport: (ErrorRecord record) {
+    // record 携带类型、消息、签名、累计次数与首末次时间
+    Crashlytics.recordError(
+      record.message,
+      record.sampleStack,
+      reason: '${record.type} x${record.count}',
+    );
+  },
+);
+```
+
+每次发生都会回调一次（同一处崩溃重复发生时再次回调，`×N` 计数随之更新）；启动时从磁盘回放的历史记录**不会**重复上报。回调抛错不会影响检查器自身，失败仅记入内部日志。
 
 通过 `init()` 的 `enableErrorCapture` 开关（默认 `true`）。详见 [Errors 页面](website/pages/Errors.md)。
 

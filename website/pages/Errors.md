@@ -66,6 +66,16 @@ print('${latest.type} x${latest.count} — first ${latest.firstSeen} / last ${la
 
 // Clear all records / 清空所有记录
 ErrorService.instance.clear();
+
+// Forward aggregated errors to a third-party reporter (Sentry / Crashlytics)
+// 把聚合异常转发到第三方上报服务（Sentry / Crashlytics）
+ErrorService.instance.onErrorReported = (record) {
+  Crashlytics.recordError(
+    record.message,
+    record.sampleStack,
+    reason: '${record.type} x${record.count}',
+  );
+};
 ```
 
 | Member | Description |
@@ -76,7 +86,30 @@ ErrorService.instance.clear();
 | `report(exception, stack, [context])` | Manually report an exception / 手动上报异常 |
 | `restore(records)` | Restore persisted records (replay on launch; existing dedup ids are skipped) / 恢复持久化记录（启动回放；已存在的去重 id 跳过） |
 | `clear()` | Clear all aggregated records / 清空全部记录 |
+| `onErrorReported` | `void Function(ErrorRecord)?` — reporting hook (since v1.16.0), fires per aggregated occurrence / 上报钩子（v1.16.0 起），每次聚合触发 |
 | `install()` / `uninstall()` | Hook / restore `FlutterError.onError` **and** `PlatformDispatcher.onError` / 接管 / 还原 `FlutterError.onError` 与 `PlatformDispatcher.onError` |
+
+### Third-Party Reporting / 第三方上报
+
+> **Available since v1.16.0** · **v1.16.0 起可用**
+
+Set the hook via `init(onErrorReport: …)` (or directly on the service). It fires on **every aggregated occurrence — repeat hits included** — with the merged `ErrorRecord`, so a recurring crash reports each time with an updated `×N` count. Records **restored from disk** on launch are *not* re-reported. A throwing callback never breaks the inspector; failures are logged internally only.
+
+在 `init(onErrorReport: …)` 中设置（也可直接设置服务上的该属性）。**每次聚合都会触发（含重复命中）**，传入合并后的 `ErrorRecord`——同一处崩溃重复发生时再次回调，`×N` 计数随之更新。**启动时从磁盘回放的历史记录不会重复上报**；回调抛错不会影响检查器自身，失败仅记入内部日志。
+
+```dart
+ZeroInspectorKit.init(
+  onErrorReport: (record) {
+    // record carries type, message, signature, count and first/last seen
+    // record 携带类型、消息、签名、累计次数与首末次时间
+    Crashlytics.recordError(
+      record.message,
+      record.sampleStack,
+      reason: '${record.type} x${record.count}',
+    );
+  },
+);
+```
 
 ### ErrorRecord / 异常记录
 

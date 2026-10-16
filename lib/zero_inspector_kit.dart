@@ -73,6 +73,7 @@ import 'src/interceptors/route_observer.dart';
 import 'src/ui/floating_button.dart';
 import 'src/ui/inspector_panel.dart';
 import 'src/models/log_entry.dart';
+import 'src/models/error_record.dart';
 import 'src/services/database_provider.dart';
 import 'src/services/sqlite_provider.dart';
 import 'src/services/fps_service.dart';
@@ -149,6 +150,7 @@ class ZeroInspectorKit {
   /// [maxLogItems] 日志条目缓存上限（默认 500）/ Log entry cache cap (default 500)
   /// [maxRouteItems] 路由记录缓存上限（默认 200）/ Route record cache cap (default 200)
   /// [maxBodyPreviewBytes] body 预览字节上限，超出截断（默认 32KB）/ Body preview cap, longer bodies truncated (default 32KB)
+  /// [onErrorReport] 异常上报回调：每次聚合（含重复命中）时以聚合后的 [ErrorRecord] 回调，便于转发到 Sentry / Firebase Crashlytics 等第三方服务（可选）/ Error reporting callback: invoked with the aggregated [ErrorRecord] on every occurrence (including repeat hits), for forwarding to third-party reporters like Sentry / Firebase Crashlytics (optional)
   static void init({
     bool enable = true,
     bool enableLogCapture = true,
@@ -162,6 +164,7 @@ class ZeroInspectorKit {
     bool enableNetworkTimeline = true,
     Widget? customButton,
     void Function(LogEntry)? onLogCaptured,
+    void Function(ErrorRecord)? onErrorReport,
     int? maxNetworkItems,
     int? maxLogItems,
     int? maxRouteItems,
@@ -180,6 +183,16 @@ class ZeroInspectorKit {
       maxRouteItems: maxRouteItems,
       maxBodyPreviewBytes: maxBodyPreviewBytes,
     );
+
+    // 自定义异常上报钩子（接入 Sentry / Firebase Crashlytics 等第三方）。
+    // 即使 enableErrorCapture 为 false 也可设置：仅在真正有异常被聚合时
+    // 才会回调，不会自行开启任何采集。
+    // Custom error-reporting hook (Sentry / Firebase Crashlytics, etc.).
+    // Safe to set even when enableErrorCapture is false: it only fires when
+    // an error is actually aggregated and never starts any capture itself.
+    if (onErrorReport != null) {
+      ErrorService.instance.onErrorReported = onErrorReport;
+    }
 
     if (enableLogCapture) {
       InspectorLogInterceptor.instance.start();
@@ -267,6 +280,7 @@ class ZeroInspectorKit {
     InspectorLogInterceptor.instance.stop();
     InspectorHttpInterceptor.instance.stop();
     ErrorService.instance.uninstall();
+    ErrorService.instance.onErrorReported = null;
     FpsService.instance.stop();
     BlockingWatchdogService.instance.stop();
     MemoryInspectorService.instance.stopMonitoring();
