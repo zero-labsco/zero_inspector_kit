@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../models/error_record.dart';
+import '../utils/inspector_internal_log.dart';
 import 'persistence_service.dart';
 
 /// 异常聚合服务 / Error aggregation service
@@ -50,6 +51,19 @@ class ErrorService extends ChangeNotifier {
 
   /// 是否启用抓取（用户可在面板开关）/ Whether capture is enabled
   bool _enabled = true;
+
+  /// 自定义上报钩子：每次异常被聚合（含同一崩溃的重复命中）时回调，
+  /// 传入聚合后的 [ErrorRecord]，用于把错误转发到 Sentry / Firebase
+  /// Crashlytics 等第三方上报服务。默认 null（不回调）。
+  /// Custom reporting hook: invoked on every aggregated occurrence
+  /// (including repeat hits of the same crash) with the merged
+  /// [ErrorRecord], for forwarding errors to third-party reporters such as
+  /// Sentry / Firebase Crashlytics. Null by default (no callback).
+  ///
+  /// 回调抛出的异常不会影响检查器自身的聚合管线，仅记入内部日志。
+  /// A throwing callback never breaks the inspector's aggregation pipeline;
+  /// failures only go to the internal log.
+  void Function(ErrorRecord)? onErrorReported;
 
   /// 获取是否启用 / Get whether enabled
   bool get isEnabled => _enabled;
@@ -177,6 +191,24 @@ class ErrorService extends ChangeNotifier {
     }
     // 异步落盘（磁盘环形缓冲，崩溃后可读回）/ Async persist (disk ring buffer)
     PersistenceService.instance.enqueueError(_errors.first);
+    // 自定义上报钩子（接入 Sentry / Crashlytics 等第三方）。宿主回调抛错
+    // 不得影响聚合管线，失败仅记入内部日志。
+    // Custom reporting hook (Sentry / Crashlytics, etc.). A throwing host
+    // callback must never break the aggregation pipeline; failures only go
+    // to the internal log.
+    final reportHook = onErrorReported;
+    if (reportHook != null) {
+      try {
+        reportHook(_errors.first);
+      } catch (e, s) {
+        InspectorInternalLog.warning(
+          'ErrorService',
+          'onErrorReported callback threw.',
+          error: e,
+          stackTrace: s,
+        );
+      }
+    }
     notifyListeners();
   }
 

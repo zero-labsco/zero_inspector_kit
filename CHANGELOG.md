@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.16.0
+
+### Added / 新增
+- Added an `onErrorReport` callback to `ZeroInspectorKit.init()` (also settable directly as `ErrorService.instance.onErrorReported`): every aggregated error occurrence — repeat hits included — is forwarded to third-party reporters such as Sentry / Firebase Crashlytics with the merged `ErrorRecord` (type, message, signature, `×N` count, first/last seen). Records restored from disk on launch are not re-reported, and a throwing host callback never breaks the inspector's aggregation pipeline (failures are logged internally only).
+  - 新增 `ZeroInspectorKit.init()` 的 `onErrorReport` 回调（也可直接设置 `ErrorService.instance.onErrorReported`）：每次聚合的异常（含重复命中）都会带上合并后的 `ErrorRecord`（类型、消息、签名、`×N` 计数、首末次时间）转发到 Sentry / Firebase Crashlytics 等第三方上报服务。启动时从磁盘回放的历史记录不会重复上报；宿主回调抛错不会影响检查器的聚合管线，失败仅记入内部日志。
+
 ## 1.15.0
 
 ### Added / 新增
