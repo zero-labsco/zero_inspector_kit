@@ -65,9 +65,27 @@ class PersistenceService {
   Duration _retention = _defaultRetention;
   Timer? _flushTimer;
 
-  final List<LogEntry> _pendingLogs = [];
-  final List<NetworkRequest> _pendingNetwork = [];
-  final List<ErrorRecord> _pendingErrors = [];
+  /// 待刷盘缓冲：按条目 id 去重（last-wins）。
+  /// Pending flush buffers: keyed by entry id, last write wins.
+  ///
+  /// 为什么必须去重：同一逻辑记录会被重复入队 —— 多行日志续行合并后以同一
+  /// `LogEntry.id` 再次入队（此前落 N 行、重启回放出现 N 次且内容递增）；
+  /// 网络请求先入队一次（发请求），响应到达后再入队一次（落 2 行，会话存档
+  /// 里同一请求出现两条）；聚合异常每次重复命中都入队。用 Map 覆盖写保证
+  /// 一条记录最终只落一行最新状态。
+  /// Why dedupe: the same logical record is enqueued repeatedly — a reassembled
+  /// multi-line log re-enqueues under the same `LogEntry.id` (previously N rows
+  /// on disk, N duplicates on replay with growing content); a network request is
+  /// enqueued once on send and again on response (2 rows, two copies in the
+  /// session archive); an aggregated error re-enqueues on every repeat hit.
+  /// Map overwrite guarantees one final row per record.
+  ///
+  /// 告警事件没有稳定 id（每次触发都是独立事件），保持 List 顺序入队。
+  /// Alert events have no stable id (each firing is a distinct event), so they
+  /// stay in a List and keep their insertion order.
+  final Map<String, LogEntry> _pendingLogs = {};
+  final Map<String, NetworkRequest> _pendingNetwork = {};
+  final Map<String, ErrorRecord> _pendingErrors = {};
   final List<AlertEvent> _pendingAlerts = [];
 
   /// 是否已启用（DB 可用）/ Whether enabled (DB available)
@@ -171,23 +189,42 @@ class PersistenceService {
   }
 
   /// 入队一条日志（异步落盘）/ Enqueue a log (async flush)
+  ///
+  /// 同一 id 重复入队（多行日志续行合并）只保留最新一份，见 [_pendingLogs]。
+  /// Repeated enqueues of the same id (multi-line log reassembly) keep only the
+  /// newest copy — see [_pendingLogs].
   void enqueueLog(LogEntry e) {
     if (!_enabled) return;
-    _pendingLogs.add(e);
+    // 先删后插：覆盖写的同时把该条目移到队尾，使 flush 的插入顺序反映最新时序。
+    // Remove-then-put: overwrite AND move to the tail so flush insertion order
+    // reflects the latest write order.
+    _pendingLogs.remove(e.id);
+    _pendingLogs[e.id] = e;
     if (_pendingLogs.length >= _flushThreshold) flush();
   }
 
   /// 入队一条网络记录 / Enqueue a network record
+  ///
+  /// 同一请求会先入队一次（发送）、再入队一次（响应到达），按 id 覆盖写，
+  /// 最终只落一行含响应的完整记录。
+  /// A request is enqueued on send and again on response; the id-keyed
+  /// overwrite keeps exactly one complete row.
   void enqueueNetwork(NetworkRequest r) {
     if (!_enabled) return;
-    _pendingNetwork.add(r);
+    _pendingNetwork.remove(r.id);
+    _pendingNetwork[r.id] = r;
     if (_pendingNetwork.length >= _flushThreshold) flush();
   }
 
   /// 入队一条聚合异常 / Enqueue an aggregated error
+  ///
+  /// 同一崩溃的每次重复命中都入队，按 id 覆盖写后只保留计数最高的最新状态。
+  /// Every repeat hit of the same crash enqueues; the id-keyed overwrite keeps
+  /// the newest state (highest count).
   void enqueueError(ErrorRecord e) {
     if (!_enabled) return;
-    _pendingErrors.add(e);
+    _pendingErrors.remove(e.id);
+    _pendingErrors[e.id] = e;
     if (_pendingErrors.length >= _flushThreshold) flush();
   }
 
@@ -210,11 +247,13 @@ class PersistenceService {
       return;
     }
 
-    final logs = List<LogEntry>.of(_pendingLogs);
+    // Map 的 values 即去重后的最新状态（LinkedHashMap 保持写入顺序）。
+    // The maps' values are the deduped newest states (LinkedHashMap keeps order).
+    final logs = List<LogEntry>.of(_pendingLogs.values);
     _pendingLogs.clear();
-    final nets = List<NetworkRequest>.of(_pendingNetwork);
+    final nets = List<NetworkRequest>.of(_pendingNetwork.values);
     _pendingNetwork.clear();
-    final errs = List<ErrorRecord>.of(_pendingErrors);
+    final errs = List<ErrorRecord>.of(_pendingErrors.values);
     _pendingErrors.clear();
     final alerts = List<AlertEvent>.of(_pendingAlerts);
     _pendingAlerts.clear();
@@ -295,25 +334,40 @@ class PersistenceService {
   }
 
   /// 读取已持久化的日志（最新在前）/ Load persisted logs (newest first)
+  ///
+  /// 按 `eid` 去重：旧版本（<1.17.0）会把续行合并的多行日志按合并次数落多行，
+  /// 直接回放会在日志列表出现重复条目。查询按 `id DESC`，故首次出现即为最新
+  /// 状态，后续同 `eid` 行跳过。
+  /// Deduped by `eid`: versions before 1.17.0 wrote one row per reassembly step
+  /// of a multi-line log, so replaying them verbatim duplicated entries. Rows
+  /// come back newest-first (`id DESC`), so the first occurrence is the newest
+  /// state and later rows sharing the `eid` are skipped.
   Future<List<LogEntry>> loadLogs({int limit = 500}) async {
     final db = _db;
     if (!_enabled || db == null) return const [];
     try {
       final rows = await db.query('logs', orderBy: 'id DESC', limit: limit);
-      return rows.map((r) {
+      final seen = <String>{};
+      final out = <LogEntry>[];
+      for (final r in rows) {
+        final id = (r['eid'] as String?) ?? '${r['id']}';
+        if (!seen.add(id)) continue;
         final levelIndex = (r['level'] as int?) ?? 0;
-        return LogEntry(
-          id: (r['eid'] as String?) ?? '${r['id']}',
-          level: levelIndex >= 0 && levelIndex < LogLevel.values.length
-              ? LogLevel.values[levelIndex]
-              : LogLevel.verbose,
-          message: (r['message'] as String?) ?? '',
-          timestamp: DateTime.fromMillisecondsSinceEpoch(
-            (r['ts'] as int?) ?? 0,
+        out.add(
+          LogEntry(
+            id: id,
+            level: levelIndex >= 0 && levelIndex < LogLevel.values.length
+                ? LogLevel.values[levelIndex]
+                : LogLevel.verbose,
+            message: (r['message'] as String?) ?? '',
+            timestamp: DateTime.fromMillisecondsSinceEpoch(
+              (r['ts'] as int?) ?? 0,
+            ),
+            tag: r['tag'] as String?,
           ),
-          tag: r['tag'] as String?,
         );
-      }).toList();
+      }
+      return out;
     } catch (_) {
       return const [];
     }
@@ -365,18 +419,30 @@ class PersistenceService {
 
   /// 读取已持久化的网络记录（原始 JSON，最新在前）
   /// Load persisted network records (raw JSON, newest first)
+  ///
+  /// 按记录 `id` 去重：旧版本（<1.17.0）对同一请求会落"发请求"与"收响应"两行，
+  /// 直接读回会在会话存档里出现同一请求两条。查询按 `id DESC`，首次出现即为
+  /// 最新状态（含响应）。
+  /// Deduped by record `id`: versions before 1.17.0 wrote two rows per request
+  /// (send + response), so reading them back verbatim duplicated the request in
+  /// the session archive. Rows come back newest-first, so the first occurrence
+  /// is the newest state (response included).
   Future<List<Map<String, dynamic>>> loadNetworkJson({int limit = 500}) async {
     final db = _db;
     if (!_enabled || db == null) return const [];
     try {
       final rows = await db.query('network', orderBy: 'id DESC', limit: limit);
+      final seen = <String>{};
       final out = <Map<String, dynamic>>[];
       for (final r in rows) {
         final data = r['data'] as String?;
         if (data == null) continue;
         try {
           final decoded = jsonDecode(data);
-          if (decoded is Map<String, dynamic>) out.add(decoded);
+          if (decoded is! Map<String, dynamic>) continue;
+          final id = decoded['id'];
+          if (id is String && !seen.add(id)) continue;
+          out.add(decoded);
         } catch (_) {}
       }
       return out;
