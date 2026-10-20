@@ -74,6 +74,7 @@ import 'src/ui/floating_button.dart';
 import 'src/ui/inspector_panel.dart';
 import 'src/models/log_entry.dart';
 import 'src/models/error_record.dart';
+import 'src/models/network_request.dart';
 import 'src/services/database_provider.dart';
 import 'src/services/sqlite_provider.dart';
 import 'src/services/fps_service.dart';
@@ -137,6 +138,11 @@ import 'src/services/blocking_watchdog_service.dart';
 class ZeroInspectorKit {
   static bool _initialized = false;
 
+  /// init() 注册的 SQLite 查看器提供者实例，供 [dispose] 关闭其缓存的只读连接。
+  /// The SQLite viewer provider registered by init(); lets dispose close its
+  /// cached read-only connections.
+  static SqliteDatabaseProvider? _sqliteProvider;
+
   /// 初始化检查器 / Initialize inspector
   /// [enable] 是否启用检查器（默认 true，release模式下自动为 false）/ Whether to enable inspector (default true, auto false in release mode)
   /// [enableLogCapture] 是否启用日志捕获（默认 true）/ Whether to enable log capture (default true)
@@ -144,6 +150,12 @@ class ZeroInspectorKit {
   /// [enableErrorCapture] 是否启用异常聚合捕获（默认 true）/ Whether to enable error aggregation (default true)
   /// [enableDatabaseScan] 是否启用数据库扫描（默认 true）/ Whether to enable database scan (default true)
   /// [enableRouteTracking] 是否启用路由跟踪（默认 true）/ Whether to enable route tracking (default true)
+  /// [enableNetworkReplay] 是否在启动时回放上次会话持久化的网络记录（默认 false）。
+  ///   历史请求与实时请求混排容易误判，仅在确需"重启后继续排查上次会话"时开启。
+  ///   Whether to replay the previous session's persisted network records on
+  ///   launch (default false). Historical and live requests mixed together are
+  ///   easy to misread, so enable it only when a post-restart investigation of
+  ///   the previous session is actually wanted.
   /// [customButton] 自定义悬浮按钮组件（可选）/ Custom floating button widget (optional)
   /// [onLogCaptured] 日志捕获回调，用于集成第三方日志库（可选）/ Log capture callback for third-party logging library integration (optional)
   /// [maxNetworkItems] 网络请求缓存上限（默认 100）/ Network request cache cap (default 100)
@@ -162,6 +174,7 @@ class ZeroInspectorKit {
     bool enableRouteTracking = true,
     bool enableWidgetInspector = true,
     bool enableNetworkTimeline = true,
+    bool enableNetworkReplay = false,
     Widget? customButton,
     void Function(LogEntry)? onLogCaptured,
     void Function(ErrorRecord)? onErrorReport,
@@ -218,7 +231,19 @@ class ZeroInspectorKit {
     }
 
     if (enableDatabaseScan) {
-      DatabaseRegistry.instance.registerProvider(SqliteDatabaseProvider());
+      // 每次 init 都换新实例前，先把旧实例从注册表摘掉并关闭其连接，
+      // 否则 registerProvider 的按名去重会让新实例被丢弃、旧连接继续常驻。
+      // Before swapping in a fresh provider, unregister the old one and close
+      // its connections; otherwise registerProvider's name dedupe drops the
+      // new instance while the old connections stay open.
+      final previous = _sqliteProvider;
+      if (previous != null) {
+        DatabaseRegistry.instance.unregisterProvider(previous.name);
+        unawaited(previous.dispose());
+      }
+      final provider = SqliteDatabaseProvider();
+      _sqliteProvider = provider;
+      DatabaseRegistry.instance.registerProvider(provider);
     }
 
     // Widget 树与网络瀑布图默认开启（快照式，不影响运行时性能，无需开关）。
@@ -244,12 +269,16 @@ class ZeroInspectorKit {
       // （example 库能建），持久化却始终 disabled、zero_inspector_kit.db 从不落盘。
       // 因此改为“binding 就绪后带重试”：runApp 同步执行完毕 binding 即就绪，
       // 第二次尝试即可成功；桌面等没有 sqflite 实现的平台重试耗尽后维持降级。
-      unawaited(_initPersistenceWhenReady());
+      unawaited(
+        _initPersistenceWhenReady(enableNetworkReplay: enableNetworkReplay),
+      );
     }
   }
 
   /// 初始化持久化并回放上次会话 / Init persistence and replay the last session
-  static Future<void> _initPersistence() async {
+  static Future<void> _initPersistence({
+    bool enableNetworkReplay = false,
+  }) async {
     await PersistenceService.instance.init();
     if (!PersistenceService.instance.isEnabled) return;
     final logs = await PersistenceService.instance.loadLogs();
@@ -258,6 +287,22 @@ class ZeroInspectorKit {
     if (errors.isNotEmpty) ErrorService.instance.restore(errors);
     final alerts = await PersistenceService.instance.loadAlerts();
     if (alerts.isNotEmpty) AlertService.instance.restore(alerts);
+    // 网络记录回放是 opt-in：历史请求与实时请求混在一起容易误判，
+    // 需要“重启后继续排查上次会话”的场景再显式打开。
+    // Network replay is opt-in: mixing historical with live requests is easy to
+    // misread, so it must be enabled explicitly when a post-restart
+    // investigation of the previous session is actually wanted.
+    if (!enableNetworkReplay) return;
+    final netJson = await PersistenceService.instance.loadNetworkJson();
+    if (netJson.isEmpty) return;
+    final requests = <NetworkRequest>[];
+    for (final json in netJson) {
+      final request = NetworkRequest.fromJson(json);
+      if (request != null) requests.add(request);
+    }
+    if (requests.isNotEmpty) {
+      InspectorService.instance.restoreNetworkRequests(requests);
+    }
   }
 
   /// 完整释放检查器占用的资源 / Fully release the resources held by the inspector
@@ -277,14 +322,33 @@ class ZeroInspectorKit {
   /// switch off debug collection at runtime (e.g. a privacy "stop collecting"
   /// toggle). Call [init] again to re-enable.
   static Future<void> dispose() async {
+    // 顺序很重要：ErrorService.install() 保存的“上一个 FlutterError.onError”
+    // 正是日志拦截器的包装器。若先 stop 日志拦截器（其内部会把原始回调置
+    // null），后 uninstall 就会把宿主原有的 onError 永久替换成一个死回调 —
+    // — 宿主接入的 Sentry / Crashlytics 等上报会静默失效。
+    // Order matters: ErrorService.install() captured the *log interceptor's*
+    // wrapper as the previous FlutterError.onError. Stopping the log
+    // interceptor first nulls its inner original, so a later uninstall would
+    // permanently replace the host's own handler with a dead callback —
+    // silently breaking host error reporting (Sentry / Crashlytics, …).
+    ErrorService.instance.uninstall();
     InspectorLogInterceptor.instance.stop();
     InspectorHttpInterceptor.instance.stop();
-    ErrorService.instance.uninstall();
     ErrorService.instance.onErrorReported = null;
     FpsService.instance.stop();
     BlockingWatchdogService.instance.stop();
     MemoryInspectorService.instance.stopMonitoring();
+    // 桥接 FlutterMemoryAllocations 的监听不会随 stopMonitoring 自动取消，
+    // 显式关闭，避免 dispose 后仍在收官方分配事件。
+    // The FlutterMemoryAllocations listener is not cancelled by
+    // stopMonitoring; disable it explicitly so no events arrive post-dispose.
+    MemoryInspectorService.instance.flutterLeakTrackerEnabled = false;
     InspectorService.instance.disposeService();
+    // 关闭 SQLite 查看器缓存的只读连接（此前 dispose 从不释放它们）。
+    // Close the SQLite viewer's cached read-only connections (dispose never
+    // released them before).
+    await _sqliteProvider?.dispose();
+    _sqliteProvider = null;
     await PersistenceService.instance.dispose();
     _initialized = false;
   }
@@ -292,13 +356,15 @@ class ZeroInspectorKit {
   /// 等待 Flutter binding 就绪后再初始化持久化，失败按递增间隔自动重试。
   /// 首次尝试发生在 runApp 之前（binding 未初始化必失败），runApp 同步完成后
   /// 的第二次尝试即成功；无 sqflite 的平台重试耗尽后保持优雅降级。
-  static Future<void> _initPersistenceWhenReady() async {
+  static Future<void> _initPersistenceWhenReady({
+    bool enableNetworkReplay = false,
+  }) async {
     for (var attempt = 0; attempt < 5; attempt++) {
       if (PersistenceService.instance.isEnabled) return;
       if (attempt > 0) {
         await Future<void>.delayed(Duration(milliseconds: 100 * (attempt + 1)));
       }
-      await _initPersistence();
+      await _initPersistence(enableNetworkReplay: enableNetworkReplay);
     }
   }
 
@@ -353,16 +419,29 @@ class ZeroInspectorKit {
   /// 此方法会自动调用 init() / This method automatically calls init()
   /// [app] 应用根组件 / App root widget
   /// [enable] 是否启用检查器（默认 true）/ Whether to enable inspector (default true)
+  /// [enableErrorCapture] 是否聚合未捕获异常到 Errors Tab（默认 true），
+  ///   与 [init] 的同名参数一致 —— 此前该方法不透传，导致一句话式集成无法
+  ///   关闭异常聚合。/ Whether uncaught errors are aggregated into the Errors
+  ///   tab (default true). Mirrors [init]'s same-named parameter, which this
+  ///   method previously did not forward — the one-liner integration could not
+  ///   turn error aggregation off.
+  /// [enableNetworkReplay] 是否回放上次会话的网络记录（默认 false），透传给
+  ///   [init]。/ Whether to replay the previous session's network records
+  ///   (default false); forwarded to [init].
   static void runAppWithInspector(
     Widget app, {
     bool enable = true,
     bool enableWidgetInspector = true,
     bool enableNetworkTimeline = true,
+    bool enableErrorCapture = true,
+    bool enableNetworkReplay = false,
   }) {
     init(
       enable: enable,
       enableWidgetInspector: enableWidgetInspector,
       enableNetworkTimeline: enableNetworkTimeline,
+      enableErrorCapture: enableErrorCapture,
+      enableNetworkReplay: enableNetworkReplay,
     );
 
     // binding 已在调用方（外层 Zone）初始化时不能再套 Zone，否则 Flutter 会抛
@@ -408,8 +487,13 @@ class ZeroInspectorKit {
         InspectorLogInterceptor.instance.error(error.toString());
         InspectorLogInterceptor.instance.error(stackTrace.toString());
         // 同步聚合到 Errors Tab，确保未捕获异常也能被去重统计。
-        // Also aggregate into the Errors Tab so uncaught errors are deduped.
-        ErrorService.instance.report(error, stackTrace);
+        // 与 init 的 enableErrorCapture 保持一致：关闭聚合时不写入 Errors Tab。
+        // Also aggregate into the Errors Tab so uncaught errors are deduped —
+        // but honor init()'s enableErrorCapture: when aggregation is off we
+        // must not write to the Errors Tab either.
+        if (enableErrorCapture) {
+          ErrorService.instance.report(error, stackTrace);
+        }
       },
       zoneSpecification: ZoneSpecification(
         print: (self, parent, zone, line) {
@@ -748,9 +832,27 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
     return null;
   }
 
-  /// 注入 [InspectorRouteObserver] 到 [MaterialApp.navigatorObservers]，
-  /// 完整拷贝其余字段以保持语义不变。/ Inject the route observer while copying
-  /// every other property so behavior is unchanged.
+  /// 字段清单必须与 SDK 的 [MaterialApp]（默认构造器）保持同步：此前漏拷的
+  /// `highContrastTheme` / `highContrastDarkTheme`（高对比度主题被静默丢弃）、
+  /// `themeAnimationDuration` / `themeAnimationCurve` /
+  /// `themeAnimationStyle`（主题切换动画回退默认值）、
+  /// `onNavigationNotification`（系统返回通知不转发）都会让宿主 App 行为在
+  /// 接入检查器后发生变化。
+  /// The field list must track the SDK's [MaterialApp] (default constructor):
+  /// the previously missing `highContrastTheme` / `highContrastDarkTheme`
+  /// (high-contrast themes were silently dropped), `themeAnimationDuration` /
+  /// `themeAnimationCurve` / `themeAnimationStyle` (theme switch animation fell
+  /// back to defaults) and `onNavigationNotification` (system back
+  /// notifications not forwarded) all changed host-app behavior once the
+  /// inspector was attached.
+  ///
+  /// 已知限制：以 `MaterialApp.router(...)`（Navigator 2.0）构建的根组件，
+  /// 其 `navigatorObservers` 由内部 Router 自持，注入的观察者不生效 ——
+  /// 路由追踪对这类应用暂不可用（其余行为不受影响）。
+  /// Known limitation: a root built with `MaterialApp.router(...)` (Navigator
+  /// 2.0) owns its navigator observers inside the Router, so injected observers
+  /// do not apply — route tracking is not yet supported for such apps (every
+  /// other behavior is unaffected).
   MaterialApp _decorateMaterialApp(MaterialApp app) {
     return MaterialApp(
       key: app.key,
@@ -771,6 +873,11 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
       color: app.color,
       theme: app.theme,
       darkTheme: app.darkTheme,
+      highContrastTheme: app.highContrastTheme,
+      highContrastDarkTheme: app.highContrastDarkTheme,
+      themeAnimationDuration: app.themeAnimationDuration,
+      themeAnimationCurve: app.themeAnimationCurve,
+      themeAnimationStyle: app.themeAnimationStyle,
       themeMode: app.themeMode,
       locale: app.locale,
       localizationsDelegates: app.localizationsDelegates,
@@ -787,6 +894,7 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
       actions: app.actions,
       restorationScopeId: app.restorationScopeId,
       scrollBehavior: app.scrollBehavior,
+      onNavigationNotification: app.onNavigationNotification,
       home: app.home,
     );
   }
