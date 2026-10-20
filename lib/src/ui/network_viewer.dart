@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -508,7 +509,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
                               context,
                               rootOverlay: true,
                             );
-                            await ExportService.instance.copy(
+                            final ok = await ExportService.instance.copy(
                               ExportService.instance.toCurl(
                                 _selectedRequest!,
                                 maskSensitive: _maskSensitive,
@@ -517,9 +518,11 @@ class _NetworkViewerState extends State<NetworkViewer> {
                             if (mounted) {
                               InspectorToast.showOn(
                                 messenger,
-                                _maskSensitive
-                                    ? 'Copied as cURL (sensitive hidden)'
-                                    : 'Copied as cURL',
+                                !ok
+                                    ? 'Copy failed — clipboard unavailable'
+                                    : (_maskSensitive
+                                          ? 'Copied as cURL (sensitive hidden)'
+                                          : 'Copied as cURL'),
                               );
                             }
                           },
@@ -542,15 +545,17 @@ class _NetworkViewerState extends State<NetworkViewer> {
                           final requests =
                               InspectorService.instance.networkRequests;
                           if (requests.isEmpty) return;
-                          await ExportService.instance.copyNet(
+                          final ok = await ExportService.instance.copyNet(
                             requests,
                             maskSensitive: _maskSensitive,
                           );
                           if (mounted) {
                             InspectorToast.showOn(
                               messenger,
-                              'Copied ${requests.length} requests as JSON'
-                              '${_maskSensitive ? ' (sensitive hidden)' : ''}',
+                              ok
+                                  ? 'Copied ${requests.length} requests as JSON'
+                                        '${_maskSensitive ? ' (sensitive hidden)' : ''}'
+                                  : 'Copy failed — clipboard unavailable',
                             );
                           }
                         },
@@ -613,7 +618,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
                         InspectorIconButton(
                           icon: Icons.copy_all_rounded,
                           tooltip: 'Copy selected as cURL',
-                          onTap: () => _copySelectedCurl(context),
+                          onTap: () => unawaited(_copySelectedCurl(context)),
                         ),
                       InspectorIconButton(
                         icon: Icons.delete_outline_rounded,
@@ -923,11 +928,18 @@ class _NetworkViewerState extends State<NetworkViewer> {
 
   // 过滤结果缓存：避免每次重建都对全量列表做 4 次全扫描。
   // Filter cache: avoids running a full 4-pass scan on every rebuild.
-  // 失效条件 = 数据源引用变化 / 列表长度变化 / 任一过滤条件变化。
-  // Invalidated when the source, its length, or any filter criterion changes.
+  // 失效条件 = 数据版本号变化 / 任一过滤条件变化。
+  // Invalidated when the service data version or any filter criterion changes.
+  //
+  // 为什么用版本号而不是「列表引用」：[InspectorService.networkRequests] 每次
+  // 访问都返回新的 UnmodifiableListView 包装，identical 恒为 false —— 原实现
+  // 的缓存从未命中过，每次重建都全量重算。版本号同时对该失效模式免疫。
+  // Why a version counter instead of "list identity":
+  // [InspectorService.networkRequests] returns a fresh UnmodifiableListView
+  // wrapper on every access, so `identical` was always false — the old cache
+  // never hit and every rebuild re-scanned everything.
   List<NetworkRequest>? _filteredRequestsCache;
-  List<NetworkRequest>? _filteredRequestsSource;
-  int _filteredRequestsLength = -1;
+  int _filteredRequestsVersion = -1;
   String _filteredKeyword = '';
   Set<String> _filteredMethods = const {};
   Set<StatusGroup> _filteredStatus = const {};
@@ -935,6 +947,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
   bool? _filteredModified;
 
   List<NetworkRequest> _filterRequests(List<NetworkRequest> requests) {
+    final version = InspectorService.instance.networkVersion;
     final filtersUnchanged =
         _filteredKeyword == _searchKeyword &&
         _sameSet(_filteredMethods, _methodFilters) &&
@@ -942,8 +955,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
         _sameSet(_filteredHosts, _hostFilters) &&
         _filteredModified == _modifiedFilter;
     if (_filteredRequestsCache != null &&
-        identical(requests, _filteredRequestsSource) &&
-        requests.length == _filteredRequestsLength &&
+        _filteredRequestsVersion == version &&
         filtersUnchanged) {
       return _filteredRequestsCache!;
     }
@@ -989,8 +1001,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     }
 
     _filteredRequestsCache = result;
-    _filteredRequestsSource = requests;
-    _filteredRequestsLength = requests.length;
+    _filteredRequestsVersion = version;
     _filteredKeyword = _searchKeyword;
     _filteredMethods = {..._methodFilters};
     _filteredStatus = {..._statusFilters};
@@ -1073,7 +1084,7 @@ class _NetworkViewerState extends State<NetworkViewer> {
     );
   }
 
-  void _copySelectedCurl(BuildContext context) {
+  Future<void> _copySelectedCurl(BuildContext context) async {
     final list = InspectorService.instance.networkRequests;
     final selected = list.where((r) => _selectedIds.contains(r.id)).toList();
     if (selected.isEmpty) return;
@@ -1083,20 +1094,26 @@ class _NetworkViewerState extends State<NetworkViewer> {
               ExportService.instance.toCurl(r, maskSensitive: _maskSensitive),
         )
         .join('\n\n');
-    ExportService.instance.copy(curl);
-    InspectorToast.show(
-      context,
-      'Copied ${selected.length} cURL'
-      '${_maskSensitive ? ' (sensitive hidden)' : ''}',
+    // 先解析 overlay 再 await，避免跨异步间隙使用 BuildContext。
+    // Resolve the overlay before the await so no BuildContext crosses the gap.
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final ok = await ExportService.instance.copy(curl);
+    if (!mounted) return;
+    InspectorToast.showOn(
+      overlay,
+      ok
+          ? 'Copied ${selected.length} cURL'
+                '${_maskSensitive ? ' (sensitive hidden)' : ''}'
+          : 'Copy failed — clipboard unavailable',
     );
   }
 
   void _deleteSelected() {
     final list = InspectorService.instance.networkRequests;
     final toRemove = list.where((r) => _selectedIds.contains(r.id)).toList();
-    for (final r in toRemove) {
-      InspectorService.instance.removeNetworkRequest(r.id);
-    }
+    // 批量删除：单次变更 + 单次通知，避免逐条删除触发 N 次整表重建。
+    // Batch delete: one mutation + one notification instead of N rebuilds.
+    InspectorService.instance.removeNetworkRequests(toRemove.map((r) => r.id));
     setState(() => _selectedIds.clear());
   }
 

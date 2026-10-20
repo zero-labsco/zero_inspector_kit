@@ -1,5 +1,43 @@
 # Changelog
 
+## 1.17.0
+
+### Fixed / 修复
+- Fixed the Database tab's two search boxes being completely dead: neither passed `onChanged` to `InspectorSearchField`, so typing never updated the keyword. The global search now filters databases/tables as you type, and the in-database search re-queries with a server-side cell filter (resetting to page one).
+  - 修复 Database 标签页两个搜索框完全失效的问题：两者都未给 `InspectorSearchField` 传 `onChanged`，输入永远不会更新关键词。全局搜索现在随输入过滤数据库 / 表名，库内搜索则按单元格内容服务端重新查询（并回到第一页）。
+- Fixed the log filter list freezing once 500 entries accumulated: the filter cache keyed on "view identity + length", but the log view is a stable `UnmodifiableListView` and the ring buffer keeps its length constant once full, so neither condition detected new data. Caches now invalidate on a monotonic service data version (`InspectorService.logVersion`).
+  - 修复日志累计满 500 条后过滤结果冻结的问题：过滤缓存用「视图身份 + 长度」判定失效，而日志视图是稳定的 `UnmodifiableListView`、环形缓冲写满后长度恒定，两者都无法再检测到新数据。缓存改为按服务数据版本号（`InspectorService.logVersion`）失效。
+- Fixed the persistence ring buffer writing duplicate rows: a reassembled multi-line log re-enqueued under the same id (N rows on disk, N duplicates on replay with growing content), a network request was enqueued twice (send + response, two copies in the session archive), and an aggregated error re-enqueued on every repeat hit. Pending buffers are now keyed by entry id (last write wins) and loads dedupe by `eid`, so databases written by older versions replay cleanly too.
+  - 修复持久化环形缓冲写入重复行：续行合并的多行日志会以同一 id 重复入队（落 N 行、重启回放出现 N 次且内容递增），网络请求「发送 + 响应」各入队一次（会话存档里同一请求出现两条），聚合异常每次重复命中都入队。待刷盘缓冲改为按条目 id 覆盖写（last-wins），读取侧按 `eid` 去重，旧版本写出的库也能干净回放。
+- Fixed `ZeroInspectorKit.dispose()` restoring `FlutterError.onError` in the wrong order, which permanently replaced the host's own handler with a dead callback and silently broke host error reporting (Sentry / Firebase Crashlytics, …). Dispose now also releases the `FlutterMemoryAllocations` bridge subscription and closes the SQLite viewer's cached read-only connections, and re-`init()` swaps in a fresh provider instead of leaving stale connections registered.
+  - 修复 `ZeroInspectorKit.dispose()` 的 `FlutterError.onError` 恢复顺序错误——宿主的原有回调被永久替换成死回调，接入的上报服务（Sentry / Crashlytics 等）静默失效。dispose 现在还会释放 `FlutterMemoryAllocations` 桥接订阅、关闭 SQLite 查看器缓存的只读连接；重新 `init()` 会换上新实例而非留下旧连接。
+- Fixed a toast crash: `InspectorToast` could call `OverlayEntry.remove()` twice (tap-to-dismiss plus the auto-dismiss timer), which asserts in debug, and threw when the overlay was already unmounted. Removal is now idempotent, the timer is cancelable, and overlay teardown is tolerated. The memory viewer's private toast implementation (uncancellable delayed remove, no mounted guard) now reuses the shared component.
+  - 修复 toast 崩溃：点击消失与自动消失定时器会重复调用 `OverlayEntry.remove()`（debug 下断言崩溃），且 overlay 已卸载时 remove 会抛异常。移除现在幂等、定时器可取消、overlay 卸载被容错；内存查看器自建的 toast（不可取消的延迟移除、无 mounted 保护）改为复用统一组件。
+- Fixed the Database viewer calling `setState` after `await` without a `mounted` check, which threw "setState() called after dispose()" when switching tabs or closing the panel mid-query.
+  - 修复数据库查看器在 `await` 后未检查 `mounted` 直接 `setState` 的问题——查询期间切换 Tab 或关闭面板会抛 "setState() called after dispose()"。
+- Fixed `_decorateMaterialApp` silently dropping `highContrastTheme` / `highContrastDarkTheme` (high-contrast themes), `themeAnimationDuration` / `themeAnimationCurve` / `themeAnimationStyle` (theme switch animation) and `onNavigationNotification` (system back notifications) when injecting the route observer — host-app behavior changed the moment the inspector was attached.
+  - 修复注入路由观察者时 `_decorateMaterialApp` 静默丢弃 `highContrastTheme` / `highContrastDarkTheme`（高对比度主题）、`themeAnimationDuration` / `themeAnimationCurve` / `themeAnimationStyle`（主题切换动画）与 `onNavigationNotification`（系统返回通知）的问题——接入检查器后宿主行为会发生变化。
+- Fixed `runAppWithInspector()` not forwarding `enableErrorCapture`: the one-liner integration could not turn error aggregation off, and its Zone handler aggregated uncaught errors regardless of the flag. The flag now passes through to `init()` and gates the Zone aggregation.
+  - 修复 `runAppWithInspector()` 不透传 `enableErrorCapture` 的问题——一句话式集成无法关闭异常聚合，且其 Zone 回调无视该开关照样聚合未捕获异常。现在该参数透传给 `init()` 并控制 Zone 内的聚合。
+- Fixed copy / share flows reporting success unconditionally: `ExportService.copy` / `copyLogs` / `copyNet` / `copyText` now return whether the clipboard write succeeded, and the cURL / JSON / single-log / stack copy toasts report failures instead of claiming success.
+  - 修复复制 / 分享流程无条件提示成功的问题：`ExportService.copy` / `copyLogs` / `copyNet` / `copyText` 现在返回剪贴板是否写入成功，cURL / JSON / 单条日志 / 堆栈复制的提示会如实报告失败。
+- Fixed the Network viewer's filter cache never hitting (`identical` compared a freshly wrapped `UnmodifiableListView` every call, so every rebuild re-scanned everything); it now uses the same data-version counter. Multi-select delete uses a new batched API (`InspectorService.removeNetworkRequests`) with a single mutation and notification instead of one rebuild per deleted row.
+  - 修复网络查看器过滤缓存永不命中的问题（`identical` 每次比较的都是新包装的 `UnmodifiableListView`，导致每次重建都全量重算）；改用同一数据版本号。多选删除改用新的批量 API（`InspectorService.removeNetworkRequests`），单次变更 + 单次通知，不再每删一行重建一次。
+- Fixed the Timeline viewer re-merging on every build when the merged result was empty (empty session or all sources hidden).
+  - 修复时间线查看器在归并结果为空（空会话或全部来源被隐藏）时每次 build 都重新全量归并的问题。
+
+### Fixed (native) / 修复（原生）
+- Fixed the iOS console-log listener: the `dup2` redirection of stdout/stderr was never restored, so host prints stayed trapped in an unread pipe (and could block once the pipe buffer filled), the log array grew without bound, and repeated starts stacked redirects that could never be undone. It now backs up and restores the original fds, keeps a bounded ring buffer, and guards against re-entry.
+  - 修复 iOS 控制台日志监听：对 stdout/stderr 的 `dup2` 重定向从不还原，宿主 print 会永久困在无人读取的管道里（缓冲区写满后甚至阻塞），日志数组无上限增长，重复 start 还会叠加多层无法还原的重定向。现在会备份并还原原始 fd、维护有界环形缓冲，并防重入。
+
+### Added / 新增
+- Added opt-in replay of the previous session's network records: `NetworkRequest.fromJson`, `InspectorService.restoreNetworkRequests` and `init(enableNetworkReplay: true)` (also exposed on `runAppWithInspector()`). Logs, errors and alerts replay as before; network records stay archived unless the flag is on, because mixing historical with live requests is easy to misread.
+  - 新增上次会话网络记录的回放开关：`NetworkRequest.fromJson`、`InspectorService.restoreNetworkRequests` 与 `init(enableNetworkReplay: true)`（`runAppWithInspector()` 同样可传）。日志 / 异常 / 告警的回放行为不变；网络记录默认仅留档，因为历史请求与实时请求混排容易误判。
+- Added `InspectorService.removeNetworkRequests(Iterable<String>)` for batched network deletion (single notification).
+  - 新增 `InspectorService.removeNetworkRequests(Iterable<String>)` 批量删除网络记录（单次通知）。
+- Added the public getters `InspectorService.logVersion` / `networkVersion` — monotonic data versions that let UI caches invalidate precisely (the root cause behind both the frozen log filter and the never-hitting network filter cache).
+  - 新增公开 getter `InspectorService.logVersion` / `networkVersion`——单调数据版本号，让 UI 缓存精确失效（日志过滤冻结与网络缓存永不命中两个问题的根因）。
+
 ## 1.16.0
 
 ### Added / 新增

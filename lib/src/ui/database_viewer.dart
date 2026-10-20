@@ -71,6 +71,10 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
   Future<void> _loadDatabases() async {
     setState(() => _isLoading = true);
     _databases = await DatabaseService.instance.getDatabases();
+    // 查询期间可能已切换 Tab / 关闭面板：await 后必须检查 mounted。
+    // The widget may be gone by the time the query resolves (tab switched /
+    // panel closed): always check mounted after an await.
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -95,6 +99,7 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
       whereKeyword:
           keyword ?? (_dbSearchKeyword.isEmpty ? null : _dbSearchKeyword),
     );
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -281,12 +286,22 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
   }
 
   /// 构建全局搜索栏 / Build global search bar
+  ///
+  /// 注意：必须传 `onChanged` —— 只传 `onClear` 时输入永远不会更新
+  /// `_globalSearchKeyword`，全局搜索形同虚设（`InspectorSearchField` 的
+  /// `onChanged` 是可选的，漏传不会报错，只会静默失效）。
+  /// NOTE: `onChanged` is required — with only `onClear` wired, typing never
+  /// updates `_globalSearchKeyword` and the search silently does nothing
+  /// (`InspectorSearchField.onChanged` is optional, so omitting it fails
+  /// silently instead of erroring).
   Widget _buildGlobalSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: InspectorSearchField(
         controller: _globalSearchController,
         hint: 'Search database, table...',
+        onChanged: (value) =>
+            setState(() => _globalSearchKeyword = value.trim()),
         onClear: () {
           _globalSearchController.clear();
           setState(() => _globalSearchKeyword = '');
@@ -296,12 +311,33 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
   }
 
   /// 构建数据库内搜索栏 / Build in-database search bar
+  ///
+  /// 库列表态：关键字本地过滤表名（setState 即刷新）。
+  /// 已选表态：关键字服务端过滤单元格内容，需重新查询并回到第一页。
+  /// Table-list mode: the keyword filters table names locally (setState is
+  /// enough). With a table selected: the keyword filters cell content
+  /// server-side, so re-query and jump back to page one.
   Widget _buildDbSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: InspectorSearchField(
         controller: _dbSearchController,
         hint: 'Search table, data...',
+        onChanged: (value) {
+          final keyword = value.trim();
+          if (keyword == _dbSearchKeyword) return;
+          setState(() {
+            _dbSearchKeyword = keyword;
+            _currentPage = 0;
+          });
+          if (_selectedTable != null && _currentDatabase != null) {
+            _loadTableData(
+              _currentDatabase!.path,
+              _selectedTable!.name,
+              keyword: keyword.isEmpty ? null : keyword,
+            );
+          }
+        },
         onClear: () {
           _dbSearchController.clear();
           setState(() {

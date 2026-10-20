@@ -4,6 +4,7 @@ import 'theme/inspector_theme.dart';
 import '../utils/formatters.dart';
 import '../models/leak_record.dart';
 import '../services/memory_inspector_service.dart';
+import 'inspector_toast.dart';
 import 'memory_trend_chart.dart';
 
 /// 内存查看器 / Memory viewer
@@ -1767,39 +1768,12 @@ class _MemoryViewerState extends State<MemoryViewer> {
   }
 
   /// 显示 Toast 提示 / Show toast hint
+  ///
+  /// 复用统一的 [InspectorToast]（root overlay、幂等移除、可取消定时器），
+  /// 不再自带一份不可取消的 Future.delayed 移除逻辑。
+  /// Reuses the shared [InspectorToast] (root overlay, idempotent removal,
+  /// cancelable timer) instead of a private uncancellable delayed remove.
   void _showToast(String message) {
-    final overlay = Overlay.of(context);
-    final overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: 80,
-        left: 0,
-        right: 0,
-        child: Center(
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: InspectorColors.card.withValues(alpha: 0.95),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: InspectorColors.border, width: 0.5),
-              ),
-              child: Text(
-                message,
-                style: TextStyle(
-                  color: InspectorColors.textPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    overlay.insert(overlayEntry);
-    Future.delayed(const Duration(seconds: 2), () {
-      overlayEntry.remove();
-    });
+    InspectorToast.show(context, message);
   }
 }
