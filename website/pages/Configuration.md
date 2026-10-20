@@ -14,6 +14,7 @@
 | `enableRouteTracking` | bool | `true` | Enable route tracking / 启用路由追踪 |
 | `enableWidgetInspector` | bool | `true` | Enable Widget tree snapshot / 启用 Widget 树快照 |
 | `enableNetworkTimeline` | bool | `true` | Prefer the network timeline (waterfall) in request details / 网络详情页默认展示时间轴（瀑布图） |
+| `enableNetworkReplay` | bool | `false` | Replay the previous session's persisted network records into the Network tab on launch (since v1.17.0) / 启动时把上次会话持久化的网络记录回放入 Network 标签页（v1.17.0 起） |
 | `customButton` | Widget? | `null` | Custom floating button widget / 自定义悬浮按钮 |
 | `onLogCaptured` | `void Function(LogEntry)?` | `null` | Log capture callback for third-party integration / 日志捕获回调 |
 | `onErrorReport` | `void Function(ErrorRecord)?` | `null` | Error reporting callback (since v1.16.0) for third-party integration (Sentry / Crashlytics) / 异常上报回调（v1.16.0 起），接入第三方（Sentry / Crashlytics） |
@@ -22,9 +23,9 @@
 | `maxRouteItems` | int? | `200` | Route record cache cap / 路由记录缓存上限 |
 | `maxBodyPreviewBytes` | int? | `32KB` | Body preview cap, longer bodies truncated / body 预览字节上限，超出截断 |
 
-> `enableWidgetInspector` / `enableNetworkTimeline` are also exposed on `runAppWithInspector()`. (`wrapApp()` takes only `enable`.)
+> `enableWidgetInspector` / `enableNetworkTimeline` / `enableErrorCapture` / `enableNetworkReplay` are also exposed on `runAppWithInspector()`. (`wrapApp()` takes only `enable`.)
 >
-> `enableWidgetInspector` / `enableNetworkTimeline` 也可在 `runAppWithInspector()` 上设置（`wrapApp()` 仅接受 `enable`）。
+> `enableWidgetInspector` / `enableNetworkTimeline` / `enableErrorCapture` / `enableNetworkReplay` 也可在 `runAppWithInspector()` 上设置（`wrapApp()` 仅接受 `enable`）。
 
 ## Usage Examples / 使用示例
 

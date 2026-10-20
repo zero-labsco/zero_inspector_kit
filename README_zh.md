@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本新增 `onErrorReport` 异常上报回调钩子，可把聚合后的异常（含重复命中）转发到 Sentry / Firebase Crashlytics 等第三方上报服务。建议所有用户升级到最新版本（`^1.16.0`）。
+> **🔔 推荐升级：** 本版本修复 Database 标签页两个失效的搜索框、日志累计满 500 条后过滤结果冻结、持久化环形缓冲写入重复行（多行日志 / 更新后的请求 / 重复命中的异常）、`dispose()` 顺序错误导致宿主的 `FlutterError.onError` 被永久替换为死回调，以及 toast 重复移除引发的断言崩溃；新增上次会话网络记录的回放开关（`enableNetworkReplay`）。建议所有用户升级到最新版本（`^1.17.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -60,7 +60,7 @@
 - **WebSocket / gRPC 抓取**：可选的流式协议抓取（默认关闭，运行时开关，与 Memory/FPS 一致）；WebSocket 帧与 gRPC 调用出现在 Network 列表中。
 - **日志系统**：自动捕获 `print()`、`debugPrint()` 及自定义日志，支持多级别与第三方日志库集成；自动滚动（可暂停）、正则搜索、按标签过滤与单条日志一键复制。
 - **异常监控**：独立的 Errors 标签页（v1.9.0 起）：接管 `FlutterError.onError` + `PlatformDispatcher.onError` + `runZonedGuarded`，按类型 + 堆栈签名去重聚合崩溃，记录次数与首末次时间；Errors 标签图标带红色计数；v1.16.0 起新增 `onErrorReport` 钩子，可把聚合异常转发到 Sentry / Firebase Crashlytics。
-- **会话持久化**：日志 / 网络 / 异常 / **告警**异步写入插件自有的 `zero_inspector_kit.db` 数据库（v1.9.0 起；磁盘环形缓冲，也会出现在 Database 标签页）；启动时日志、异常与告警回放入各自标签页，网络请求留档供导出；可从面板头部导出完整会话存档（含告警段）并分享。
+- **会话持久化**：日志 / 网络 / 异常 / **告警**异步写入插件自有的 `zero_inspector_kit.db` 数据库（v1.9.0 起；磁盘环形缓冲，也会出现在 Database 标签页）；启动时日志、异常与告警回放入各自标签页，网络请求留档供导出，也可用 `init(enableNetworkReplay: true)`（v1.17.0 起）回放入 Network 标签页；可从面板头部导出完整会话存档（含告警段）并分享。
 - **数据库查看器**：支持 SQLite 及其他数据库，可自定义提供者。
 - **内存监控**：趋势图、Dart Heap、Native 内存分项、泄漏检测、图片缓存与存储统计（总开关避免开销）。v1.9.0 起泄漏检测额外桥接 Flutter 官方 `FlutterMemoryAllocations`，降低误报。
 - **FPS 监控**：实时帧率、掉帧检测、趋势图，带 **build + raster 分项耗时**的帧记录与按设备刷新率换算的**自适应卡顿阈值**（120Hz 屏幕同样严格）。总开关避免开销。
@@ -101,7 +101,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.16.0
+  zero_inspector_kit: ^1.17.0
 ```
 
 ### GitHub
@@ -111,7 +111,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.16.0   # 将 1.16.0 替换为你需要的版本号
+      ref: release/v1.17.0   # 将 1.17.0 替换为你需要的版本号
 ```
 
 ---
@@ -280,7 +280,7 @@ ZeroInspectorKit.init(
 
 > v1.9.0 起可用
 
-日志、网络请求、聚合异常与**告警**会被异步写入插件自有的数据库文件 **`zero_inspector_kit.db`**——一个基于 SQLite 的磁盘环形缓冲，也会出现在 **Database** 标签页中。**下次启动时，日志、聚合异常与告警会回放入各自标签页**；网络请求保留在磁盘存档，供之后导出。因此即使从未打开过面板，数据也能跨重启保留。点击面板头部的**存储图标**打开 **Persisted data** 管理弹层：查看各类别行数、导出**完整会话存档**（现含 `alerts` 段）JSON（系统分享）或清空磁盘。
+日志、网络请求、聚合异常与**告警**会被异步写入插件自有的数据库文件 **`zero_inspector_kit.db`**——一个基于 SQLite 的磁盘环形缓冲，也会出现在 **Database** 标签页中。**下次启动时，日志、聚合异常与告警会回放入各自标签页**；网络请求保留在磁盘存档供之后导出，也可用 `init(enableNetworkReplay: true)`（v1.17.0 起）一并回放入 Network 标签页。因此即使从未打开过面板，数据也能跨重启保留。点击面板头部的**存储图标**打开 **Persisted data** 管理弹层：查看各类别行数、导出**完整会话存档**（现含 `alerts` 段）JSON（系统分享）或清空磁盘。
 
 ```dart
 // 编程方式读取持久化数据（可选）
