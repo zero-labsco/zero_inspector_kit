@@ -446,28 +446,38 @@ class ExportService {
   // ==================== 复制方法 / Copy methods ====================
 
   /// 复制日志（格式可选）/ Copy logs (format optional)
-  Future<void> copyLogs(List<LogEntry> logs, {bool json = true}) async =>
+  ///
+  /// 返回是否复制成功，供调用方按结果反馈（此前恒返回 void，失败也会提示成功）。
+  /// Returns whether the copy succeeded so callers can report accurately (it
+  /// used to return void, so failures still showed a success toast).
+  Future<bool> copyLogs(List<LogEntry> logs, {bool json = true}) async =>
       copy(json ? logsToJson(logs) : logsToText(logs));
 
   /// 复制网络请求 / Copy network requests
   /// [maskSensitive] 为 true 时遮蔽敏感头。
-  Future<void> copyNet(
+  Future<bool> copyNet(
     List<NetworkRequest> requests, {
     bool maskSensitive = false,
   }) async => copy(netToJson(requests, maskSensitive: maskSensitive));
 
   /// 复制任意内容到剪贴板 / Copy any content to clipboard
-  Future<void> copy(String content) async {
+  ///
+  /// 返回是否成功；失败（无剪贴板 / 平台异常）时记入内部日志并返回 false。
+  /// Returns success; on failure (no clipboard / platform error) it logs
+  /// internally and returns false.
+  Future<bool> copy(String content) async {
     try {
       await Clipboard.setData(ClipboardData(text: content));
+      return true;
     } catch (e) {
       debugPrint('ExportService.copy error: $e');
+      return false;
     }
   }
 
   /// 复制单条文本到剪贴板（公开包装，供单条日志复制等使用）
   /// Copy a single text to clipboard (public wrapper).
-  Future<void> copyText(String content) => copy(content);
+  Future<bool> copyText(String content) => copy(content);
 
   /// 日志级别前缀 / Log level prefix
   ///
