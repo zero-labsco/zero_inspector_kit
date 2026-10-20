@@ -75,8 +75,14 @@ class _TimelineViewerState extends State<TimelineViewer> {
   }
 
   /// 重新归并（仅在脏数据或筛选变化时）/ Re-merge (only when dirty or filters changed)
+  ///
+  /// 短路条件只看 `_dirty`：此前附加了 `_events.isNotEmpty`，导致归并结果为空
+  /// 时每次 build 都重新全量归并（空会话 / 全来源被隐藏的常见场景）。
+  /// The short-circuit checks `_dirty` only: the old `&& _events.isNotEmpty`
+  /// clause re-merged on every build whenever the result was empty (the common
+  /// case for an empty session or all sources hidden).
   List<TimelineEvent> _computeEvents() {
-    if (!_dirty && _events.isNotEmpty) return _events;
+    if (!_dirty) return _events;
     final kinds = TimelineEventKind.values
         .where((k) => !_hidden.contains(k))
         .toSet();

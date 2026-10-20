@@ -180,10 +180,20 @@ class _LogViewerState extends State<LogViewer> {
 
   // 过滤结果缓存：避免每次重建都全表扫描 + 正则匹配。
   // Filter cache: avoids a full scan + regex matching on every rebuild.
-  // 失效条件 = 数据源引用变化 / 列表长度变化 / 任一过滤条件变化。
+  // 失效条件 = 数据版本号变化 / 任一过滤条件变化。
+  // Invalidated when the service data version or any filter criterion changes.
+  //
+  // 为什么用版本号而不是「列表引用 + 长度」：[InspectorService.logEntries] 是
+  // 稳定的 UnmodifiableListView（引用恒不变），且环形缓冲写满 500 条后
+  // addFirst + removeLast 使长度恒定 —— 两者都无法再检测到新数据，过滤结果
+  // 会在日志写满后冻结（新日志永不出现）。
+  // Why a version counter instead of "list identity + length":
+  // [InspectorService.logEntries] is a stable view (identity never changes) and,
+  // once the 500-entry ring buffer is full, addFirst + removeLast keeps the
+  // length constant — neither condition detects new data, so filtered results
+  // froze once 500 logs accumulated.
   List<LogEntry>? _filteredLogsCache;
-  List<LogEntry>? _filteredLogsSource;
-  int _filteredLogsLength = -1;
+  int _filteredLogsVersion = -1;
   LogLevel? _filteredLevel;
   String? _filteredTag;
   String _filteredKeyword = '';
@@ -192,6 +202,7 @@ class _LogViewerState extends State<LogViewer> {
 
   /// 模糊/正则搜索 + 级别 + 标签过滤日志 / Filter logs
   List<LogEntry> _filterLogs(List<LogEntry> logs) {
+    final version = InspectorService.instance.logVersion;
     final filtersUnchanged =
         _filteredLevel == _filterLevel &&
         _filteredTag == _filterTag &&
@@ -199,8 +210,7 @@ class _LogViewerState extends State<LogViewer> {
         _filteredUseRegex == _useRegex &&
         identical(_filteredRegex, _regex);
     if (_filteredLogsCache != null &&
-        identical(logs, _filteredLogsSource) &&
-        logs.length == _filteredLogsLength &&
+        _filteredLogsVersion == version &&
         filtersUnchanged) {
       return _filteredLogsCache!;
     }
@@ -237,8 +247,7 @@ class _LogViewerState extends State<LogViewer> {
     }
 
     _filteredLogsCache = result;
-    _filteredLogsSource = logs;
-    _filteredLogsLength = logs.length;
+    _filteredLogsVersion = version;
     _filteredLevel = _filterLevel;
     _filteredTag = _filterTag;
     _filteredKeyword = _searchKeyword;
@@ -248,12 +257,24 @@ class _LogViewerState extends State<LogViewer> {
   }
 
   /// 当前日志中所有去重后的标签 / Distinct tags from current logs
+  ///
+  /// 带缓存：按数据版本号失效，避免每次重建都对全量日志建集合 + 排序。
+  /// Cached by data version so every rebuild doesn't rebuild the set + sort.
+  List<String>? _availableTagsCache;
+  int _availableTagsVersion = -1;
+
   List<String> _availableTags(List<LogEntry> logs) {
+    final version = InspectorService.instance.logVersion;
+    final cached = _availableTagsCache;
+    if (cached != null && _availableTagsVersion == version) return cached;
     final tags = <String>{};
     for (final e in logs) {
       if (e.tag != null && e.tag!.isNotEmpty) tags.add(e.tag!);
     }
-    return tags.toList()..sort();
+    final result = tags.toList()..sort();
+    _availableTagsCache = result;
+    _availableTagsVersion = version;
+    return result;
   }
 
   /// 构建工具栏 / Build toolbar
@@ -321,11 +342,15 @@ class _LogViewerState extends State<LogViewer> {
                               InspectorService.instance.logEntries,
                             );
                             if (logs.isEmpty) return;
-                            await ExportService.instance.copyLogs(logs);
+                            final ok = await ExportService.instance.copyLogs(
+                              logs,
+                            );
                             if (mounted) {
                               InspectorToast.showOn(
                                 messenger,
-                                'Copied ${logs.length} logs as JSON',
+                                ok
+                                    ? 'Copied ${logs.length} logs as JSON'
+                                    : 'Copy failed — clipboard unavailable',
                               );
                             }
                           },
@@ -835,9 +860,14 @@ class _LogViewerState extends State<LogViewer> {
 
   /// 复制单条日志为 JSON / Copy a single log entry as JSON
   Future<void> _copySingle(LogEntry entry) async {
-    await ExportService.instance.copyText(jsonEncode(entry.toJson()));
+    final ok = await ExportService.instance.copyText(
+      jsonEncode(entry.toJson()),
+    );
     if (mounted) {
-      InspectorToast.show(context, 'Copied log as JSON');
+      InspectorToast.show(
+        context,
+        ok ? 'Copied log as JSON' : 'Copy failed — clipboard unavailable',
+      );
     }
   }
 
@@ -888,11 +918,16 @@ Widget _buildLogDetail(BuildContext context, LogEntry entry) {
               icon: Icons.copy_rounded,
               tooltip: 'Copy JSON',
               onTap: () async {
-                await ExportService.instance.copyText(
+                final ok = await ExportService.instance.copyText(
                   jsonEncode(entry.toJson()),
                 );
                 if (context.mounted) {
-                  InspectorToast.show(context, 'Copied log as JSON');
+                  InspectorToast.show(
+                    context,
+                    ok
+                        ? 'Copied log as JSON'
+                        : 'Copy failed — clipboard unavailable',
+                  );
                 }
               },
             ),

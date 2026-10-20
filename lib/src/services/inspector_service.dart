@@ -132,6 +132,33 @@ class InspectorService {
   int _maxLogItems = 500;
   int _maxRouteItems = 200;
 
+  /// 数据版本号：每次变更自增，供 UI 侧过滤缓存做精确失效判定。
+  /// Data versions: bumped on every mutation so UI filter caches can
+  /// invalidate precisely.
+  ///
+  /// 为什么需要它：UI 的过滤缓存此前用「列表视图身份 + 长度」判定失效，但
+  /// [logEntries] 是稳定的 `UnmodifiableListView`（身份恒不变），且环形缓冲
+  /// 写满后 `addFirst + removeLast` 使长度恒定 —— 两个条件同时失效，导致过滤
+  /// 结果在数据写满后冻结（日志满 500 条后不再刷新）或缓存永不命中（网络，
+  /// getter 每次返回新包装）。单调版本号对两种失败模式都免疫。
+  /// Why this exists: the UI filter caches keyed on "view identity + length".
+  /// But [logEntries] is a stable view (identity never changes) and, once the
+  /// ring buffer is full, `addFirst + removeLast` keeps the length constant —
+  /// both conditions silently stop detecting changes, freezing filtered results
+  /// (logs once 500 entries accumulate) or making the cache never hit (network,
+  /// whose getter returns a fresh wrapper each call). A monotonic version
+  /// counter is immune to both failure modes.
+  int _logVersion = 0;
+  int _networkVersion = 0;
+
+  /// 日志数据版本号（每次写入 / 合并 / 恢复 / 清空自增）。
+  /// Log data version (bumped on add / merge / restore / clear).
+  int get logVersion => _logVersion;
+
+  /// 网络数据版本号（每次新增 / 更新 / 删除 / 清空自增）。
+  /// Network data version (bumped on add / update / remove / clear).
+  int get networkVersion => _networkVersion;
+
   /// body 预览字节上限，超出部分截断（仅保留头部预览）/ Body preview cap; longer bodies are truncated
   int _maxBodyPreviewBytes = 32 * 1024;
 
@@ -274,6 +301,7 @@ class InspectorService {
     _networkById[request.id] = request;
     _trimNetworkRequests();
     _globalBodyBytes += _bodyBytesOf(request);
+    _networkVersion++;
     AlertService.instance.checkNetwork(request);
     // 异步落盘（磁盘环形缓冲，崩溃后可读回）/ Async persist (disk ring buffer)
     PersistenceService.instance.enqueueNetwork(request);
@@ -299,6 +327,7 @@ class InspectorService {
   }) {
     final request = _networkById[id];
     if (request == null) return;
+    _networkVersion++;
 
     // 仅当 statusCode 被提供时，才视为响应到达，更新 responseTime / duration。
     // 仅提供 body（请求体捕获）时不应设置 responseTime，否则会导致耗时计算错误。
@@ -399,6 +428,7 @@ class InspectorService {
   /// 添加日志条目 / Add log entry
   /// [entry] 日志条目对象 / Log entry object
   void addLogEntry(LogEntry entry) {
+    _logVersion++;
     final last = _logEntries.isNotEmpty ? _logEntries.first : null;
     if (last != null &&
         _isWithinReassembleWindow(last.timestamp, entry.timestamp)) {
@@ -465,6 +495,7 @@ class InspectorService {
   /// [logs] must be newest-first (the order returned by
   /// [PersistenceService.loadLogs]).
   void restoreLogs(Iterable<LogEntry> logs) {
+    _logVersion++;
     for (final l in logs) {
       _logEntries.addLast(l);
     }
@@ -526,6 +557,8 @@ class InspectorService {
     _routeEntries.clear();
     _interceptorRules.clear();
     _globalBodyBytes = 0;
+    _logVersion++;
+    _networkVersion++;
     _invalidateNetworkCache();
     networkNotifier.notifyThrottled();
     logNotifier.notifyThrottled();
@@ -538,6 +571,7 @@ class InspectorService {
     _networkOrder.clear();
     _networkById.clear();
     _globalBodyBytes = 0;
+    _networkVersion++;
     _invalidateNetworkCache();
     networkNotifier.notifyThrottled();
   }
@@ -555,6 +589,52 @@ class InspectorService {
           ? 0
           : _globalBodyBytes - _bodyBytesOf(removed);
     }
+    _networkVersion++;
+    _invalidateNetworkCache();
+    networkNotifier.notifyThrottled();
+  }
+
+  /// 批量删除网络请求：单次变更 + 单次通知。
+  /// Batch-remove network requests: one mutation, one notification.
+  ///
+  /// 逐条调用 [removeNetworkRequest] 会触发 N 次 notifier 通知，批量删除
+  /// （网络页多选删除）时整表重建 N 次。
+  /// Calling [removeNetworkRequest] in a loop fires N notifications, rebuilding
+  /// the whole list N times for one multi-select delete.
+  void removeNetworkRequests(Iterable<String> ids) {
+    var removedAny = false;
+    for (final id in ids) {
+      _networkOrder.remove(id);
+      final removed = _networkById.remove(id);
+      if (removed != null) {
+        removedAny = true;
+        _globalBodyBytes = _globalBodyBytes - _bodyBytesOf(removed) < 0
+            ? 0
+            : _globalBodyBytes - _bodyBytesOf(removed);
+      }
+    }
+    if (!removedAny) return;
+    _networkVersion++;
+    _invalidateNetworkCache();
+    networkNotifier.notifyThrottled();
+  }
+
+  /// 恢复持久化的网络记录（跨重启回放，opt-in）。
+  /// Restore persisted network records (cross-restart replay, opt-in).
+  ///
+  /// 与 [addNetworkRequest] 不同：不触发告警检查、不重新入队落盘（数据本就
+  /// 来自磁盘），仅按"最新在前"的顺序追加进内存列表。
+  /// Unlike [addNetworkRequest]: no alert check and no re-enqueue to disk (the
+  /// data came from disk); entries are appended newest-first.
+  void restoreNetworkRequests(Iterable<NetworkRequest> requests) {
+    for (final r in requests) {
+      if (_networkById.containsKey(r.id)) continue;
+      _networkOrder.addLast(r.id);
+      _networkById[r.id] = r;
+      _globalBodyBytes += _bodyBytesOf(r);
+    }
+    _trimNetworkRequests();
+    _networkVersion++;
     _invalidateNetworkCache();
     networkNotifier.notifyThrottled();
   }
@@ -562,6 +642,7 @@ class InspectorService {
   /// 清空日志记录 / Clear log records
   void clearLogs() {
     _logEntries.clear();
+    _logVersion++;
     logNotifier.notifyThrottled();
   }
 
