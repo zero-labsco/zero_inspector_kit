@@ -60,7 +60,27 @@ class InspectorToast {
     SnackBarAction? action,
   }) {
     late final OverlayEntry entry;
-    void remove() => entry.remove();
+    // 去重 + 可取消的定时器：点击 dismiss 与到点自动消失都会走 remove，
+    // 二次调用 OverlayEntry.remove() 在 debug 下会触发断言崩溃；面板关闭导致
+    // overlay 已卸载时 remove() 同样会抛。两者都拦掉。
+    // Idempotent removal + cancelable timer: both tap-to-dismiss and the
+    // auto-dismiss timer call remove, and a second OverlayEntry.remove()
+    // asserts in debug; remove() also throws once the overlay is gone (panel
+    // closed). Both are contained here.
+    Timer? timer;
+    var removed = false;
+    void remove() {
+      if (removed) return;
+      removed = true;
+      timer?.cancel();
+      try {
+        entry.remove();
+      } catch (_) {
+        // Overlay 已卸载（面板关闭）：忽略，toast 本就无需再消失。
+        // Overlay already unmounted (panel closed): nothing left to remove.
+      }
+    }
+
     entry = OverlayEntry(
       builder: (_) => _InspectorToastWidget(
         message: message,
@@ -69,7 +89,7 @@ class InspectorToast {
       ),
     );
     overlay.insert(entry);
-    Timer(duration, remove);
+    timer = Timer(duration, remove);
   }
 }
 

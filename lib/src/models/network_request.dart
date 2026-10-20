@@ -173,6 +173,49 @@ class NetworkRequest {
     );
   }
 
+  /// 从 [toJson] 产出的 Map 还原请求记录（持久化回放用）。
+  /// Rebuild a request from a [toJson] map (used by persistence replay).
+  ///
+  /// 与 [toJson] 严格对称：body / responseBody 经 [_jsonSafe] 序列化后可能是
+  /// JSON 字符串（原值为 Map / List）或普通字符串，这里按字符串还原 —— 面板
+  /// 的 JSON 视图会对其重新格式化，信息不丢失。
+  /// Exactly symmetric with [toJson]: body / responseBody were serialized by
+  /// [_jsonSafe] and may be JSON strings (originally Map / List) or plain
+  /// strings; both come back as strings here, which the panel's JSON view
+  /// re-formats without information loss.
+  ///
+  /// 缺 id / method / url / requestTime 等必备字段时返回 null（丢弃该行，
+  /// 不让半条记录污染回放列表）。
+  /// Returns null when required fields (id / method / url / requestTime) are
+  /// missing, so a partial row never pollutes the replay list.
+  static NetworkRequest? fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    final method = json['method'];
+    final url = json['url'];
+    final requestTime = json['requestTime'];
+    if (id is! String || method is! String || url is! String) return null;
+    if (requestTime is! num) return null;
+    final statusCode = json['statusCode'];
+    final responseTime = json['responseTime'];
+    final duration = json['duration'];
+    final headers = json['headers'];
+    return NetworkRequest(
+      id: id,
+      method: method,
+      url: url,
+      headers: headers is Map
+          ? headers.map((k, v) => MapEntry(k.toString(), v.toString()))
+          : null,
+      body: json['body'],
+      responseBody: json['responseBody'],
+      statusCode: statusCode is num ? statusCode.toInt() : null,
+      requestTime: requestTime.toInt(),
+      responseTime: responseTime is num ? responseTime.toInt() : null,
+      duration: duration is num ? duration.toInt() : null,
+      isModifiedByInterceptor: json['isModifiedByInterceptor'] == true,
+    );
+  }
+
   /// 将 [value] 截断为不超过 [maxBytes] **字节**（UTF-8）的头部预览；超长时附截断提示。
   /// 此前按 UTF-16 字符数截断，中文 / gzip base64 场景下会低估约 2-3 倍预算，导致
   /// body 实际比上限长很多。现在按真实字节数截断，与全局 body 预算的单位一致。

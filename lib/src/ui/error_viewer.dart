@@ -294,8 +294,15 @@ class _ErrorViewerState extends State<ErrorViewer> {
   Future<void> _copyStack(ErrorRecord e) async {
     final messenger = Overlay.of(context, rootOverlay: true);
     final text = e.sampleStack ?? e.message;
-    await ExportService.instance.copyText('${e.type}\n${e.message}\n\n$text');
-    if (mounted) InspectorToast.showOn(messenger, 'Stack copied');
+    final ok = await ExportService.instance.copyText(
+      '${e.type}\n${e.message}\n\n$text',
+    );
+    if (mounted) {
+      InspectorToast.showOn(
+        messenger,
+        ok ? 'Stack copied' : 'Copy failed — clipboard unavailable',
+      );
+    }
   }
 
   String _formatTime(DateTime t) {
