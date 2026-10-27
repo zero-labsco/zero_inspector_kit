@@ -79,7 +79,7 @@ class _InspectorResponseProxy implements HttpClientResponse {
       } else {
         body = _decodeBodyOrHexPreview(
           _bodyBytes,
-          maxChars: InspectorService.instance.maxBodyPreviewBytes,
+          maxBytes: InspectorService.instance.maxBodyPreviewBytes,
         );
       }
       InspectorService.instance.updateNetworkRequest(id, responseBody: body);
@@ -98,15 +98,15 @@ class _InspectorResponseProxy implements HttpClientResponse {
   /// (images, etc.) instead of only showing a hex dump.
   static const int _maxBase64PreviewBytes = 64 * 1024; // 64 KB
 
-  /// [maxChars] 为面板的预览字符上限：解码前先按它剪掉多余的尾部字节
+  /// [maxBytes] 为面板的预览**字节**上限：解码前先按它剪掉多余的尾部字节
   /// （见 [_bytesForPreviewDecode]）。base64 / hex 分支始终基于原始 [bytes]，
   /// 与预览截断无关。
-  /// [maxChars] is the panel's preview char cap: trailing bytes beyond it are
-  /// trimmed before decoding (see [_bytesForPreviewDecode]). The base64 / hex
+  /// [maxBytes] is the panel's preview cap **in bytes**: trailing bytes beyond it
+  /// are trimmed before decoding (see [_bytesForPreviewDecode]). The base64 / hex
   /// fallbacks always use the original [bytes] and are unaffected by trimming.
-  static String _decodeBodyOrHexPreview(List<int> bytes, {int maxChars = 0}) {
+  static String _decodeBodyOrHexPreview(List<int> bytes, {int maxBytes = 0}) {
     if (bytes.isEmpty) return '';
-    final source = _bytesForPreviewDecode(bytes, maxChars);
+    final source = _bytesForPreviewDecode(bytes, maxBytes);
     try {
       return utf8.decode(source);
     } catch (_) {
@@ -172,7 +172,13 @@ class _InspectorResponseProxy implements HttpClientResponse {
     // length and mismatches the decompressed bytes the consumer actually reads; once
     // the stream is consumed, report the real decompressed length.
     if (compressionState == HttpClientResponseCompressionState.compressed) {
-      return _bodyCaptured ? _bodyBytes.length : _response.contentLength;
+      // 仅在"完整捕获"时才可信：一旦 _captureExceeded，_bodyBytes.length 恒等于
+      // 512 KB 上限，与真实解压字节数无关，会把面板的响应大小显示成假值。
+      // Only trustworthy when fully captured: once _captureExceeded is set,
+      // _bodyBytes.length is pinned to the 512 KB cap regardless of the real
+      // decompressed size, which would show a bogus size in the panel.
+      if (_bodyCaptured && !_captureExceeded) return _bodyBytes.length;
+      return _response.contentLength;
     }
     return _response.contentLength;
   }
@@ -277,36 +283,95 @@ class _InspectorResponseProxy implements HttpClientResponse {
     final rule = _getRule();
 
     if (rule?.responseBody != null) {
-      return Stream.fromFuture(_getModifiedResponse(rule!));
+      // 必须保持惰性：`Stream.fromFuture(_getModifiedResponse(...))` 会在**构造**
+      // （即读取本 getter）时同步执行 async 体，直到第一个 await —— 也就是立刻
+      // `_response.drain()`。本类有 30+ 个 Stream 成员转发到本 getter，任一方法
+      // 与 contentLength / headers 混用就可能重复 drain 同一条单订阅流。改用
+      // `async*`，其函数体在真正被 listen 时才开始执行。
+      // Must stay lazy: `Stream.fromFuture(_getModifiedResponse(...))` runs the
+      // async body synchronously up to its first await at *construction* time
+      // (i.e. when this getter is read), which drains `_response` right away.
+      // 30+ Stream members forward to this getter, so mixing any of them with
+      // contentLength / headers could drain the same single-subscription stream
+      // twice. An `async*` body only starts when actually listened to.
+      final matched = rule!;
+      return _lazySingleValue(() => _getModifiedResponse(matched));
     }
 
-    return _response.transform(
-      StreamTransformer<List<int>, List<int>>.fromHandlers(
-        handleData: (chunk, sink) {
-          if (!_captureExceeded &&
-              _bodyBytes.length + chunk.length <= _maxCaptureBytes &&
-              InspectorService.instance.globalBodyRemaining > 0) {
-            _bodyBytes.addAll(chunk);
-          } else if (!_captureExceeded) {
-            // 超过限制，截断到最大值并标记 / Exceeded limit, truncate to max and mark
-            final remaining = _maxCaptureBytes - _bodyBytes.length;
-            if (remaining > 0) {
-              _bodyBytes.addAll(chunk.sublist(0, remaining));
+    return _captureOnCancel(
+      _response.transform(
+        StreamTransformer<List<int>, List<int>>.fromHandlers(
+          handleData: (chunk, sink) {
+            if (!_captureExceeded &&
+                _bodyBytes.length + chunk.length <= _maxCaptureBytes &&
+                InspectorService.instance.globalBodyRemaining > 0) {
+              _bodyBytes.addAll(chunk);
+            } else if (!_captureExceeded) {
+              // 超过限制，截断到最大值并标记 / Exceeded limit, truncate to max and mark
+              final remaining = _maxCaptureBytes - _bodyBytes.length;
+              if (remaining > 0) {
+                _bodyBytes.addAll(chunk.sublist(0, remaining));
+              }
+              _captureExceeded = true;
             }
-            _captureExceeded = true;
-          }
-          sink.add(chunk);
-        },
-        handleDone: (sink) {
-          _captureBody();
-          sink.close();
-        },
-        handleError: (error, stackTrace, sink) {
-          _captureBody();
-          sink.addError(error, stackTrace);
-        },
+            sink.add(chunk);
+          },
+          handleDone: (sink) {
+            _captureBody();
+            sink.close();
+          },
+          handleError: (error, stackTrace, sink) {
+            _captureBody();
+            sink.addError(error, stackTrace);
+          },
+        ),
       ),
     );
+  }
+
+  /// 惰性产出单个值：只有在被 listen 时才调用 [factory]。
+  /// Emit a single value lazily: [factory] runs only once the stream is listened to.
+  static Stream<List<int>> _lazySingleValue(
+    Future<List<int>> Function() factory,
+  ) async* {
+    yield await factory();
+  }
+
+  /// 订阅被**取消**时也要落响应体。
+  /// Capture the response body even when the subscription is **cancelled**.
+  ///
+  /// `StreamTransformer.fromHandlers` 只提供 handleData / handleDone /
+  /// handleError：订阅被 `take(1)`、`timeout` 或调用方显式 `cancel()` 提前取消时，
+  /// **不会**触发 handleDone，而 `_captureBody()` 是落响应体的唯一入口 ——
+  /// 结果是响应体永久缺失，且若调用方也没读过 statusCode，记录会一直停在"进行中"。
+  /// `StreamTransformer.fromHandlers` only offers handleData / handleDone /
+  /// handleError: when the subscription is cancelled early (`take(1)`, `timeout`,
+  /// or an explicit `cancel()`) handleDone never fires, and `_captureBody()` is
+  /// the only place the response body is persisted — so the body was lost
+  /// forever, and if the caller never read statusCode either, the record stayed
+  /// "in progress" indefinitely.
+  Stream<List<int>> _captureOnCancel(Stream<List<int>> source) {
+    late final StreamController<List<int>> controller;
+    StreamSubscription<List<int>>? subscription;
+    controller = StreamController<List<int>>(
+      sync: true,
+      onListen: () {
+        subscription = source.listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
+          cancelOnError: false,
+        );
+      },
+      onPause: () => subscription?.pause(),
+      onResume: () => subscription?.resume(),
+      onCancel: () async {
+        await subscription?.cancel();
+        subscription = null;
+        _captureBody();
+      },
+    );
+    return controller.stream;
   }
 
   Future<List<int>> _getModifiedResponse(RequestInterceptorRule rule) async {
@@ -536,7 +601,15 @@ class _MergedHttpHeaders implements HttpHeaders {
   set persistentConnection(bool value) => _inner.persistentConnection = value;
 
   @override
-  int get contentLength => _inner.contentLength;
+  // 与 date / expires / host / contentType 等一样走 `value(...)`（经
+  // `_overlayValue` 叠加规则头）：此前直读 `_inner`，规则改了 content-length
+  // 后 getter 仍返回底层值，与 `value('content-length')` 自相矛盾。
+  // Like date / expires / host / contentType this goes through `value(...)`
+  // (which applies the rule overlay via `_overlayValue`): reading `_inner`
+  // directly meant a rule-modified content-length was invisible, contradicting
+  // `value('content-length')`.
+  int get contentLength =>
+      int.tryParse(value('content-length') ?? '') ?? _inner.contentLength;
   @override
   set contentLength(int value) => _inner.contentLength = value;
 

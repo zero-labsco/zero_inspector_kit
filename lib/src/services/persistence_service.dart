@@ -7,6 +7,7 @@ import '../models/alert_event.dart';
 import '../models/error_record.dart';
 import '../models/log_entry.dart';
 import '../models/network_request.dart';
+import '../utils/inspector_internal_log.dart';
 import 'export_service.dart';
 
 /// 持久化环形缓冲服务 / Persistence ring-buffer service
@@ -54,6 +55,21 @@ class PersistenceService {
 
   Database? _db;
   bool _enabled = false;
+
+  /// dispose 后不允许在途 init 再拉起定时器 / 打开新库。
+  /// After dispose, an in-flight init must not start a timer or open a new DB.
+  ///
+  /// 此前 dispose 与在途 init 存在竞态：dispose 时 `_enabled` 仍为 false、`_db`
+  /// 仍为 null，于是既不刷盘也不关库；随后 init 完成并把 `_enabled = true` +
+  /// `Timer.periodic(2s)` 装上，留下一个**永远不会再被 cancel 的刷盘定时器**和
+  /// 一个无人关闭的数据库句柄（`_initFuture = null` 还会让重试循环再开一个库）。
+  /// Previously dispose raced with an in-flight init: at dispose time `_enabled`
+  /// was still false and `_db` still null, so nothing was flushed or closed; the
+  /// init then completed and installed `_enabled = true` + a 2s
+  /// `Timer.periodic` — leaving a flush timer that is never cancelled again and a
+  /// DB handle nobody owns (and `_initFuture = null` let the retry loop open yet
+  /// another database).
+  bool _disposed = false;
 
   /// 正在进行的 init 任务；用于并发防重入，避免两次 init 各 openDatabase
   /// 导致前一个句柄泄漏。失败时置 null 以便 barrel 的重试循环再次尝试。
@@ -103,6 +119,9 @@ class PersistenceService {
     Duration flushInterval = _defaultFlushInterval,
   }) async {
     if (_enabled) return;
+    // dispose 之后不再开启持久化（否则会把已释放的服务重新拉起来）。
+    // Never start persistence again after dispose.
+    if (_disposed) return;
     // 并发防重入：已有 init 在跑则直接复用其结果，避免两个调用各 openDatabase
     // 导致前一个句柄泄漏。
     // Concurrency guard: reuse the in-flight init instead of opening a second DB.
@@ -149,6 +168,17 @@ class PersistenceService {
           await _createIndexes(db);
         },
       );
+      // 等待期间可能已被 dispose：立刻关掉刚打开的库，绝不装上定时器。
+      // We may have been disposed while awaiting: close the freshly opened DB and
+      // never install the timer.
+      if (_disposed) {
+        try {
+          await _db?.close();
+        } catch (_) {}
+        _db = null;
+        c.complete();
+        return;
+      }
       _enabled = true;
       _flushTimer?.cancel();
       _flushTimer = Timer.periodic(flushInterval, (_) => flush());
@@ -300,8 +330,51 @@ class PersistenceService {
       }
       await batch.commit(noResult: true);
       await _trim();
-    } catch (_) {}
+      _flushFailures = 0;
+    } catch (_) {
+      // 写盘失败（磁盘满 / DB 已关 / schema 冲突）时把待写数据放回缓冲：此前缓冲
+      // 在 `commit` **之前**就被清空，一次失败就永久丢弃整批日志 / 网络 / 异常 /
+      // 告警，且完全没有痕迹。
+      // Put the entries back when the write fails (disk full / DB closed / schema
+      // conflict): the buffers used to be cleared *before* `commit`, so a single
+      // failure silently dropped a whole batch of logs / network / errors / alerts.
+      for (final l in logs) {
+        _pendingLogs.putIfAbsent(l.id, () => l);
+      }
+      for (final n in nets) {
+        _pendingNetwork.putIfAbsent(n.id, () => n);
+      }
+      for (final e in errs) {
+        _pendingErrors.putIfAbsent(e.id, () => e);
+      }
+      _pendingAlerts.insertAll(0, alerts);
+
+      // 连续失败说明磁盘确实不可写：无休止地堆积只会吃光内存，这里优雅降级为
+      // 纯内存模式（与"数据库不可用"时的行为一致），并记一条内部日志便于排查。
+      // Repeated failures mean the disk really is unwritable: buffering forever
+      // would just exhaust memory, so degrade to memory-only mode (consistent
+      // with the "DB unavailable" path) and leave one internal log line.
+      _flushFailures++;
+      if (_flushFailures >= _maxConsecutiveFlushFailures) {
+        _enabled = false;
+        _pendingLogs.clear();
+        _pendingNetwork.clear();
+        _pendingErrors.clear();
+        _pendingAlerts.clear();
+        InspectorInternalLog.error(
+          'persistence',
+          'Flush failed $_flushFailures times in a row; persistence degraded to '
+              'memory-only / 连续 $_flushFailures 次刷盘失败，已降级为纯内存模式',
+        );
+      }
+    }
   }
+
+  /// 连续刷盘失败计数，成功一次即清零 / Consecutive flush failures; reset on success
+  int _flushFailures = 0;
+
+  /// 连续失败多少次后降级为纯内存模式 / Failures before degrading to memory-only
+  static const int _maxConsecutiveFlushFailures = 5;
 
   /// 按保留时长 + 行数上限滚动裁剪（环形缓冲）/ Roll by retention + row cap
   Future<void> _trim() async {
@@ -530,8 +603,15 @@ class PersistenceService {
 
   /// 关闭（先刷盘）/ Close (flush first)
   Future<void> dispose() async {
+    _disposed = true;
     _flushTimer?.cancel();
     _flushTimer = null;
+    // 先等在途 init 收尾：它在 dispose 之前就已经 await 上了，若不等待，它随后
+    // 会装上一个新的定时器并持有一个无人关闭的库。
+    // Await the in-flight init first: it started before dispose, so if we do not
+    // wait it will install a new timer and hold a DB nobody closes.
+    final pending = _initFuture;
+    if (pending != null) await pending.future;
     if (_enabled) await flush();
     try {
       await _db?.close();
@@ -539,5 +619,13 @@ class PersistenceService {
     _db = null;
     _enabled = false;
     _initFuture = null;
+    // 复位标志，保持"dispose 之后可以再次 init 重新启用"这一契约（见
+    // `ZeroInspectorKit.dispose` 的文档）。在途 init 已在上面被 await 并自行退出，
+    // 因此这里复位不会重新引入竞态。
+    // Reset the flag to keep the documented contract that `init` can re-enable
+    // persistence after `dispose` (see `ZeroInspectorKit.dispose`). The in-flight
+    // init was awaited above and bailed out on its own, so resetting here does not
+    // reintroduce the race.
+    _disposed = false;
   }
 }

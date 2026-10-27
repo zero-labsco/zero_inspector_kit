@@ -45,10 +45,16 @@ class DatabaseService {
           desc: desc,
           whereKeyword: whereKeyword,
         );
-        if (result.rows.isNotEmpty) return result;
-        if (firstFailure == null && result.hasError) {
-          firstFailure = result;
-        }
+        // 以"提供者是否报错"判定成功，而不是"结果是否非空"：此前用
+        // `rows.isNotEmpty`，一张**合法的空表**会让循环继续尝试后面的 provider，
+        // 于是可能把另一个数据源（Hive / SharedPreferences）的内容当成这个
+        // dbPath 的结果返回。
+        // Success is decided by whether the provider errored, not by whether rows
+        // came back: this used to test `rows.isNotEmpty`, so a legitimately empty
+        // table made the loop keep trying later providers and could return another
+        // data source's (Hive / SharedPreferences) content for this dbPath.
+        if (!result.hasError) return result;
+        firstFailure ??= result;
       } catch (_) {}
     }
     return firstFailure ?? QueryResult(rows: [], columns: []);

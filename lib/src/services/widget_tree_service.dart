@@ -2,15 +2,19 @@ import 'package:flutter/foundation.dart';
 
 /// Widget 树检查器开关服务 / Widget tree inspector toggle service.
 ///
-/// 与 [MemoryInspectorService] 一样，Widget 树默认**关闭**，需在面板顶部手动
-/// 开启。开启后才构建并展示当前渲染树快照，避免无谓的 Element 遍历开销。
+/// 与 [MemoryInspectorService]（默认关闭、需手动开启）**不同**：Widget 树检查
+/// 默认**开启**。它是快照式的，只在打开面板时才遍历 Element 树，不影响运行时
+/// 性能，因此不需要用户先手动打开；`init(enableWidgetInspector: false)` 可将
+/// 其关掉（此前该参数只会在 true 时赋值，传 false 完全无效）。
 ///
-/// Like [MemoryInspectorService], the widget tree is **disabled by default** and
-/// must be turned on in the panel. Only then is the element tree walked and
-/// rendered, avoiding unnecessary traversal overhead.
+/// Unlike [MemoryInspectorService] (off by default, manual enable): the widget
+/// tree inspector is **on by default**. It is snapshot-based and only walks the
+/// element tree when the panel opens, so it has no runtime cost and needs no
+/// manual toggle; `init(enableWidgetInspector: false)` turns it off (that flag
+/// used to assign only when true, so passing false did nothing).
 ///
 /// ```dart
-/// WidgetTreeService.instance.isEnabled = true;
+/// WidgetTreeService.instance.isEnabled = false;
 /// ```
 class WidgetTreeService extends ChangeNotifier {
   WidgetTreeService._();

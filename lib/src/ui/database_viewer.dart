@@ -275,8 +275,15 @@ class _DatabaseViewerState extends State<DatabaseViewer> {
             icon: Icons.refresh_rounded,
             tooltip: 'Refresh',
             onTap: () {
+              // 未选表时刷新数据库 / 表清单，而不是什么都不做（此前无 else 分支，
+              // 按钮在表列表态点了毫无反应）。
+              // With no table selected, refresh the database / table list instead of
+              // doing nothing (there was no else branch, so the button was a no-op
+              // in the list state).
               if (_selectedTable != null && _currentDatabase != null) {
                 _loadTableData(_currentDatabase!.path, _selectedTable!.name);
+              } else {
+                _loadDatabases();
               }
             },
           ),

@@ -11,7 +11,8 @@ import 'package:path_provider/path_provider.dart';
 import '../models/leak_record.dart';
 import '../models/memory_snapshot.dart';
 import '../platform/platform_channel.dart';
-import 'database_service.dart';
+import 'database_provider.dart';
+import 'sqlite_provider.dart';
 import 'alert_service.dart';
 import 'leak_tracker_bridge.dart';
 
@@ -692,7 +693,18 @@ class MemoryInspectorService extends ChangeNotifier {
 
       // 2. 如果 VM Service 已可用，则采集 Dart Heap 数据
       // 2. If VM Service is available, collect Dart Heap data
-      if (_vmServiceAvailable && _vmServiceHttpUri != null) {
+      // 只检查 `_vmServiceAvailable`：具体用 HTTP 还是 WebSocket 由
+      // `_fetchDartHeapData` 自己判断。此前这里额外要求 `_vmServiceHttpUri != null`，
+      // 而 `_useWebSocket` 为 true 的典型场景恰恰是 **HTTP 端点不可用**
+      // （Android 真机常见 Connection refused）—— 于是专为真机设计的那条降级
+      // 路径上，Heap 数据永远采不到，UI 恒显示 N/A。
+      // Only check `_vmServiceAvailable`: whether HTTP or WebSocket is used is
+      // decided inside `_fetchDartHeapData`. This used to additionally require
+      // `_vmServiceHttpUri != null`, while the typical case for `_useWebSocket`
+      // is precisely that the **HTTP endpoint is unavailable** (Connection
+      // refused is common on Android devices) — so on the very fallback path
+      // built for real devices, heap data was never collected.
+      if (_vmServiceAvailable) {
         await _fetchDartHeapData();
       }
 
@@ -1020,17 +1032,25 @@ class MemoryInspectorService extends ChangeNotifier {
     final completer = Completer<Map<String, dynamic>>();
     _pendingVmRpc[id] = completer;
 
-    // JSON-RPC 2.0 请求 / JSON-RPC 2.0 request
-    socket.add(
-      jsonEncode(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'method': method,
-        'params': params,
-        'id': id,
-      }),
-    );
-
     try {
+      // JSON-RPC 2.0 请求 / JSON-RPC 2.0 request
+      //
+      // `add` 必须包在 try 里：socket 已关闭时它会抛 "Bad state"，此前它位于
+      // try 之外，`finally` 因此不会执行，这个 id 的 Completer 会永久留在
+      // `_pendingVmRpc` 里（下一次关连接才被清），在途登记数单调增长。
+      // `add` must be inside the try: it throws "Bad state" when the socket is
+      // already closed. It used to sit outside, so the `finally` never ran and
+      // this id's Completer stayed in `_pendingVmRpc` forever (only cleaned on the
+      // next close), making the in-flight count grow monotonically.
+      socket.add(
+        jsonEncode(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'method': method,
+          'params': params,
+          'id': id,
+        }),
+      );
+
       // 设置超时 / Set timeout
       return await completer.future.timeout(
         const Duration(seconds: 3),
@@ -1080,6 +1100,22 @@ class MemoryInspectorService extends ChangeNotifier {
     }
 
     final socket = await WebSocket.connect(uri);
+
+    // `await` 期间可能已被 stopMonitoring()：那时 URI 已被清空、连接已被清理。
+    // 此处若照常赋值，就会把一个"停止监控之后才建立"的 socket 和订阅挂回字段，
+    // 此后再无人关闭它们（stopMonitoring 只清理当时已存在的那个）。
+    // stopMonitoring() may have run while we awaited: the URIs are cleared and the
+    // connection cleaned up by then. Assigning anyway would hang a socket and a
+    // subscription created *after* monitoring stopped back onto the fields, and
+    // nobody would ever close them (stopMonitoring only cleaned the one that
+    // existed at the time).
+    if (!_isMonitoring || _vmServiceWsUri == null) {
+      try {
+        await socket.close();
+      } catch (_) {}
+      throw StateError('VM Service connection aborted: monitoring stopped');
+    }
+
     _vmServiceSocket = socket;
     _vmServiceSocketSub = socket.listen(
       (msg) => _onVmServiceMessage(msg),
@@ -1383,17 +1419,32 @@ class MemoryInspectorService extends ChangeNotifier {
   }
 
   /// 获取所有数据库文件总大小（字节）/ Get total database file size (bytes)
+  ///
+  /// 走"只列路径"的轻量扫描 [SqliteDatabaseProvider.databasePaths]，不再调用
+  /// `getDatabases()` —— 后者会对每个 `.db` 真正建立一次连接并逐表跑 PRAGMA +
+  /// COUNT(*)，而本方法由存储统计定时器**每 3 秒**触发一次（注释里也写明过
+  /// 这点）。统计只需要文件大小，根本不需要打开数据库。
+  /// Uses the lightweight path-only scan
+  /// [SqliteDatabaseProvider.databasePaths] instead of `getDatabases()` — the
+  /// latter really opens a connection per `.db` and runs PRAGMA + COUNT(*) per
+  /// table, and this method is triggered by the storage-stats timer **every 3
+  /// seconds** (as the old comment itself noted). Sizes are all we need; the
+  /// databases never have to be opened.
   Future<int> getTotalDatabaseSize() async {
     try {
-      final databases = await DatabaseService.instance.getDatabases();
-      int total = 0;
-      for (final db in databases) {
-        try {
-          final file = File(db.path);
-          if (await file.exists()) {
-            total += await file.length();
-          }
-        } catch (_) {}
+      // SP / Hive 是 `prefs://` / `hive://` 虚拟路径，没有真实文件可统计。
+      // SP / Hive use virtual `prefs://` / `hive://` paths with no real file.
+      var total = 0;
+      for (final provider in DatabaseRegistry.instance.providers) {
+        if (provider is! SqliteDatabaseProvider) continue;
+        for (final path in await provider.databasePaths()) {
+          try {
+            final file = File(path);
+            if (await file.exists()) {
+              total += await file.length();
+            }
+          } catch (_) {}
+        }
       }
       return total;
     } catch (_) {
@@ -1573,7 +1624,7 @@ class MemoryInspectorService extends ChangeNotifier {
   /// 3. verifying -> isReleased => released
   /// 4. verifying -> !isReleased && 等待 >= _leakVerifyWaitMs => leaked
   /// 5. leaked -> isReleased => released（泄漏修复）
-  Future<void> _checkLeakRecords() async {
+  void _checkLeakRecords() {
     if (_trackedRecords.isEmpty) return;
 
     bool changed = false;
@@ -1625,21 +1676,29 @@ class MemoryInspectorService extends ChangeNotifier {
               changed = true;
               break;
             }
-            if (_vmServiceAvailable) {
-              record.status = LeakStatus.leaked;
-              changed = true;
-            }
+            // 不再要求 `_vmServiceAvailable`：此前 VM Service 不可用（release 包、
+            // 某些真机）时记录会**永久停在 verifying**，"疑似泄漏"永远不会产生，
+            // 只能等 `_trimExcessRecords` 兜底清掉。触发 GC 只是加速验证的辅助
+            // 手段 —— 超过预期生命周期仍未释放，本身就足以判为疑似泄漏。
+            // No longer gated on `_vmServiceAvailable`: when the VM Service is
+            // unavailable (release builds, some devices) records used to stay in
+            // `verifying` **forever**, so suspected leaks were never produced and
+            // only `_trimExcessRecords` eventually dropped them. Triggering GC is
+            // just a way to speed verification up — being past the expected
+            // lifetime and still not released is enough on its own.
+            record.status = LeakStatus.leaked;
+            changed = true;
           }
           break;
 
         case LeakStatus.leaked:
-          // 泄漏状态下，如果对象已被释放（修复了泄漏），转回 released
-          // In leaked state, if object has been released (leak fixed),
-          // switch back to released
-          if (record.isReleased) {
-            record.status = LeakStatus.released;
-            changed = true;
-          }
+          // "泄漏已修复（对象被释放）"在循环开头已统一处理并 `continue`
+          // （见上面的 `record.isReleased` 分支），同一个同步循环里该判定不会
+          // 翻转，因此这里无需再判 —— 此前这段是死分支。
+          // "Leak fixed (object released)" is already handled at the top of the
+          // loop with a `continue` (see the `record.isReleased` branch). Within one
+          // synchronous loop that check cannot flip, so nothing is needed here —
+          // this used to be dead code.
           break;
 
         case LeakStatus.released:
@@ -1729,12 +1788,5 @@ class MemoryInspectorService extends ChangeNotifier {
       _trackedRecords.remove(r.objectId);
       needRemove--;
     }
-  }
-
-  @override
-  void dispose() {
-    stopMonitoring();
-    _liveNotifier.dispose();
-    super.dispose();
   }
 }

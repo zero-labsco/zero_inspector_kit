@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
+import '../utils/environment.dart';
 import 'floating_button.dart';
 
 /// 条件检查器组件 / Conditional inspector widget
@@ -32,7 +33,11 @@ class ConditionalInspector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kReleaseMode) {
+    // 除 release 外还要尊重 `--dart-define=INSPECTOR_ENABLED=false`：此前只看
+    // `kReleaseMode`，该编译开关在 debug / profile 下完全不生效。
+    // Besides release, honor `--dart-define=INSPECTOR_ENABLED=false`: this used to
+    // check `kReleaseMode` only, so the flag did nothing in debug / profile.
+    if (kReleaseMode || InspectorEnvironment.isInspectorExplicitlyDisabled) {
       return child;
     }
 

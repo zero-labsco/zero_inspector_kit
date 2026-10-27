@@ -29,7 +29,11 @@ class _AlertsViewerState extends State<AlertsViewer> {
     super.dispose();
   }
 
-  void _onChanged() => setState(() {});
+  // 与仓库其它 viewer 保持一致：notifier 可能在 dispose 之后才回调。
+  // Consistent with the other viewers: the notifier may fire after dispose.
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {

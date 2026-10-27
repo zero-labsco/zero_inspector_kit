@@ -74,21 +74,7 @@ class KeyValueQuery {
   /// `List.sort()` (which uses `Comparable.compare`) throw a TypeError.
   /// Same types compare naturally, mixed types fall back to string order —
   /// this never throws.
-  static void sortKeys(List<dynamic> keys) {
-    keys.sort((a, b) {
-      if (a is Comparable &&
-          b is Comparable &&
-          a.runtimeType == b.runtimeType) {
-        try {
-          return a.compareTo(b);
-        } catch (_) {
-          // 同类型但不可比较（罕见实现），退回字符串比较。
-          // Same type but not comparable (rare); fall back to string compare.
-        }
-      }
-      return a.toString().compareTo(b.toString());
-    });
-  }
+  static void sortKeys(List<dynamic> keys) => sortValues(keys, (k) => k);
 
   /// 校验分页参数 / Validate paging parameters
   ///
@@ -101,6 +87,80 @@ class KeyValueQuery {
       limit: limit <= 0 ? defaultLimit : limit,
       offset: offset < 0 ? 0 : offset,
     );
+  }
+
+  /// 按列名对结果行排序（键值型数据源共用）/ Sort result rows by column name
+  ///
+  /// 此前 SharedPreferences / Hive 两个 provider 都声明了 `orderBy` 参数却从未
+  /// 读取它，导致 Database 页面点列排序静默失效（看起来"点了没反应"）。
+  /// The SharedPreferences / Hive providers both declared an `orderBy` parameter
+  /// but never read it, so column sorting in the Database tab silently did
+  /// nothing (it looked like "clicking does nothing").
+  ///
+  /// 排序必须在分页**之前**完成，否则只是给当前这一页排序。
+  /// [orderBy] 为空或列不存在时保持既有顺序。
+  /// Sorting must happen **before** paging, otherwise only the current page gets
+  /// sorted. A null [orderBy] or an unknown column keeps the existing order.
+  static void sortRows(
+    List<Map<String, dynamic>> rows,
+    String? orderBy, {
+    bool desc = false,
+  }) {
+    final column = orderBy?.trim();
+    if (column == null || column.isEmpty) return;
+    if (rows.isNotEmpty && !rows.first.containsKey(column)) return;
+    sortValues(rows, (row) => row[column]);
+    if (desc) {
+      // 就地反转，避免再分配一个 List。Reverse in place.
+      final reversed = rows.reversed.toList();
+      rows
+        ..clear()
+        ..addAll(reversed);
+    }
+  }
+
+  /// 对键值型结果行应用"排序 + 升降序"，返回最终顺序的列表。
+  /// Apply ordering (column + direction) to key/value result rows.
+  ///
+  /// 排序在分页**之前**完成，否则只是给当前这一页排序。[orderBy] 为空时沿用
+  /// 既有的 key 顺序（[desc] 作用于该顺序）。
+  /// Sorting happens **before** paging, otherwise only the current page gets
+  /// sorted. With an empty [orderBy] the existing key order is kept (and [desc]
+  /// applies to it).
+  static List<Map<String, dynamic>> applyOrder(
+    List<Map<String, dynamic>> rows,
+    String? orderBy,
+    bool desc,
+  ) {
+    final column = orderBy?.trim();
+    if (column == null || column.isEmpty) {
+      return desc ? rows.reversed.toList() : rows;
+    }
+    sortRows(rows, column, desc: desc);
+    return rows;
+  }
+
+  /// 按 [keyOf] 取出的 dynamic 值安全排序（混合 int/String 也不抛 TypeError）。
+  /// Sort by the dynamic value from [keyOf] safely (mixed int/String safe).
+  static void sortValues<T>(List<T> items, dynamic Function(T) keyOf) {
+    items.sort((a, b) {
+      final x = keyOf(a);
+      final y = keyOf(b);
+      if (x == null && y == null) return 0;
+      if (x == null) return -1;
+      if (y == null) return 1;
+      if (x is Comparable &&
+          y is Comparable &&
+          x.runtimeType == y.runtimeType) {
+        try {
+          return x.compareTo(y);
+        } catch (_) {
+          // 同类型但不可比较（罕见实现），退回字符串比较。
+          // Same type but not comparable (rare); fall back to string compare.
+        }
+      }
+      return x.toString().compareTo(y.toString());
+    });
   }
 }
 
