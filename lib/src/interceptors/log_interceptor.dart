@@ -49,7 +49,18 @@ class InspectorLogInterceptor {
   }
 
   /// 停止日志捕获 / Stop log capture
+  ///
+  /// 与 [start] 对称，未启动时不执行任何恢复动作。此前缺少这层守卫：未 start 就
+  /// stop、或宿主在 start **之后**自行安装了 Crashlytics / Sentry 的 handler 时，
+  /// 恢复动作会用启动瞬间的旧快照（可能为 null）覆盖宿主当前的
+  /// `FlutterError.onError`，导致宿主错误上报静默失效。
+  /// Symmetric to [start]: does nothing when not started. Without this guard,
+  /// stopping without starting — or after the host installed its own Crashlytics /
+  /// Sentry handler *after* start — replaced the host's current
+  /// `FlutterError.onError` with the snapshot taken at start time (possibly null),
+  /// silently breaking host error reporting.
   void stop() {
+    if (!_isStarted) return;
     _isStarted = false;
     _restoreDebugPrint();
     _restoreFlutterOnError();
@@ -203,6 +214,11 @@ class InspectorLogInterceptor {
       log(LogLevel.error, message, tag: tag);
 
   /// 通过 print 输出日志并捕获 / Output log via print and capture
+  ///
+  /// 已废弃：全仓库无调用点，等价于 `debug(message)` + 一次 `debugPrint`。
+  /// Deprecated: no call sites anywhere; equivalent to `debug(message)` plus a
+  /// `debugPrint`.
+  @Deprecated('Use debug() instead; logPrint has no call sites. / 请改用 debug()。')
   void logPrint(String message) {
     // 仅在调试模式输出到控制台，避免 release 包泄漏日志到 stdout。
     // Only print to console in debug mode to avoid leaking logs in release builds.
@@ -225,6 +241,10 @@ class InspectorLogInterceptor {
     return 'log_${_logIdCounter++}';
   }
 
+  /// ANSI 转义序列（颜色码）匹配模式，编译一次复用。
+  /// ANSI escape sequence (color code) pattern, compiled once and reused.
+  static final RegExp _ansiEscapePattern = RegExp(r'\x1B\[[0-9;]*[A-Za-z]');
+
   /// 根据日志内容自动识别日志级别 / Automatically detect log level based on message content
   /// 支持以下标准格式（方括号级别标记）：/ Supports the following standard formats (bracket level markers):
   /// - `[VERBOSE]` message / `[V]` message / `[T]` message (trace)
@@ -241,7 +261,12 @@ class InspectorLogInterceptor {
     var processed = message.trim();
 
     // 移除 ANSI 颜色代码（如 [34m[D] message[0m）/ Remove ANSI color codes (e.g., [34m[D] message[0m)
-    processed = processed.replaceAll(RegExp(r'\x1B\[[0-9;]*[A-Za-z]'), '');
+    //
+    // 正则提到静态常量：`detectLogLevel` 对**每一行** print / debugPrint 都会
+    // 调用，此前每调用一次就重新编译一次正则。
+    // The regex is a static constant: `detectLogLevel` runs for **every** print /
+    // debugPrint line, and it used to recompile the regex on every call.
+    processed = processed.replaceAll(_ansiEscapePattern, '');
 
     // 提取级别前缀（如 [D], [INFO]）/ Extract level prefix (e.g., [D], [INFO])
     String levelPrefix = '';
@@ -287,6 +312,12 @@ class InspectorLogInterceptor {
 /// 使用检查器 Zone 运行应用 / Run app with inspector Zone
 /// 通过 ZoneSpecification 捕获所有 print() 调用 / Capture all print() calls via ZoneSpecification
 /// [appRunner] 应用运行回调 / App runner callback
+@Deprecated(
+  'Use ZeroInspectorKit.runAppWithInspector() instead; this helper is dead code '
+  'and does not install the floating button or route observer. / 请改用 '
+  'ZeroInspectorKit.runAppWithInspector()：本函数是死代码，不会挂载悬浮按钮与'
+  '路由观察者。',
+)
 void runInspectorApp(VoidCallback appRunner) {
   InspectorLogInterceptor.instance.start();
 

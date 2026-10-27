@@ -51,8 +51,16 @@ class InspectorImagePreview extends StatelessWidget {
   }
 
   /// 按魔数嗅探常见图片格式 / Sniff common image formats by magic bytes
+  ///
+  /// 守卫长度必须覆盖下面真正访问到的最大下标（WebP 要读到 [11]）：此前只挡
+  /// `< 8`，长度 8~11 且以 `RIFF` 开头的负载会抛 `RangeError`，而本方法在
+  /// **build 期间**被调用，会直接崩掉网络详情页。
+  /// The length guard must cover the largest index actually read below (WebP reads
+  /// up to [11]): it used to only reject `< 8`, so an 8–11 byte payload starting
+  /// with `RIFF` threw a `RangeError` — and this runs during **build**, crashing
+  /// the network detail page.
   static bool _looksLikeImage(Uint8List bytes) {
-    if (bytes.length < 8) return false;
+    if (bytes.length < 12) return false;
     // PNG
     if (bytes[0] == 0x89 &&
         bytes[1] == 0x50 &&

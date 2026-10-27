@@ -293,11 +293,6 @@ class _NetworkViewerState extends State<NetworkViewer> {
   /// Interception-status filter (null = all; true = modified; false = unmodified).
   bool? _modifiedFilter;
 
-  @override
-  void initState() {
-    super.initState();
-  }
-
   /// 从实时列表中解析当前选中的请求；找不到（已被淘汰）时返回 null。
   /// Resolves the selected request from the live list; null if evicted.
   NetworkRequest? get _selectedRequest {
@@ -779,9 +774,15 @@ class _NetworkViewerState extends State<NetworkViewer> {
   }
 
   /// 是否存在生效的筛选条件（用于漏斗图标高亮）/ Whether any filter is active
+  // `_hostFilters` 必须计入：它同样是生效的筛选（见 `_filterRequests`），此前漏掉
+  // 导致只勾选 Host 时漏斗图标不变色，用户看不出筛选已生效。
+  // `_hostFilters` must count too: it is an active filter as well (see
+  // `_filterRequests`), and leaving it out meant the funnel icon stayed unlit when
+  // only Host was selected — users could not tell the filter was on.
   bool get _hasActiveFilter =>
       _methodFilters.isNotEmpty ||
       _statusFilters.isNotEmpty ||
+      _hostFilters.isNotEmpty ||
       _modifiedFilter != null;
 
   /// 可展开的筛选面板 / Expandable filter panel
@@ -1018,10 +1019,14 @@ class _NetworkViewerState extends State<NetworkViewer> {
     final requests = _filterRequests(InspectorService.instance.networkRequests);
 
     if (requests.isEmpty) {
+      // 关键词之外还有 Method / Status / Host / Modified 筛选：只看关键词会把
+      // "筛选命中 0 条"误报成 "还没有请求"。
+      // Beyond the keyword there are Method / Status / Host / Modified filters:
+      // looking at the keyword alone misreported "0 filter matches" as
+      // "no requests yet".
+      final filtered = _searchKeyword.isNotEmpty || _hasActiveFilter;
       return InspectorEmptyState(
-        message: _searchKeyword.isEmpty
-            ? 'No requests yet'
-            : 'No matching requests',
+        message: filtered ? 'No matching requests' : 'No requests yet',
       );
     }
 
@@ -1296,14 +1301,30 @@ class _NetworkViewerState extends State<NetworkViewer> {
   /// 当前列表中出现过的 host（按字母序，最多 8 个，避免 chip 刷屏）
   /// Hosts present in the current list (alphabetical, capped at 8 so the chips
   /// don't flood the panel)
+  ///
+  /// 按数据版本号缓存：与 `_filteredRequestsCache` 同样的做法。此前是无缓存
+  /// getter，而它在同一次 build 里被访问**两次**（`.isNotEmpty` + `for`），
+  /// 每次都对全表做一遍 `Uri.parse`。
+  /// Cached by data version — same approach as `_filteredRequestsCache`. It used
+  /// to be an uncached getter accessed **twice** in a single build
+  /// (`.isNotEmpty` + `for`), each time `Uri.parse`-ing the whole list.
+  List<String>? _availableHostsCache;
+  int _availableHostsVersion = -1;
+
   List<String> get _availableHosts {
+    final version = InspectorService.instance.networkVersion;
+    final cached = _availableHostsCache;
+    if (cached != null && _availableHostsVersion == version) return cached;
     final hosts = <String>{};
     for (final r in InspectorService.instance.networkRequests) {
       final host = _getHost(r.url);
       if (host.isNotEmpty) hosts.add(host);
     }
     final sorted = hosts.toList()..sort();
-    return sorted.take(8).toList();
+    final result = sorted.take(8).toList();
+    _availableHostsCache = result;
+    _availableHostsVersion = version;
+    return result;
   }
 
   Widget _buildRequestDetail(NetworkRequest request) {

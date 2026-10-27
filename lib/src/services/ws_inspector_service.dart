@@ -68,14 +68,6 @@ class WsInspectorService extends ChangeNotifier {
   /// 活跃会话表（sessionId -> 会话）/ Active sessions (sessionId -> session)
   final Map<String, _WsSession> _sessions = {};
 
-  /// 会话 body 同步到 InspectorService 的节流时间戳：每帧都 `updateNetworkRequest`
-  /// 会把整串 body 复制 + 重新统计字节（O(n²)），故按 10Hz 限频；关闭时由 `_onClose`
-  /// 兜底同步最终 body。
-  /// Throttle timestamp for syncing session body to InspectorService: calling
-  /// `updateNetworkRequest` every frame copies the whole body + re-counts bytes
-  /// (O(n²)), so we cap it at ~10Hz; `_onClose` syncs the final body regardless.
-  int _lastBodySyncAt = 0;
-
   /// 同时保留的会话数上限（按插入顺序淘汰最旧）/ Max concurrent sessions (oldest evicted)
   static const int _maxSessions = 20;
 
@@ -140,15 +132,14 @@ class WsInspectorService extends ChangeNotifier {
     // Accumulate into the network record's responseBody for the detail view &
     // export (back-compat). Uses the session StringBuffer so we no longer copy
     // the whole string on every frame.
-    // Accumulate into the network record's responseBody for the detail view & export (back-compat).
     final arrow = outgoing ? '→' : '←';
     session.appendBody('$arrow $text\n');
-    // 10Hz 限频同步 body（见 [_lastBodySyncAt]）；关闭时由 _onClose 兜底同步最终值。
-    // Sync the body at ~10Hz (see [_lastBodySyncAt]); the final value is synced by
-    // _onClose on close.
+    // 10Hz 限频同步 body（见 [_WsSession.lastBodySyncAt]）；关闭时由 _onClose
+    // 兜底同步最终值。Sync the body at ~10Hz (see [_WsSession.lastBodySyncAt]);
+    // the final value is synced by _onClose on close.
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    if (nowMs - _lastBodySyncAt >= 100) {
-      _lastBodySyncAt = nowMs;
+    if (nowMs - session.lastBodySyncAt >= 100) {
+      session.lastBodySyncAt = nowMs;
       InspectorService.instance.updateNetworkRequest(
         id,
         responseBody: session.bodyBuffer.toString(),
@@ -299,6 +290,18 @@ class _WsSession {
 
   /// 当前累积文本长度 / Current accumulated text length
   int bodyLength = 0;
+
+  /// 本会话 body 同步到 InspectorService 的节流时间戳。
+  /// Throttle timestamp for syncing this session's body to InspectorService.
+  ///
+  /// **必须是会话级而非服务级**：此前是一个服务级字段，多个 WS 会话共享同一个
+  /// 100ms 配额，高频会话会把其它会话饿死 —— 被饿死的会话只能等 `_onClose`
+  /// 兜底，期间详情页的 responseBody 长期停在旧值。
+  /// **Must be per session, not per service**: it used to be a service-level field,
+  /// so all WS sessions shared one 100 ms budget and a high-frequency session could
+  /// starve the others — the starved sessions only got the `_onClose` fallback, so
+  /// their response body stayed stale in the detail view.
+  int lastBodySyncAt = 0;
 
   _WsSession({required this.id, required this.url, required this.startTime});
 

@@ -90,21 +90,30 @@ class SharedPrefsProvider implements DatabaseProvider {
   }) async {
     var keys = _prefs.getKeys().toList();
     KeyValueQuery.sortKeys(keys);
-    if (desc) keys = keys.reversed.toList();
     if (whereKeyword != null && whereKeyword.isNotEmpty) {
       final kw = whereKeyword.toLowerCase();
       keys = keys.where((k) => k.toLowerCase().contains(kw)).toList();
     }
-    final total = keys.length;
+    // 先构造全部行 → 排序 → 再分页：排序必须早于分页，否则只是给当前这一页
+    // 排序（orderBy 此前被完全忽略，Database 页点列排序毫无反应）。
+    // Build all rows → sort → then page: sorting must precede paging, otherwise
+    // only the current page is sorted (orderBy was ignored entirely before, so
+    // column sorting in the Database tab did nothing).
+    final rows = KeyValueQuery.applyOrder(
+      keys.map((k) {
+        final v = _prefs.get(k);
+        return <String, dynamic>{
+          'key': k,
+          'type': _typeName(v),
+          'value': _encode(v),
+        };
+      }).toList(),
+      orderBy,
+      desc,
+    );
+    final total = rows.length;
     final paging = KeyValueQuery.clampPaging(limit, offset);
-    final windowed = keys.skip(paging.offset).take(paging.limit).map((k) {
-      final v = _prefs.get(k);
-      return <String, dynamic>{
-        'key': k,
-        'type': _typeName(v),
-        'value': _encode(v),
-      };
-    }).toList();
+    final windowed = rows.skip(paging.offset).take(paging.limit).toList();
 
     return QueryResult(
       columns: const ['key', 'type', 'value'],

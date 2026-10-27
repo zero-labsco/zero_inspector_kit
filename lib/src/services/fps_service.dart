@@ -82,7 +82,7 @@ class FpsService extends ChangeNotifier {
   /// Adaptive: the per-frame budget is derived from the display refresh rate
   /// (≈16.7ms at 60Hz, ≈8.3ms at 120Hz) so high-refresh displays keep a tight
   /// jank bar instead of being let through by a fixed 16ms cutoff.
-  int get _jankThresholdUs => (1000000 / _displayRefreshRate).round();
+  int get _jankThresholdUs => (1000000 / _refreshRate).round();
 
   /// 公开的自适应掉帧阈值（微秒）/ Public adaptive jank threshold (microseconds)
   int get jankThresholdUs => _jankThresholdUs;
@@ -140,11 +140,32 @@ class FpsService extends ChangeNotifier {
   /// misread as 0 FPS / jank.
   double _lastActiveFps = 0;
 
-  /// 设备标称刷新率（Hz），空闲时用作回退显示值 / Nominal display refresh rate
-  double get _displayRefreshRate {
+  /// 设备标称刷新率（Hz），在 [start] 时读取一次并缓存。
+  /// Nominal display refresh rate, read once in [start] and cached.
+  ///
+  /// 此前是一个每次访问都查 `platformDispatcher.views` 的 getter，而
+  /// [_jankThresholdUs]（进而每帧的掉帧判定）都要用它 —— 每帧一次平台查询 +
+  /// 一次除法。刷新率在一次会话内基本不变，没必要每帧重算。
+  /// It used to be a getter querying `platformDispatcher.views` on every access,
+  /// while [_jankThresholdUs] (hence the per-frame jank check) depends on it —
+  /// one platform query plus a division per frame. The refresh rate barely changes
+  /// within a session, so recomputing it every frame is pointless.
+  double _refreshRate = 60.0;
+
+  /// 读取刷新率，无效值（0 / 负）回退 60Hz。
+  /// Read the refresh rate, falling back to 60Hz for invalid values (0 / negative).
+  ///
+  /// 某些平台 / 模拟器上 `display.refreshRate` 会是 0，`1e6 / 0` 会抛
+  /// `UnsupportedError`，因此必须校验。
+  /// `display.refreshRate` is 0 on some platforms / emulators, and `1e6 / 0`
+  /// throws an `UnsupportedError`, so it must be validated.
+  static double _resolveRefreshRate() {
     try {
       final views = WidgetsBinding.instance.platformDispatcher.views;
-      if (views.isNotEmpty) return views.first.display.refreshRate;
+      if (views.isNotEmpty) {
+        final rate = views.first.display.refreshRate;
+        if (rate > 0) return rate;
+      }
     } catch (_) {}
     return 60.0;
   }
@@ -182,6 +203,10 @@ class FpsService extends ChangeNotifier {
   /// 启动 FPS 监控 / Start FPS monitoring
   void start() {
     if (_isRunning) return;
+    // 会话内刷新率视为常量，这里缓存一次（见 [_refreshRate]）。
+    // The refresh rate is treated as constant for a session and cached here (see
+    // [_refreshRate]).
+    _refreshRate = _resolveRefreshRate();
     _isRunning = true;
     _currentFps = 0;
     _isIdle = false;
@@ -211,6 +236,12 @@ class FpsService extends ChangeNotifier {
   void clear() {
     _frameRecords.clear();
     _fpsHistory.clear();
+    // 必须一并清掉时间戳窗口：否则 clear 之后残留的时间戳会参与 `now = max`
+    // 与窗口计数，清空后的第一次 FPS 是由脏数据算出来的（start() 里是清的）。
+    // The timestamp window must be cleared too: leftover stamps otherwise take
+    // part in `now = max` and the window count, so the first FPS after a clear was
+    // computed from stale data (start() does clear it).
+    _recentFrameTimestamps.clear();
     _totalJankyCount = 0;
     _totalFrameCount = 0;
     _isIdle = false;
@@ -312,7 +343,7 @@ class FpsService extends ChangeNotifier {
       // Idle: no render requested. Fall back to the display refresh rate, mark
       // idle, and skip the alert so a still app isn't misjudged as jank.
       _isIdle = true;
-      _currentFps = _lastActiveFps > 0 ? _lastActiveFps : _displayRefreshRate;
+      _currentFps = _lastActiveFps > 0 ? _lastActiveFps : _refreshRate;
     } else {
       final now = _recentFrameTimestamps.reduce((a, b) => a > b ? a : b);
 
@@ -335,7 +366,7 @@ class FpsService extends ChangeNotifier {
       // static page as low-FPS jank.
       if (framesInWindow <= _lowActivityFrameThreshold) {
         _isIdle = true;
-        _currentFps = _lastActiveFps > 0 ? _lastActiveFps : _displayRefreshRate;
+        _currentFps = _lastActiveFps > 0 ? _lastActiveFps : _refreshRate;
       } else {
         _isIdle = false;
         // FPS = 最近 1 秒内的帧数 / FPS = frames in the most recent second

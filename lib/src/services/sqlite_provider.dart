@@ -47,6 +47,45 @@ class SqliteDatabaseProvider implements DatabaseProvider {
     return _supportedExtensions.contains(path.substring(dot).toLowerCase());
   }
 
+  /// 只列出候选数据库文件的路径：**不打开连接、不读 schema**。
+  /// List only the candidate database file paths: **no connections opened, no
+  /// schema read**.
+  ///
+  /// 供"存储统计"这种只需要文件大小的场景使用。此前存储统计每 3s 调用
+  /// [getDatabases]，会对每个 `.db` 真正建立一次连接并逐表跑 PRAGMA + COUNT(*)
+  /// —— 只要内存页开着，就是一个 3s 周期的全树 I/O + 建连 + 逐表扫描。
+  /// For scenarios like "storage stats" that only need file sizes. Storage stats
+  /// used to call [getDatabases] every 3s, which really opened a connection per
+  /// `.db` and ran PRAGMA + COUNT(*) per table — as long as the memory tab was
+  /// open that meant a full-tree I/O + connect + per-table scan every 3 seconds.
+  Future<List<String>> databasePaths() async {
+    final paths = <String>[];
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      final dbDirPath = await getDatabasesPath();
+      final directories = [docDir.path, dbDirPath];
+
+      for (final dirPath in directories) {
+        final directory = Directory(dirPath);
+        if (!directory.existsSync()) continue;
+
+        final files = await directory
+            .list(recursive: true)
+            .where((entity) => entity is File)
+            .cast<File>()
+            .toList();
+
+        for (final file in files) {
+          if (file.path.split(Platform.pathSeparator).last == _ownDbName) {
+            continue;
+          }
+          if (_looksLikeDatabase(file.path)) paths.add(file.path);
+        }
+      }
+    } catch (_) {}
+    return paths;
+  }
+
   @override
   Future<List<DatabaseInfo>> getDatabases() async {
     final databases = <DatabaseInfo>[];
@@ -70,6 +109,12 @@ class SqliteDatabaseProvider implements DatabaseProvider {
             .cast<File>()
             .toList();
 
+        // 用 Set 做 O(1) 去重：此前 `databases.any((d) => d.path == ...)`
+        // 对每个候选文件线性扫描已收集列表，是 O(n²)。
+        // Dedupe with a Set for O(1): `databases.any((d) => d.path == ...)`
+        // linearly scanned the collected list for every candidate file (O(n²)).
+        final seenPaths = <String>{for (final d in databases) d.path};
+
         for (final file in files) {
           // 跳过插件自身的持久化数据库，避免只读打开报错并污染 UI。
           // Skip the plugin's own persistence DB to avoid a read-only write
@@ -78,7 +123,7 @@ class SqliteDatabaseProvider implements DatabaseProvider {
             continue;
           }
           if (_looksLikeDatabase(file.path)) {
-            if (databases.any((d) => d.path == file.path)) continue;
+            if (!seenPaths.add(file.path)) continue;
 
             Database? db;
             String? scanError;
@@ -111,14 +156,17 @@ class SqliteDatabaseProvider implements DatabaseProvider {
                 stackTrace: st,
               );
             } finally {
-              // 扫描阶段不持有连接，归还缓存 / Don't keep connections during scan.
-              _releaseConnection(file.path);
+              // 扫描阶段不持有连接：连接仍留在 LRU 缓存里供复用，LRU 顺序由
+              // `_openConnection` 维护（此前这里调用了一个空方法
+              // `_releaseConnection`，什么都没做）。
+              // The scan does not hold a connection: it stays in the LRU cache for
+              // reuse and `_openConnection` maintains the LRU order (this used to
+              // call `_releaseConnection`, which was an empty no-op).
             }
 
             // 打开/扫描失败也记录一条带错误信息的 DatabaseInfo，供 UI 提示。
             // Record a DatabaseInfo carrying the error so the UI can warn.
-            if (scanError != null &&
-                !databases.any((d) => d.path == file.path)) {
+            if (scanError != null && seenPaths.add(file.path)) {
               databases.add(
                 DatabaseInfo(
                   name: file.path.split(Platform.pathSeparator).last,
@@ -282,8 +330,11 @@ class SqliteDatabaseProvider implements DatabaseProvider {
       // LIMIT / OFFSET 必须是非负整数：SQLite 里 `LIMIT -1` 表示**不限制行数**，
       // 会把整张表拉进内存。Clamp to non-negative: in SQLite `LIMIT -1` means
       // "no limit" and would pull the whole table into memory.
-      final safeLimit = limit <= 0 ? 50 : limit;
-      final safeOffset = offset < 0 ? 0 : offset;
+      // 复用共享钳位逻辑，避免与 `KeyValueQuery.defaultLimit` 各存一份常量。
+      // Reuse the shared clamping so the `50` default is not duplicated.
+      final paging = KeyValueQuery.clampPaging(limit, offset);
+      final safeLimit = paging.limit;
+      final safeOffset = paging.offset;
       final sql =
           'SELECT * FROM $quotedTable$whereClause$orderClause '
           'LIMIT $safeLimit OFFSET $safeOffset';
@@ -305,8 +356,9 @@ class SqliteDatabaseProvider implements DatabaseProvider {
       InspectorInternalLog.error('sqlite', message, error: e, stackTrace: st);
       return QueryResult.failure(message);
     } finally {
-      // query 不持有连接，立即归还缓存 / query does not keep the connection.
-      _releaseConnection(dbPath);
+      // query 不持有连接：连接留在 LRU 缓存中复用（此前这里的
+      // `_releaseConnection` 是空实现）。The query does not hold a connection: it
+      // stays in the LRU cache for reuse (`_releaseConnection` here was a no-op).
     }
   }
 
@@ -337,11 +389,6 @@ class SqliteDatabaseProvider implements DatabaseProvider {
       } catch (_) {}
     }
     return db;
-  }
-
-  void _releaseConnection(String dbPath) {
-    // 连接仍保留在缓存中供复用，这里仅维护 LRU 顺序由 _openConnection 负责。
-    // Connections stay cached for reuse; LRU order is managed in _openConnection.
   }
 
   /// 关闭并清空所有缓存的连接。应在 Inspector 销毁时调用。

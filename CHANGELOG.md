@@ -1,5 +1,74 @@
 # Changelog
 
+## 1.18.0
+
+### Fixed / 修复
+
+- Fixed the bug report exporting the **oldest** logs / network requests instead of the most recent: the lists are newest-first (maintained with `addFirst`), but `buildBugReport` sliced them with `sublist(length - N)`.
+  - 修复 Bug 报告导出的是**最旧**而非最近日志 / 网络请求的问题：列表是最新在前（用 `addFirst` 维护），而 `buildBugReport` 用 `sublist(length - N)` 取了尾部。
+- Fixed silent loss of an entire persistence batch: `flush()` cleared the pending buffers *before* `batch.commit()`, so a single failed write (disk full / DB closed) permanently dropped that batch of logs, network, errors and alerts with no trace. Entries are now restored on failure and re-tried; after 5 consecutive failures the service degrades to memory-only (as it already did when the DB was unavailable).
+  - 修复整批持久化数据被静默丢弃：`flush()` 在 `batch.commit()` **之前**就清空了待写缓冲，一次写盘失败（磁盘满 / DB 已关）就会永久丢弃这批日志、网络、异常与告警且毫无痕迹。现在失败时会把数据放回缓冲重试；连续失败 5 次后优雅降级为纯内存模式（与"数据库不可用"时行为一致）。
+- Fixed a `dispose()` / in-flight `init()` race in `PersistenceService` that left a flush `Timer` nobody would ever cancel plus an unowned database handle. `dispose()` now awaits the in-flight init, and the init bails out (closing what it opened) if it completes after disposal.
+  - 修复 `PersistenceService` 的 `dispose()` 与在途 `init()` 竞态——此前会留下一个永不取消的刷盘 `Timer` 和一个无人持有的数据库句柄。现在 `dispose()` 会等待在途 init，init 若在释放之后完成则自行退出并关闭刚打开的库。
+- Fixed Dart heap data never being collected on the WebSocket fallback path: the 500ms collector additionally required an HTTP VM Service URI, while the WebSocket fallback exists precisely because the HTTP endpoint is unavailable (common on Android devices).
+  - 修复 WebSocket 降级路径上 Dart Heap 数据永远采不到的问题：500ms 采集器额外要求 HTTP 版 VM Service URI，而该降级路径存在的意义正是 HTTP 端点不可用（Android 真机常见）。
+- Fixed the Dio interceptor draining the app's own `ResponseBody.stream`: it is the very stream Dio hands to business code, so consuming it left the caller with an empty stream (or "Stream has already been listened to") and silently swallowed business data in large-download / SSE scenarios. It is now left untouched.
+  - 修复 Dio 拦截器排空宿主 App 自己的 `ResponseBody.stream`：那正是 Dio 交给业务代码的流，消费它会让调用方拿到空流（或 "Stream has already been listened to"），在大文件下载 / SSE 场景静默吞掉业务数据。现在不再触碰它。
+- Fixed `x-inspector-request-id` being written into real outbound request headers when only the Dio interceptor is installed: the correlation header is now injected only when the `HttpClient`-level interceptor is running (which strips it before the bytes go out), so it can no longer pollute HMAC / signatures, trigger CORS preflight or leak a debug marker.
+  - 修复只挂 Dio 拦截器时关联头 `x-inspector-request-id` 被写进真实出站请求头：现在只有在 `HttpClient` 层拦截器运行时才注入（它会在字节发出前摘掉），不再污染 HMAC / 签名、触发 CORS 预检或泄漏调试痕迹。
+- Fixed valid UTF-8 bodies (CJK / emoji) being misread as binary: the preview byte prefix was cut with `maxChars * 4 + 3`, which does not align to a UTF-8 character boundary and could *create* a split. It now walks back to the nearest lead byte (`b & 0xC0 != 0x80`). Also fixed the byte/char unit mismatch: `maxBodyPreviewBytes` is a **byte** cap and was passed as a **char** cap, inflating the decoded amount 4x.
+  - 修复合法 UTF-8（中文 / emoji）响应被误判为二进制：预览字节前缀按 `maxChars * 4 + 3` 截断，并不能对齐 UTF-8 字符边界、甚至可能**制造**新的跨界；现在改为回退到最近的 lead byte（`b & 0xC0 != 0x80`）。同时修复字节 / 字符单位错配：`maxBodyPreviewBytes` 是**字节**上限却被当作**字符**上限传入，解码量被放大 4 倍。
+- Fixed response bodies being lost forever when the subscription is cancelled early (`take(1)`, `timeout`, explicit `cancel()`): `StreamTransformer.fromHandlers` never fires `handleDone` on cancel, and that was the only place the body was persisted.
+  - 修复订阅被提前取消（`take(1)`、`timeout`、显式 `cancel()`）时响应体永久丢失：`StreamTransformer.fromHandlers` 在取消时不会触发 `handleDone`，而那是落响应体的唯一入口。
+- Fixed `InspectorLogInterceptor.stop()` wiping the host's `FlutterError.onError`: it had no `if (!_isStarted)` guard, so stopping without starting — or after the host installed its own Crashlytics / Sentry handler — replaced the current handler with the snapshot taken at start time (possibly null).
+  - 修复 `InspectorLogInterceptor.stop()` 清空宿主 `FlutterError.onError` 的问题：它缺少 `if (!_isStarted)` 守卫，未 start 就 stop（或宿主在 start 之后自行安装了 Crashlytics / Sentry）时，会用启动瞬间的旧快照（可能为 null）覆盖宿主当前的错误处理回调。
+- Fixed a listener leak in the floating button: the dock animation was "cancelled" by nulling `_dockAnim` / `_dockListener`, but `addListener` had attached the `CurvedAnimation` to the shared `AnimationController`, so every drag→release cycle added another listener that kept driving `setState` with stale begin/end values (visible as the ball jittering). Listeners are now really removed.
+  - 修复悬浮按钮的 listener 泄漏：吸附动画此前只是把 `_dockAnim` / `_dockListener` 置 null，而 `addListener` 已把 `CurvedAnimation` 挂到共享的 `AnimationController` 上，每次「拖动 → 松手」都会多挂一个永不移除的 listener，继续用旧的 begin/end 驱动 `setState`（表现为小球抖动）。现在会真正 `removeListener`。
+- Fixed VM Service socket / RPC leaks: `socket.add` now runs inside the `try` (a throw otherwise skipped the `finally` and left the JSON-RPC `Completer` registered forever), and a connection that resolves after `stopMonitoring()` is closed instead of being assigned back onto the fields.
+  - 修复 VM Service 的 socket / RPC 泄漏：`socket.add` 移入 `try`（此前抛错会跳过 `finally`，Completer 永久留在登记表里）；`stopMonitoring()` 之后才建成的连接会被关闭，而不是赋值回字段。
+- Fixed the global body budget never being released when a request id is overwritten: `addNetworkRequest` deduped but kept the replaced entry's bytes, so the budget grew monotonically and the proxy stopped buffering bodies early.
+  - 修复同 id 请求被覆盖时全局 body 预算从不归还：`addNetworkRequest` 只做了去重，被替换条目的字节仍计入，预算单调膨胀，代理侧过早停止缓冲 body。
+- Fixed the log data-version counter being bumped on a path that changes nothing (a discarded duplicate fragment), which made every UI filter cache recompute.
+  - 修复日志数据版本号在"什么都没改"的路径上自增（丢弃重复片段时会提前 return），导致所有 UI 过滤缓存每次白重算。
+- Fixed `FpsService.clear()` leaving stale frame timestamps behind (`start()` clears them), so the first FPS after a clear was computed from stale data.
+  - 修复 `FpsService.clear()` 未清理残留帧时间戳（`start()` 里是会清的），清空后第一次 FPS 由脏数据算出。
+- Fixed the WebSocket body-sync throttle being service-wide instead of per-session: a high-frequency session could starve every other session of the 100ms budget.
+  - 修复 WebSocket body 同步节流是服务级而非会话级：高频会话会把其它会话的 100ms 配额全部占掉。
+- Fixed `orderBy` being silently ignored by the SharedPreferences / Hive providers (declared, never read), so column sorting in the Database tab did nothing. Rows are now sorted before paging.
+  - 修复 SharedPreferences / Hive 提供者静默忽略 `orderBy`（声明了但从未读取），Database 页点列排序毫无反应。现在会在分页**之前**完成排序。
+- Fixed leak records never reaching "suspected leak" when the VM Service is unavailable: the `verifying → leaked` transition was gated on `_vmServiceAvailable`, so on release builds and some devices records stayed in `verifying` forever.
+  - 修复 VM Service 不可用时泄漏记录永远到不了"疑似泄漏"：`verifying → leaked` 被 `_vmServiceAvailable` 拦住，release 包与部分真机上记录会永久停在 `verifying`。
+- Fixed `DatabaseService.queryTable` treating "no rows" as failure: a legitimately empty table made it keep trying later providers and could return another data source's content for that `dbPath`. Success is now decided by whether the provider errored.
+  - 修复 `DatabaseService.queryTable` 把"没有行"当成失败：一张合法的空表会让循环继续尝试后面的提供者，可能把另一个数据源的内容当成该 `dbPath` 的结果。现在以"提供者是否报错"判定成功。
+- Fixed a `RangeError` in the image preview: the WebP magic-number check reads up to index 11 while the guard only rejected lengths below 8, and it runs during build (crashing the network detail page).
+  - 修复图片预览的 `RangeError`：WebP 魔数校验会读到下标 11，但长度守卫只挡住了小于 8 的情况，而该方法在 build 期间执行（会直接崩掉网络详情页）。
+- Fixed several smaller correctness issues: `AlertsViewer` calling `setState` without a `mounted` check; the network funnel icon not lighting up when only a Host filter is active; the network empty state saying "No requests yet" when filters simply matched nothing; `RouteViewer` holding a route object instead of its id (so a cleared route still rendered); the Database refresh button being a no-op in the list state; `ConditionalInspector` ignoring `--dart-define=INSPECTOR_ENABLED=false`; `_MergedHttpHeaders.contentLength` bypassing the rule overlay; and the compressed `contentLength` reporting the 512 KB cap instead of the real size.
+  - 修复若干较小的正确性问题：`AlertsViewer` 的 `setState` 缺 `mounted` 检查；只勾选 Host 筛选时网络漏斗图标不高亮；筛选命中 0 条时空态却显示 "No requests yet"；`RouteViewer` 持有路由对象而非 id（被清理的路由仍会渲染）；Database 页在列表态点 Refresh 是空操作；`ConditionalInspector` 忽略 `--dart-define=INSPECTOR_ENABLED=false`；`_MergedHttpHeaders.contentLength` 绕过规则叠加层；压缩响应的 `contentLength` 返回 512 KB 上限而非真实大小。
+- Fixed WebSocket detection filtering out ordinary REST endpoints: any path ending in `/ws` (e.g. `/api/ws`, `/notify/ws`) was treated as a handshake and never recorded. Detection now uses the ws/wss scheme, the `Upgrade: websocket` header and the zone marker only.
+  - 修复 WebSocket 判定误伤普通 REST 接口：任何以 `/ws` 结尾的路径（如 `/api/ws`、`/notify/ws`）都被当作握手而完全不记录。现在只依据 ws/wss scheme、`Upgrade: websocket` 头与 Zone 标记判定。
+
+### Changed / 优化
+
+- Storage stats no longer open every database: the 3-second refresh used to call `getDatabases()`, which opens a connection per `.db` and runs PRAGMA + COUNT(*) per table, just to sum file sizes. A new lightweight path-only scan (`SqliteDatabaseProvider.databasePaths`) is used instead.
+  - 存储统计不再打开每个数据库：3 秒一次的刷新此前调用 `getDatabases()`，会为每个 `.db` 建连并逐表跑 PRAGMA + COUNT(*)，却只是为了累加文件大小。改为使用新的轻量"只列路径"扫描（`SqliteDatabaseProvider.databasePaths`）。
+- Compiled once instead of per call: the ANSI escape `RegExp` in `detectLogLevel` (runs for every `print` / `debugPrint` line) and each rule's `RegExp` in `RequestInterceptorRule.matches` (called several times per response).
+  - 正则改为编译一次复用：`detectLogLevel` 里的 ANSI 转义 `RegExp`（每行 `print` / `debugPrint` 都会走到）与 `RequestInterceptorRule.matches` 里每条规则的 `RegExp`（单个响应会被调用多次）。
+- `NetworkRequest` body truncation now aligns to the UTF-8 boundary before decoding instead of retrying with `end--` (which re-copied and re-decoded a ~32 KB array per byte walked back).
+  - `NetworkRequest` 的 body 截断改为先对齐 UTF-8 边界再解码，不再用 `end--` 重试（那样每回退一个字节都要重新拷贝并完整解码一次 ~32 KB 数组）。
+- `FpsService` caches the display refresh rate once on `start()` instead of querying `platformDispatcher` per frame, and falls back to 60 Hz when the platform reports 0 (which would have thrown on `1e6 / 0`).
+  - `FpsService` 改为在 `start()` 时缓存一次屏幕刷新率，不再每帧查询 `platformDispatcher`；平台返回 0 时回退到 60Hz（否则 `1e6 / 0` 会抛异常）。
+- Removed repeated full scans in hot paths: the memory viewer computes leak counts and groups in a single pass (was 5+ full traversals per build), the network viewer caches `_availableHosts` by data version (was computed twice per build, `Uri.parse`-ing the whole list each time), SQLite database discovery dedupes with a `Set` (was O(n²)), and removal paths compute `_bodyBytesOf` once (`_releaseBodyBytes`) instead of twice.
+  - 移除热路径上的重复全量扫描：内存页一次遍历同时算出泄漏计数与分组（此前单次 build 全量遍历 5 次以上）；网络页按数据版本号缓存 `_availableHosts`（此前单次 build 算两遍，每次对全表 `Uri.parse`）；SQLite 扫描用 `Set` 去重（此前是 O(n²)）；删除路径用 `_releaseBodyBytes` 只计算一次 `_bodyBytesOf`（此前算两遍）。
+- Removed dead code: the empty `_releaseConnection` (and its two call sites), an empty `initState` override, a permanently-false `values.isEmpty` branch, duplicated doc comments, and the `KeyValueQuery.sortKeys` / `sortValues` duplication.
+  - 清理死代码：空实现的 `_releaseConnection`（及其两处调用）、空的 `initState` 重写、恒为 false 的 `values.isEmpty` 分支、重复的文档注释，以及 `KeyValueQuery.sortKeys` / `sortValues` 的重复实现。
+- `init(enableWidgetInspector: false)` now actually disables the widget tree inspector (it used to assign only when true).
+  - `init(enableWidgetInspector: false)` 现在会真正关闭 Widget 树检查（此前只在 true 时赋值）。
+
+### Deprecated / 弃用
+
+- `InspectorLogInterceptor.logPrint` and the top-level `runInspectorApp` are deprecated: both have no call sites. Use `debug()` and `ZeroInspectorKit.runAppWithInspector()` instead. They still work and will be removed in a future major release.
+  - `InspectorLogInterceptor.logPrint` 与顶层函数 `runInspectorApp` 已废弃：两者都没有调用点。请分别改用 `debug()` 与 `ZeroInspectorKit.runAppWithInspector()`。当前仍可正常工作，将在未来的 major 版本中移除。
+
 ## 1.17.0
 
 ### Fixed / 修复

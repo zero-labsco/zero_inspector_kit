@@ -652,9 +652,10 @@ class _FpsLineChartPainter extends CustomPainter {
 
     // 动态计算 Y 轴上限，至少 60，支持高刷新率（90/120Hz）设备
     // Dynamic Y-axis max, at least 60, supports high refresh rate (90/120Hz) devices
-    final maxFps = values.isEmpty
-        ? 60.0
-        : math.max(60.0, values.reduce((a, b) => a > b ? a : b));
+    // 上面的 `values.isEmpty` 已提前 return，这里不可能为空（此前保留了一个
+    // 恒为 false 的三元分支）。The `values.isEmpty` check above already returned,
+    // so this can never be empty (a permanently false ternary used to live here).
+    final maxFps = math.max(60.0, values.reduce((a, b) => a > b ? a : b));
     final stepX = size.width / (values.length > 1 ? values.length - 1 : 1);
 
     final path = Path();

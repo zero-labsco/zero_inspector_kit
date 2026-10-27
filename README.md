@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release fixes the Database tab's dead search boxes, the log filter freezing once 500 entries accumulate, duplicate rows written by the persistence ring buffer (multi-line logs / updated requests / repeated errors), a `dispose()` ordering bug that permanently replaced the host's `FlutterError.onError`, and a toast double-remove crash. It also adds opt-in replay of the previous session's network records. All users are encouraged to upgrade to the latest version (`^1.17.0`).
+> **🔔 Upgrade recommended:** This release fixes a batch of correctness and performance issues found in a full-codebase audit — bug reports exporting the *oldest* logs instead of the most recent, silent loss of a whole persistence batch when a disk write fails, the Dio interceptor draining the app's own response stream, the log interceptor wiping the host's `FlutterError.onError`, and valid UTF-8 bodies misread as binary. All users are encouraged to upgrade to the latest version (`^1.18.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -102,7 +102,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.17.0
+  zero_inspector_kit: ^1.18.0
 ```
 
 ### GitHub
@@ -112,7 +112,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.17.0   # replace 1.17.0 with the version you need
+      ref: release/v1.18.0   # replace 1.18.0 with the version you need
 ```
 
 ---
