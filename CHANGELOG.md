@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.18.0
+## 2.0.0
 
 ### Fixed / 修复
 
@@ -74,13 +74,16 @@
 
 - `RouteAction.remove` — a dedicated route action for `NavigatorObserver.didRemove` (previously mislabeled as `pop`), rendered as "Remove" and colored like `pop`.
   - 新增 `RouteAction.remove` —— 专门用于 `NavigatorObserver.didRemove` 的路由动作（此前被错误记为 `pop`），显示为 "Remove"、配色与 `pop` 一致。
-  - Heads-up: adding an enum value is source-incompatible for the rare caller that writes an exhaustive `switch` over `RouteAction` without a `default` (Dart 3 reports non-exhaustiveness), which is why this ships in a minor release rather than a patch.
-  - 提示：为枚举新增值，对极少数写了「穷尽 switch 且无 default」的调用方是源码级不兼容的（Dart 3 会报未穷尽），因此放在 minor 版本而非补丁版本。
 
-### Deprecated / 弃用
+### Breaking Changes / 破坏性变更
 
-- `InspectorLogInterceptor.logPrint` and the top-level `runInspectorApp` are deprecated: both have no call sites. Use `debug()` and `ZeroInspectorKit.runAppWithInspector()` instead. They still work and will be removed in a future major release.
-  - `InspectorLogInterceptor.logPrint` 与顶层函数 `runInspectorApp` 已废弃：两者都没有调用点。请分别改用 `debug()` 与 `ZeroInspectorKit.runAppWithInspector()`。当前仍可正常工作，将在未来的 major 版本中移除。
+This is a major release because of the two items below. Everything else in 2.0.0 is backward compatible — no `init()` flag, constructor parameter or method signature was removed or renamed.
+这是一个 major 版本，原因只有下面两项。2.0.0 的其余内容都是向后兼容的 —— 没有任何 `init()` 开关、构造参数或方法签名被移除或重命名。
+
+- Added the `RouteAction.remove` enum value. Callers with an exhaustive `switch` over `RouteAction` and no `default` must add the new case (Dart 3 reports non-exhaustiveness).
+  - 为 `RouteAction` 枚举新增了 `remove` 值。对 `RouteAction` 写了「穷尽 switch 且无 `default`」的调用方必须补上新分支（Dart 3 会报未穷尽）。
+- Removed `InspectorLogInterceptor.logPrint` and the top-level `runInspectorApp`, both of which had no call sites. Use `debug()` and `ZeroInspectorKit.runAppWithInspector()` respectively. (`runInspectorApp` was also incomplete: it never installed the floating button or the route observer, nor started network / database / route capture.)
+  - 移除了 `InspectorLogInterceptor.logPrint` 与顶层函数 `runInspectorApp`，两者都没有调用点。请分别改用 `debug()` 与 `ZeroInspectorKit.runAppWithInspector()`。（`runInspectorApp` 本身也是不完整的：它从不挂载悬浮按钮与路由观察者，也没有启动网络 / 数据库 / 路由采集。）
 
 ## 1.17.0
 

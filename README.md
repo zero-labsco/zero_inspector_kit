@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release fixes a batch of correctness and performance issues found in a full-codebase audit — bug reports exporting the *oldest* logs instead of the most recent, silent loss of a whole persistence batch when a disk write fails, the Dio interceptor draining the app's own response stream, the log interceptor wiping the host's `FlutterError.onError`, and valid UTF-8 bodies misread as binary. All users are encouraged to upgrade to the latest version (`^1.18.0`).
+> **🔔 Upgrade recommended:** This release fixes a batch of correctness and performance issues found in a full-codebase audit — bug reports exporting the *oldest* logs instead of the most recent, silent loss of a whole persistence batch when a disk write fails, the Dio interceptor draining the app's own response stream, the log interceptor wiping the host's `FlutterError.onError`, and valid UTF-8 bodies misread as binary. This is a **major** release with two small breaking changes (a new `RouteAction.remove` enum value, and the removal of two dead helpers) — see [CHANGELOG](CHANGELOG.md). All users are encouraged to upgrade to the latest version (`^2.0.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -102,7 +102,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.18.0
+  zero_inspector_kit: ^2.0.0
 ```
 
 ### GitHub
@@ -112,7 +112,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.18.0   # replace 1.18.0 with the version you need
+      ref: release/v2.0.0   # replace 2.0.0 with the version you need
 ```
 
 ---

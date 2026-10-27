@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
@@ -213,22 +212,6 @@ class InspectorLogInterceptor {
   void error(String message, {String? tag}) =>
       log(LogLevel.error, message, tag: tag);
 
-  /// 通过 print 输出日志并捕获 / Output log via print and capture
-  ///
-  /// 已废弃：全仓库无调用点，等价于 `debug(message)` + 一次 `debugPrint`。
-  /// Deprecated: no call sites anywhere; equivalent to `debug(message)` plus a
-  /// `debugPrint`.
-  @Deprecated('Use debug() instead; logPrint has no call sites. / 请改用 debug()。')
-  void logPrint(String message) {
-    // 仅在调试模式输出到控制台，避免 release 包泄漏日志到 stdout。
-    // Only print to console in debug mode to avoid leaking logs in release builds.
-    assert(() {
-      debugPrint(message);
-      return true;
-    }());
-    captureLog(message, LogLevel.debug);
-  }
-
   /// 生成唯一的日志 ID / Generate unique log ID
   ///
   /// 使用单调递增计数器而非时间戳：第三方库同步逐行 print 的多行日志会在
@@ -309,40 +292,9 @@ class InspectorLogInterceptor {
   }
 }
 
-/// 使用检查器 Zone 运行应用 / Run app with inspector Zone
-/// 通过 ZoneSpecification 捕获所有 print() 调用 / Capture all print() calls via ZoneSpecification
-/// [appRunner] 应用运行回调 / App runner callback
-@Deprecated(
-  'Use ZeroInspectorKit.runAppWithInspector() instead; this helper is dead code '
-  'and does not install the floating button or route observer. / 请改用 '
-  'ZeroInspectorKit.runAppWithInspector()：本函数是死代码，不会挂载悬浮按钮与'
-  '路由观察者。',
-)
-void runInspectorApp(VoidCallback appRunner) {
-  InspectorLogInterceptor.instance.start();
-
-  runZonedGuarded(
-    appRunner,
-    (error, stackTrace) {
-      InspectorLogInterceptor.instance.captureLog(
-        error.toString(),
-        LogLevel.error,
-      );
-      InspectorLogInterceptor.instance.captureLog(
-        stackTrace.toString(),
-        LogLevel.error,
-      );
-    },
-    zoneSpecification: ZoneSpecification(
-      print: (self, parent, zone, line) {
-        // 先调用原始的 print 确保日志正常输出到控制台 / Call original print first to ensure normal console output
-        parent.print(zone, line);
-        // 识别日志级别并捕获 / Detect log level and capture
-        final level = InspectorLogInterceptor.instance.detectLogLevel(
-          line.toString(),
-        );
-        InspectorLogInterceptor.instance.captureLog(line.toString(), level);
-      },
-    ),
-  );
-}
+// `runInspectorApp` 已在 2.0.0 移除（此前是死代码：不挂载悬浮按钮与路由观察者，
+// 也没有启动网络 / 数据库 / 路由采集）。请改用
+// `ZeroInspectorKit.runAppWithInspector()`。
+// `runInspectorApp` was removed in 2.0.0 (it was dead code: it never installed the
+// floating button or the route observer, nor started network / database / route
+// capture). Use `ZeroInspectorKit.runAppWithInspector()` instead.
