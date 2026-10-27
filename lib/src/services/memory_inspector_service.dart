@@ -1789,11 +1789,4 @@ class MemoryInspectorService extends ChangeNotifier {
       needRemove--;
     }
   }
-
-  @override
-  void dispose() {
-    stopMonitoring();
-    _liveNotifier.dispose();
-    super.dispose();
-  }
 }

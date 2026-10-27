@@ -245,6 +245,9 @@ Color _getActionColor(RouteAction action) {
       return InspectorColors.routePush;
     case RouteAction.pop:
     case RouteAction.popUntil:
+    // 移除同样表示"离开该页面"，与 pop 同色。
+    // Removal also means "leaving the page", so it shares pop's color.
+    case RouteAction.remove:
       return InspectorColors.routePop;
     case RouteAction.pushReplacement:
       return InspectorColors.routeReplace;

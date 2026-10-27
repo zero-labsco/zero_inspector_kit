@@ -46,6 +46,8 @@
   - 修复若干较小的正确性问题：`AlertsViewer` 的 `setState` 缺 `mounted` 检查；只勾选 Host 筛选时网络漏斗图标不高亮；筛选命中 0 条时空态却显示 "No requests yet"；`RouteViewer` 持有路由对象而非 id（被清理的路由仍会渲染）；Database 页在列表态点 Refresh 是空操作；`ConditionalInspector` 忽略 `--dart-define=INSPECTOR_ENABLED=false`；`_MergedHttpHeaders.contentLength` 绕过规则叠加层；压缩响应的 `contentLength` 返回 512 KB 上限而非真实大小。
 - Fixed WebSocket detection filtering out ordinary REST endpoints: any path ending in `/ws` (e.g. `/api/ws`, `/notify/ws`) was treated as a handshake and never recorded. Detection now uses the ws/wss scheme, the `Upgrade: websocket` header and the zone marker only.
   - 修复 WebSocket 判定误伤普通 REST 接口：任何以 `/ws` 结尾的路径（如 `/api/ws`、`/notify/ws`）都被当作握手而完全不记录。现在只依据 ws/wss scheme、`Upgrade: websocket` 头与 Zone 标记判定。
+- Fixed `didRemove` being logged as a `pop`: `pushReplacement` / `removeRoute` / a page destroyed after being replaced all reach `didRemove`, and every one of them produced a Routes record with the wrong action. A dedicated `RouteAction.remove` value is used now.
+  - 修复 `didRemove` 被记成 `pop`：`pushReplacement` / `removeRoute` / 页面被替换后销毁都会走到 `didRemove`，此前一律产生一条动作错误的路由记录。现在使用专门的 `RouteAction.remove` 枚举值。
 
 ### Changed / 优化
 
@@ -63,6 +65,17 @@
   - 清理死代码：空实现的 `_releaseConnection`（及其两处调用）、空的 `initState` 重写、恒为 false 的 `values.isEmpty` 分支、重复的文档注释，以及 `KeyValueQuery.sortKeys` / `sortValues` 的重复实现。
 - `init(enableWidgetInspector: false)` now actually disables the widget tree inspector (it used to assign only when true).
   - `init(enableWidgetInspector: false)` 现在会真正关闭 Widget 树检查（此前只在 true 时赋值）。
+- Removed the native console / logcat log feature: `PlatformChannel.getNativeLogs` / `startNativeLogListener` / `stopNativeLogListener` lived in `lib/src/` (not exported), so neither consumers nor the package could ever call them — which made the Android logcat reader and the iOS process-wide `dup2` redirection of stdout / stderr unreachable code with a global side effect. The Dart methods and both native implementations are gone. `getPlatformVersion` and `getProcessMemoryInfo` are unchanged.
+  - 移除原生控制台 / logcat 日志能力：`PlatformChannel.getNativeLogs` / `startNativeLogListener` / `stopNativeLogListener` 位于 `lib/src/`（未导出），消费方与包内都无法调用 —— 这使得 Android 的 logcat 读取与 iOS 对 stdout / stderr 的进程级 `dup2` 重定向成为永远无法触发、却带全局副作用的死代码。Dart 方法与两侧原生实现一并移除；`getPlatformVersion` 与 `getProcessMemoryInfo` 不受影响。
+- Removed the unused `dispose()` overrides on `FpsService`, `MemoryInspectorService` and `BlockingWatchdogService`. They had no call sites and were actively hazardous: these are process-wide singletons that mounted panel UI listens to, so disposing them would make later `notifyListeners()` / `removeListener()` assert in debug and would break `ZeroInspectorKit.dispose()`'s documented "re-enable via `init()`" promise. `ZeroInspectorKit.dispose()` keeps calling their `stop()` / `stopMonitoring()`, which is what actually releases the timers and subscriptions.
+  - 移除 `FpsService`、`MemoryInspectorService`、`BlockingWatchdogService` 上无人调用的 `dispose()` 覆写。它们不仅没有调用点，而且本身是有害的：这些是进程级单例、面板 UI（可能仍挂载）正在监听，dispose 之后任何 `notifyListeners()` / `removeListener()` 都会在 debug 下断言崩溃，并打破 `ZeroInspectorKit.dispose()` 承诺的"可再 `init()` 重新启用"。`ZeroInspectorKit.dispose()` 仍然调用它们的 `stop()` / `stopMonitoring()` —— 那才是真正释放定时器与订阅的地方。
+
+### Added / 新增
+
+- `RouteAction.remove` — a dedicated route action for `NavigatorObserver.didRemove` (previously mislabeled as `pop`), rendered as "Remove" and colored like `pop`.
+  - 新增 `RouteAction.remove` —— 专门用于 `NavigatorObserver.didRemove` 的路由动作（此前被错误记为 `pop`），显示为 "Remove"、配色与 `pop` 一致。
+  - Heads-up: adding an enum value is source-incompatible for the rare caller that writes an exhaustive `switch` over `RouteAction` without a `default` (Dart 3 reports non-exhaustiveness), which is why this ships in a minor release rather than a patch.
+  - 提示：为枚举新增值，对极少数写了「穷尽 switch 且无 default」的调用方是源码级不兼容的（Dart 3 会报未穷尽），因此放在 minor 版本而非补丁版本。
 
 ### Deprecated / 弃用
 

@@ -1,7 +1,21 @@
 import 'package:flutter/services.dart';
 
 /// 平台通道服务 / Platform channel service
-/// 用于与原生代码通信，获取平台相关信息和原生日志 / Used for communication with native code, get platform info and native logs
+/// 用于与原生代码通信，获取平台相关信息和进程级内存数据 / Used for communication
+/// with native code, get platform info and process-level memory data
+///
+/// 此前还有 `getNativeLogs` / `startNativeLogListener` / `stopNativeLogListener`
+/// 三个方法：本文件位于 `lib/src/`，未被 barrel 导出，消费方无法调用，包内也零
+/// 调用点 —— 即原生侧的控制台 / logcat 日志能力实际上永远无法被触发（iOS 侧
+/// 还是进程级的 stdout / stderr `dup2` 重定向，属于无法关闭的全局副作用）。
+/// 这三个方法与对应的 Android / iOS 实现已一并移除。
+/// This used to also expose `getNativeLogs` / `startNativeLogListener` /
+/// `stopNativeLogListener`: this file lives under `lib/src/` and is not exported
+/// by the barrel, so consumers cannot call them and nothing inside the package did
+/// either — meaning the native console / logcat log feature could never actually be
+/// triggered (on iOS it was a process-wide `dup2` redirection of stdout / stderr, a
+/// global side effect with no way to switch it off). Those three methods and their
+/// Android / iOS implementations have been removed together.
 class PlatformChannel {
   /// 方法通道名称 / Method channel name
   static const MethodChannel _channel = MethodChannel('zero_inspector_kit');
@@ -9,32 +23,6 @@ class PlatformChannel {
   /// 获取平台版本 / Get platform version
   static Future<String?> getPlatformVersion() async {
     return await _channel.invokeMethod<String>('getPlatformVersion');
-  }
-
-  /// 获取原生日志 / Get native logs
-  /// [limit] 返回日志条数限制，默认100 / Return log count limit, default 100
-  static Future<List<String>?> getNativeLogs({int limit = 100}) async {
-    try {
-      return await _channel.invokeMethod<List<String>>('getNativeLogs', {
-        'limit': limit,
-      });
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// 开始监听原生日志 / Start native log listener
-  static Future<void> startNativeLogListener() async {
-    try {
-      await _channel.invokeMethod<void>('startNativeLogListener');
-    } catch (_) {}
-  }
-
-  /// 停止监听原生日志 / Stop native log listener
-  static Future<void> stopNativeLogListener() async {
-    try {
-      await _channel.invokeMethod<void>('stopNativeLogListener');
-    } catch (_) {}
   }
 
   /// 获取进程级内存信息 / Get process-level memory info

@@ -387,10 +387,4 @@ class FpsService extends ChangeNotifier {
 
     notifyListeners();
   }
-
-  @override
-  void dispose() {
-    stop();
-    super.dispose();
-  }
 }

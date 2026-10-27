@@ -430,6 +430,7 @@ void main() {
       expect(action(RouteAction.pushReplacement), equals('Push Replacement'));
       expect(action(RouteAction.popUntil), equals('Pop Until'));
       expect(action(RouteAction.pushNamed), equals('Push Named'));
+      expect(action(RouteAction.remove), equals('Remove'));
       expect(action(RouteAction.unknown), equals('Unknown'));
     });
 

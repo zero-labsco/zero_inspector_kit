@@ -322,6 +322,20 @@ class ZeroInspectorKit {
   /// Typical use: at the end of integration tests, or when the host app wants to
   /// switch off debug collection at runtime (e.g. a privacy "stop collecting"
   /// toggle). Call [init] again to re-enable.
+  ///
+  /// 这里刻意调用各服务的 `stop()` / `stopMonitoring()`，而**不是**它们的
+  /// `ChangeNotifier.dispose()`：这些服务是进程级单例，且面板 UI（可能仍然挂载）
+  /// 正监听着它们。一旦 dispose，之后任何 `notifyListeners()` 以及 UI 侧随后的
+  /// `removeListener()` 都会在 debug 下断言崩溃，而且"dispose 后可再 init
+  /// 重新启用"的承诺也会被打破。此前这几个 `dispose()` 覆写全仓无人调用（死
+  /// 代码），现已移除；释放监听的工作仍由各自的 `stop()` 完成。
+  /// This deliberately calls each service's `stop()` / `stopMonitoring()` rather
+  /// than their `ChangeNotifier.dispose()`: these services are process-wide
+  /// singletons and the panel UI (potentially still mounted) listens to them.
+  /// Disposing would make any later `notifyListeners()` — and the UI's subsequent
+  /// `removeListener()` — assert in debug, and would break the "re-enable via
+  /// init" promise. Those `dispose()` overrides were dead code (no call sites
+  /// anywhere) and have been removed; `stop()` still releases everything.
   static Future<void> dispose() async {
     // 顺序很重要：ErrorService.install() 保存的“上一个 FlutterError.onError”
     // 正是日志拦截器的包装器。若先 stop 日志拦截器（其内部会把原始回调置
