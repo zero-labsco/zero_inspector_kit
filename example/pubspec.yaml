@@ -12,6 +12,7 @@ dependencies:
 
   zero_inspector_kit: 
     path: ../
+    version: 2.0.0
 
 
   dio: 5.11.0
