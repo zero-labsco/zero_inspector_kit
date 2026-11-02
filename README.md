@@ -115,6 +115,20 @@ dependencies:
       ref: release/v2.0.1   # replace 2.0.1 with the version you need
 ```
 
+### OpenHarmony (鸿蒙)
+
+> The OpenHarmony native port (ArkTS plugin) lives on the `ohos/vX.Y.Z` branch — `main` does not ship it. To use the inspector on OpenHarmony, install from that branch:
+
+```yaml
+dependencies:
+  zero_inspector_kit:
+    git:
+      url: https://github.com/zero-labsco/zero_inspector_kit.git
+      ref: ohos/v2.0.1   # replace 2.0.1 with the version you need
+```
+
+Requires the OpenHarmony Flutter SDK and DevEco Studio; the bundled `ohos/` native module must be built as part of your OHOS app.
+
 ---
 
 ## Usage

@@ -114,6 +114,20 @@ dependencies:
       ref: release/v2.0.1   # 将 2.0.1 替换为你需要的版本号
 ```
 
+### OpenHarmony（鸿蒙）
+
+> OpenHarmony 原生端口（ArkTS 插件）位于 `ohos/vX.Y.Z` 分支——`main` 不包含它。要在 OpenHarmony 上使用检查器，请从该分支安装：
+
+```yaml
+dependencies:
+  zero_inspector_kit:
+    git:
+      url: https://github.com/zero-labsco/zero_inspector_kit.git
+      ref: ohos/v2.0.1   # 将 2.0.1 替换为你需要的版本号
+```
+
+需配合 OpenHarmony Flutter SDK 与 DevEco Studio；随包提供的 `ohos/` 原生模块需作为你的 OHOS 应用的一部分一起构建。
+
 ---
 
 ## 使用方法

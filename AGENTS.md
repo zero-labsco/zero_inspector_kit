@@ -170,6 +170,7 @@ Full release + ohos sync checklist (the end-to-end flow each release):
 - [ ] Merge the code PR into `main` after the 3 required checks pass.
 - [ ] On `main`: `git pull`, then tag `vX.Y.Z` (triggers `pub-publish.yml`) and push the `release/vX.Y.Z` archive branch (per "Release and publish" above).
 - [ ] Create `ohos/vX.Y.Z` from `ohos/v<PRIOR>` and sync `main` (preserving `ohos/`, syncing `oh-package.json5` to `X.Y.Z`) per the runbook above.
+- [ ] Update the OpenHarmony install instructions in `README.md`, `README_zh.md` and `website/pages/Installation.md` to reference the new `ohos/vX.Y.Z` GitHub ref — the ArkTS native port only ships on the `ohos/v*` branches, so OpenHarmony users must install from there (not from `release/v*` or pub.dev). `README*` hardcodes the version (e.g. `ohos/v2.0.1`); the website page uses the `__ZIK_VERSION__` placeholder which fills automatically.
 - [ ] Cleanup: keep only `main`, `gh-pages`, `release/vX.Y.Z`, `ohos/vX.Y.Z` both locally and remotely. Delete the old `release/v*` / `ohos/v*` branches and the merged feature branch. (Never delete `gh-pages`.)
 
 ### Pub publish validation pitfalls (observed during v1.3.0)
