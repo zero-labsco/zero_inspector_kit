@@ -576,6 +576,20 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   /// MaterialApp 的 navigatorKey / MaterialApp's navigatorKey
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
+  /// 实际被注入观察者的 navigatorKey。
+  /// 宿主 MaterialApp 自带 `navigatorKey` 时，[ZeroInspectorKit] 会把宿主的 key
+  /// 透传给被装饰的 MaterialApp（见 [_decorateMaterialApp]），此时 `_navigatorKey`
+  /// 不再挂到任何 widget 上，其 `currentState` 永久为 null。若 [_initEntries] 仍用
+  /// `_navigatorKey` 取 Navigator，会陷入"每帧重试、浮层永不插入"的死循环，且悬浮
+  /// 按钮与面板完全不显示。因此记录真正被挂载的那把 key 供 [_initEntries] 使用。
+  /// The navigatorKey actually mounted into the decorated MaterialApp. When the
+  /// host MaterialApp supplies its own `navigatorKey`, [ZeroInspectorKit] forwards
+  /// that key (see [_decorateMaterialApp]) so `_navigatorKey` is never attached to
+  /// any widget and its `currentState` stays null forever. [_initEntries] must use
+  /// the real key, otherwise it loops every frame retrying and never inserts the
+  /// overlay — the floating button and panel vanish completely.
+  GlobalKey<NavigatorState>? _effectiveNavigatorKey;
+
   /// 面板打开状态监听 / Panel open state notifier
   final ValueNotifier<bool> _isPanelOpenNotifier = ValueNotifier(false);
 
@@ -617,7 +631,13 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   void _initEntries() {
     if (_initialized) return;
 
-    final navigatorState = _navigatorKey.currentState;
+    // 用实际挂载的 key：宿主 MaterialApp 自带 navigatorKey 时必须用那把 key，
+    // 否则 currentState 永久为 null，整段重试逻辑会每帧空转且浮层永不出现。
+    // Use the actually-mounted key: when the host MaterialApp supplies its own
+    // navigatorKey we must read that one, else currentState is always null and the
+    // retry loop spins every frame while the overlay is never inserted.
+    final navigatorKey = _effectiveNavigatorKey ?? _navigatorKey;
+    final navigatorState = navigatorKey.currentState;
     if (navigatorState == null) {
       // Navigator 尚未挂载，下一帧重试 / Navigator not mounted yet, retry next frame
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -871,9 +891,14 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   /// do not apply — route tracking is not yet supported for such apps (every
   /// other behavior is unaffected).
   MaterialApp _decorateMaterialApp(MaterialApp app) {
+    // 记录真正被挂载的那把 key：宿主自带 navigatorKey 时用宿主的，否则用内部
+    // `_navigatorKey`。[_initEntries] 据此取 Navigator，避免 key 错位导致浮层不显示。
+    // Record the actually-mounted key: prefer the host's own when present, else the
+    // internal `_navigatorKey`. [_initEntries] reads this to find the Navigator.
+    _effectiveNavigatorKey = app.navigatorKey ?? _navigatorKey;
     return MaterialApp(
       key: app.key,
-      navigatorKey: app.navigatorKey ?? _navigatorKey,
+      navigatorKey: _effectiveNavigatorKey,
       scaffoldMessengerKey: app.scaffoldMessengerKey,
       navigatorObservers: [
         ...(app.navigatorObservers ?? []),
@@ -919,6 +944,10 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   /// 回退包装：新建外层 MaterialApp 包裹 app（注入路由观察者的已知降级行为）。
   /// Decorated fallback: wrap app with a new outer MaterialApp.
   Widget _fallbackWrap(Widget app) {
+    // 回退路径：新建外层 MaterialApp 包裹，必然是内部 `_navigatorKey` 被挂载。
+    // Fallback path: a new outer MaterialApp is built, so the internal
+    // `_navigatorKey` is the one mounted.
+    _effectiveNavigatorKey = _navigatorKey;
     return MaterialApp(
       navigatorKey: _navigatorKey,
       builder: (context, child) {

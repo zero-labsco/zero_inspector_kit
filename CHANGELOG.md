@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.1
+
+### Fixed / 修复
+
+- Fixed the inspector overlay (floating button and panel) never appearing when the host `MaterialApp` supplies its own `navigatorKey`: `_InspectorAppWrapper._initEntries` resolved the navigator only via the internal `_navigatorKey`, which is never attached to any widget in that case, so `currentState` stayed `null` — the overlay insert retried every frame and never succeeded. It now uses the actually-mounted key (the host's `navigatorKey` when provided, else the internal one).
+  - 修复宿主 `MaterialApp` 自带 `navigatorKey` 时悬浮按钮与面板完全不显示的问题：`_InspectorAppWrapper._initEntries` 之前只用内部 `_navigatorKey` 取导航器，而该情况下它不会挂到任何 widget 上，`currentState` 永久为 `null`，导致浮层每帧重试却永不插入。现在改用真正被挂载的 key（宿主提供则用宿主的，否则用内部的）。
+
 ## 2.0.0
 
 ### Fixed / 修复
