@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本修复了宿主 `MaterialApp` 自带 `navigatorKey` 时悬浮按钮与面板完全不显示的问题——浮层现在会正确挂载到宿主的导航器上，不再陷入"每帧重试"的死循环。建议所有用户升级到最新版本（`^2.0.1`）。
+> **🔔 推荐升级：** 本版本新增全局 Zone 的关闭开关——向 `runAppWithInspector` 传入 `enablePrintZoneCapture: false` 即可彻底不引入任何全局 Zone——并补充了「非侵入式设计」文档：`HttpOverrides` 是在你原有配置之外链式包裹、被拦截的 `HttpClient` 是透明代理，因此你的重试 / 代理 / 拦截器逻辑绝不会被改动。建议所有用户升级到最新版本（`^2.1.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -36,6 +36,7 @@
 - [安装](#安装)
 - [使用方法](#使用方法)
   - [零侵入集成](#零侵入集成推荐)
+  - [非侵入式设计](#非侵入式设计)
   - [日志记录](#日志记录)
   - [异常监控](#异常监控)
   - [会话持久化](#会话持久化)
@@ -101,7 +102,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.0.1
+  zero_inspector_kit: ^2.1.0
 ```
 
 ### GitHub
@@ -111,7 +112,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.0.1   # 将 2.0.1 替换为你需要的版本号
+      ref: release/v2.1.0   # 将 2.1.0 替换为你需要的版本号
 ```
 
 ### OpenHarmony（鸿蒙）
@@ -123,7 +124,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.0.1   # 将 2.0.1 替换为你需要的版本号
+      ref: ohos/v2.1.0   # 将 2.1.0 替换为你需要的版本号
 ```
 
 需配合 OpenHarmony Flutter SDK 与 DevEco Studio；随包提供的 `ohos/` 原生模块需作为你的 OHOS 应用的一部分一起构建。
@@ -172,6 +173,30 @@ class MyApp extends StatelessWidget {
 | ✅ 路由追踪 | 通过 `InspectorRouteObserver`（自动注入 `MaterialApp`） |
 
 **生产构建**：检查器在 release 模式下会自动禁用——tree-shaking 会移除所有相关代码，你无需删除任何代码。
+
+> **不想有任何全局 Zone？** 上面的一行式集成用 `Zone` 包裹 `runApp`，**仅**是为了抓取裸 `print()`。如果你的团队对任何全局 Zone 都心存警惕，可以彻底拿掉它——`debugPrint()` 捕获与其余所有能力照常工作：
+>
+> ```dart
+> void main() {
+>   // 永远不会引入任何全局 Zone；仅保留 debugPrint 捕获。
+>   ZeroInspectorKit.runAppWithInspector(
+>     const MyApp(),
+>     enablePrintZoneCapture: false,
+>   );
+> }
+> ```
+
+### 非侵入式设计
+
+我们理解开发者对"第三方库劫持全局状态"天然保持警惕，`zero_inspector_kit` 从设计上就力求不挡你的路：
+
+- **`HttpOverrides` 是「链式包裹」而非「替换」。** 插件会在你应用已有的 `HttpOverrides`（代理 / 证书固定 / 自定义 `createHttpClient`）之外再套一层，并把每次调用都转发给原对象。你现有的重试逻辑、代理配置与拦截器完全不受影响——检查器只是「读」了一份流量副本。
+- **被拦截的 `HttpClient` 是透明代理。** `authenticate`、`findProxy`、`connectionFactory`、`badCertificateCallback`、`maxConnectionsPerHost` 等全部委托给你的真实 client，请求生命周期没有任何改动。
+- **`Zone` 极浅且可选。** 它仅用于抓取裸 `print()`；若 Flutter binding 已初始化则自动降级为空操作，你也可以用 `enablePrintZoneCapture: false` 把它彻底移除。
+- **一切都可经 `dispose()` 还原。** `dispose()` 会恢复你原本的 `FlutterError.onError`、还原先前的 `HttpOverrides`、停止所有定时器与监控并拆除浮层——因此你可以在运行时随时关闭采集（例如隐私侧的"停止采集"开关），之后再用 `init()` 重新开启。
+- **发布安全。** 所有采集代码在发布构建中都会被 tree-shake 掉，绝不会影响生产行为或包体积。
+
+它是 Flutter DevTools 的**补充**而非替代：开发期与评审期用应用内控制台做快速的在设备初判，需要权威的离线深度分析时（Heap Snapshot、CPU 性能分析）再交给 DevTools。
 
 ### 手动集成（更多控制权）
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0
+
+### Added / 新增
+
+- Added `enablePrintZoneCapture` to `ZeroInspectorKit.init()` and `ZeroInspectorKit.runAppWithInspector()` (default `true`). Set it to `false` to stop wrapping `runApp` in any global `Zone` — raw `print()` is then no longer captured, while `debugPrint` capture and every other capability stay on. This gives hosts wary of global `Zone` intrusion a full escape hatch, with no behavior change for existing one-line integrations.
+  - 在 `ZeroInspectorKit.init()` 与 `ZeroInspectorKit.runAppWithInspector()` 新增 `enablePrintZoneCapture`（默认 `true`）。设为 `false` 后将不再用任何全局 `Zone` 包裹 `runApp`——裸 `print()` 不再被捕获，而 `debugPrint` 捕获与其余所有能力照常工作。为警惕全局 Zone 侵入的宿主提供了彻底退出的逃生舱，且对既有的一行式集成零行为变更。
+
 ## 2.0.1
 
 ### Fixed / 修复
