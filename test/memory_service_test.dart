@@ -226,14 +226,21 @@ void main() {
           expect(svc.leakRecords[0].leakedAt, isNotNull);
           expect(svc.leakedCount, equals(1));
         } else {
-          // 无 VM Service：无法强制 GC，按设计不自动判泄漏（避免把已释放
-          // 但尚未回收的对象误报为泄漏），验证阶段保持 verifying。
-          // Without VM Service: GC cannot be forced, so by design we do NOT
-          // auto-flag a leak (avoids false positives for released-but-not-yet
-          // collected objects); the record stays in verifying.
-          await Future.delayed(const Duration(seconds: 4));
-          expect(svc.leakRecords[0].status, equals(LeakStatus.verifying));
-          expect(svc.leakedCount, equals(0));
+          // 无 VM Service：无法强制 GC，但**仍要**在验证等待结束后判定为疑似
+          // 泄漏 —— 此前这里要求 `_vmServiceAvailable` 才推进，导致 release 包 /
+          // 无 VM Service 的真机上记录永久停在 verifying，"疑似泄漏"永远不会
+          // 产生。触发 GC 只是加速验证的辅助手段。
+          // Without VM Service: GC cannot be forced, but the record **still** has
+          // to reach "suspected leak" once the verify wait elapses. This used to
+          // require `_vmServiceAvailable`, so on release builds / devices without a
+          // VM Service records stayed in `verifying` forever and no suspected leak
+          // was ever produced. Triggering GC only speeds verification up.
+          await waitFor(
+            () => svc.leakRecords[0].status == LeakStatus.leaked,
+            timeout: const Duration(seconds: 8),
+          );
+          expect(svc.leakRecords[0].status, equals(LeakStatus.leaked));
+          expect(svc.leakedCount, equals(1));
         }
       },
     );

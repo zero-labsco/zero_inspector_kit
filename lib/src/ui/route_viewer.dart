@@ -16,8 +16,25 @@ class RouteViewer extends StatefulWidget {
 }
 
 class _RouteViewerState extends State<RouteViewer> {
-  /// 当前选中的路由记录 / Currently selected route record
-  RouteEntry? _selectedRoute;
+  /// 当前选中路由记录的 **id**（而非对象引用）/ Id of the selected route record
+  ///
+  /// 与 LogViewer（`_selectedLogId`）/ NetworkViewer（`_selectedRequestId`）保持
+  /// 一致：持有对象引用时，`clearRoutes()` 之后详情仍会显示一条已被删除的路由。
+  /// Consistent with LogViewer (`_selectedLogId`) / NetworkViewer
+  /// (`_selectedRequestId`): holding the object meant the detail page kept showing
+  /// a route that `clearRoutes()` had already removed.
+  String? _selectedRouteId;
+
+  /// 按 id 从实时列表解析选中项；已被清理时返回 null。
+  /// Resolve the selection from the live list; null once it has been cleared.
+  RouteEntry? _findSelected(List<RouteEntry> routes) {
+    final id = _selectedRouteId;
+    if (id == null) return null;
+    for (final r in routes) {
+      if (r.id == id) return r;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +45,13 @@ class _RouteViewerState extends State<RouteViewer> {
           child: ListenableBuilder(
             listenable: InspectorService.instance.routeNotifier,
             builder: (context, child) {
-              if (_selectedRoute != null) {
-                return _buildRouteDetail(_selectedRoute!);
+              final routes = InspectorService.instance.routeEntries;
+              final selected = _findSelected(routes.toList());
+              if (selected != null) {
+                return _buildRouteDetail(selected);
               }
 
-              final routes = InspectorService.instance.routeEntries;
+              _selectedRouteId = null;
               return routes.isEmpty
                   ? InspectorEmptyState(
                       message: 'No routes yet',
@@ -55,7 +74,7 @@ class _RouteViewerState extends State<RouteViewer> {
     return ListenableBuilder(
       listenable: InspectorService.instance.routeNotifier,
       builder: (context, child) {
-        final isDetail = _selectedRoute != null;
+        final isDetail = _selectedRouteId != null;
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
@@ -68,7 +87,7 @@ class _RouteViewerState extends State<RouteViewer> {
                 InspectorIconButton(
                   icon: Icons.arrow_back_rounded,
                   tooltip: 'Back',
-                  onTap: () => setState(() => _selectedRoute = null),
+                  onTap: () => setState(() => _selectedRouteId = null),
                 )
               else
                 InspectorCountBadge(
@@ -104,7 +123,7 @@ class _RouteViewerState extends State<RouteViewer> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => setState(() => _selectedRoute = entry),
+        onTap: () => setState(() => _selectedRouteId = entry.id),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
@@ -226,6 +245,9 @@ Color _getActionColor(RouteAction action) {
       return InspectorColors.routePush;
     case RouteAction.pop:
     case RouteAction.popUntil:
+    // 移除同样表示"离开该页面"，与 pop 同色。
+    // Removal also means "leaving the page", so it shares pop's color.
+    case RouteAction.remove:
       return InspectorColors.routePop;
     case RouteAction.pushReplacement:
       return InspectorColors.routeReplace;

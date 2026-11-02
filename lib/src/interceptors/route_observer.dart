@@ -32,7 +32,12 @@ class InspectorRouteObserver extends RouteObserver<PageRoute<dynamic>> {
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didRemove(route, previousRoute);
-    _logRoute(route, RouteAction.pop);
+    // remove ≠ pop：`pushReplacement` / `removeRoute` / 页面被替换后销毁都会走到
+    // 这里，此前一律记成 `pop`，在路由面板里表现为多出一条动作错误的记录。
+    // remove ≠ pop: `pushReplacement` / `removeRoute` / a page destroyed after
+    // being replaced all land here, and every one of them used to be logged as
+    // `pop`, showing up in the Routes tab as a record with the wrong action.
+    _logRoute(route, RouteAction.remove);
   }
 
   /// 记录路由操作 / Record route operation

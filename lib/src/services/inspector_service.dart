@@ -184,9 +184,10 @@ class InspectorService {
   int _globalBodyBytes = 0;
 
   /// 剩余可用全局 body 预算 / Remaining global body budget
-  int get globalBodyRemaining => _maxGlobalBodyBytes - _globalBodyBytes < 0
-      ? 0
-      : _maxGlobalBodyBytes - _globalBodyBytes;
+  int get globalBodyRemaining {
+    final remaining = _maxGlobalBodyBytes - _globalBodyBytes;
+    return remaining < 0 ? 0 : remaining;
+  }
 
   /// 估算一条请求的 body 字节占用（UTF-8 字节，与全局预算单位一致）。
   /// Estimate a request's buffered body bytes (UTF-8, consistent with the budget unit).
@@ -199,6 +200,23 @@ class InspectorService {
       n += utf8.encode(r.responseBody.toString()).length;
     }
     return n;
+  }
+
+  /// 从全局 body 预算中扣减一条记录占用的字节（下限 0）。
+  /// Subtract one record's body bytes from the global budget (floored at 0).
+  ///
+  /// 只计算一次 [_bodyBytesOf]：它内部对 body / responseBody 各做一次
+  /// `utf8.encode`（最大各 32 KB），此前删除路径把同一表达式写了两遍，
+  /// 单条删除多花一倍、批量删除 N 条就是 2N 次全量编码。
+  /// [_bodyBytesOf] is computed once: it runs `utf8.encode` for both the body and
+  /// the response body (up to 32 KB each), and the removal paths used to evaluate
+  /// the same expression twice — 2x cost for a single delete, 2N full encodes for
+  /// a batched delete of N rows.
+  void _releaseBodyBytes(NetworkRequest r) {
+    final freed = _bodyBytesOf(r);
+    _globalBodyBytes = _globalBodyBytes - freed < 0
+        ? 0
+        : _globalBodyBytes - freed;
   }
 
   /// 配置容量上限与 body 预览截断长度 / Configure capacities and body preview cap
@@ -298,6 +316,16 @@ class InspectorService {
     _networkOrder.remove(request.id);
     _networkOrder.addFirst(request.id);
     _invalidateNetworkCache();
+    // 覆盖写入前先归还旧对象占用的全局 body 预算：此前只做去重、不扣预算，
+    // 旧请求的字节永远留在 `_globalBodyBytes` 里，预算单调膨胀，
+    // `globalBodyRemaining` 提前见底，代理侧会过早停止缓冲 body。
+    // Give back the overwritten entry's share of the global body budget first:
+    // this used to only dedupe without releasing the budget, so the old request's
+    // bytes stayed in `_globalBodyBytes` forever, the budget grew monotonically
+    // and `globalBodyRemaining` ran out early — making the proxy stop buffering
+    // bodies prematurely.
+    final previous = _networkById[request.id];
+    if (previous != null) _releaseBodyBytes(previous);
     _networkById[request.id] = request;
     _trimNetworkRequests();
     _globalBodyBytes += _bodyBytesOf(request);
@@ -428,7 +456,6 @@ class InspectorService {
   /// 添加日志条目 / Add log entry
   /// [entry] 日志条目对象 / Log entry object
   void addLogEntry(LogEntry entry) {
-    _logVersion++;
     final last = _logEntries.isNotEmpty ? _logEntries.first : null;
     if (last != null &&
         _isWithinReassembleWindow(last.timestamp, entry.timestamp)) {
@@ -442,6 +469,10 @@ class InspectorService {
       // previous multi-line text, e.g. a debugPrint wrap split); independent
       // logs whose whole message happens to match are never swallowed.
       if (sameTag && _isSplitFragment(last.message, msg)) {
+        // 数据完全没有变化，不 bump 版本号：UI 的过滤缓存按版本号失效，
+        // 在这里自增会让缓存每次都白重算一遍。
+        // Nothing changed, so do not bump the version: UI filter caches invalidate
+        // on the version counter, and bumping here made them recompute every time.
         return;
       }
       // 续行合并身份判定 / Reassembly identity check:
@@ -470,6 +501,7 @@ class InspectorService {
         );
         _logEntries.removeFirst();
         _logEntries.addFirst(merged);
+        _logVersion++;
         AlertService.instance.checkLog(merged);
         PersistenceService.instance.enqueueLog(merged);
         logNotifier.notifyThrottled();
@@ -478,6 +510,7 @@ class InspectorService {
     }
     _logEntries.addFirst(entry);
     _trimQueue(_logEntries, _maxLogItems);
+    _logVersion++;
     AlertService.instance.checkLog(entry);
     PersistenceService.instance.enqueueLog(entry);
     logNotifier.notifyThrottled();
@@ -585,9 +618,7 @@ class InspectorService {
     // Release the removed request's share of the global body budget; otherwise
     // the budget only ever grows and the proxy stops buffering bodies early.
     if (removed != null) {
-      _globalBodyBytes = _globalBodyBytes - _bodyBytesOf(removed) < 0
-          ? 0
-          : _globalBodyBytes - _bodyBytesOf(removed);
+      _releaseBodyBytes(removed);
     }
     _networkVersion++;
     _invalidateNetworkCache();
@@ -608,9 +639,7 @@ class InspectorService {
       final removed = _networkById.remove(id);
       if (removed != null) {
         removedAny = true;
-        _globalBodyBytes = _globalBodyBytes - _bodyBytesOf(removed) < 0
-            ? 0
-            : _globalBodyBytes - _bodyBytesOf(removed);
+        _releaseBodyBytes(removed);
       }
     }
     if (!removedAny) return;

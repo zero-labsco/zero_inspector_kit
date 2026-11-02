@@ -1389,9 +1389,32 @@ class _MemoryViewerState extends State<MemoryViewer> {
   /// If no tracking records at all, shows usage instruction text
   Widget _buildLeakDetectionCard() {
     final service = MemoryInspectorService.instance;
-    final trackingCount = service.trackingCount;
-    final leakedCount = service.leakedCount;
-    final releasedCount = service.releasedCount;
+    // 一次遍历同时拿到三个计数与两个分组列表：`trackingCount` /
+    // `leakedCount` / `releasedCount` 各自全量遍历 `_trackedRecords`，
+    // `leakedRecords` 也是每次新建 List 再滤一遍 —— 而本方法在内存采集开启时
+    // 每 500ms 被重建一次，且下面还重复访问了 `leakedRecords` 三次。
+    // One pass yields all three counts and both grouped lists: `trackingCount` /
+    // `leakedCount` / `releasedCount` each walk `_trackedRecords` in full and
+    // `leakedRecords` builds a new filtered List every call — while this method is
+    // rebuilt every 500ms once collection is on, and `leakedRecords` was accessed
+    // three more times below.
+    final leaked = <LeakRecord>[];
+    final tracking = <LeakRecord>[];
+    var releasedCount = 0;
+    for (final r in service.leakRecords) {
+      switch (r.status) {
+        case LeakStatus.tracking:
+        case LeakStatus.verifying:
+          tracking.add(r);
+        case LeakStatus.leaked:
+          leaked.add(r);
+        case LeakStatus.released:
+          releasedCount++;
+      }
+    }
+    tracking.sort((a, b) => b.trackedAt.compareTo(a.trackedAt));
+    final trackingCount = tracking.length;
+    final leakedCount = leaked.length;
     final total = trackingCount + leakedCount + releasedCount;
 
     return Container(
@@ -1510,12 +1533,12 @@ class _MemoryViewerState extends State<MemoryViewer> {
             if (leakedCount > 0) ...[
               _buildSectionTitle('Suspected Leaks', InspectorColors.error),
               const SizedBox(height: 8),
-              ...service.leakedRecords.take(50).map((r) => _buildLeakItem(r)),
-              if (service.leakedRecords.length > 50)
+              ...leaked.take(50).map((r) => _buildLeakItem(r)),
+              if (leaked.length > 50)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    '... and ${service.leakedRecords.length - 50} more',
+                    '... and ${leaked.length - 50} more',
                     style: TextStyle(
                       color: InspectorColors.textHint,
                       fontSize: 10,
@@ -1530,16 +1553,7 @@ class _MemoryViewerState extends State<MemoryViewer> {
             if (trackingCount > 0) ...[
               _buildSectionTitle('Tracking Objects', InspectorColors.info),
               const SizedBox(height: 8),
-              ...(service.leakRecords
-                      .where(
-                        (r) =>
-                            r.status == LeakStatus.tracking ||
-                            r.status == LeakStatus.verifying,
-                      )
-                      .toList()
-                    ..sort((a, b) => b.trackedAt.compareTo(a.trackedAt)))
-                  .take(50)
-                  .map((r) => _buildLeakItem(r)),
+              ...tracking.take(50).map((r) => _buildLeakItem(r)),
             ],
           ],
         ],

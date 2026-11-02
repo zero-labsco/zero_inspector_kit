@@ -398,10 +398,15 @@ class ExportService {
         ..writeln(memoryInfo);
     }
 
+    // 列表是**最新在前**（`InspectorService` 用 addFirst 维护），所以"最近 N 条"
+    // 是头部切片；此前写成 `sublist(length - N)`，取到的是会话**开头**最旧的
+    // N 条，报 bug 时给出的是最无关的数据。
+    // Lists are **newest-first** (InspectorService maintains them with addFirst),
+    // so "most recent N" is a head slice. This used to be `sublist(length - N)`,
+    // which took the N *oldest* entries from the start of the session — the least
+    // relevant data when reporting a bug.
     if (logs != null && logs.isNotEmpty) {
-      final sliced = logs.length > maxLogs
-          ? logs.sublist(logs.length - maxLogs)
-          : logs;
+      final sliced = logs.length > maxLogs ? logs.sublist(0, maxLogs) : logs;
       buf
         ..writeln()
         ..writeln(logsToText(sliced));
@@ -409,7 +414,7 @@ class ExportService {
 
     if (requests != null && requests.isNotEmpty) {
       final sliced = requests.length > maxRequests
-          ? requests.sublist(requests.length - maxRequests)
+          ? requests.sublist(0, maxRequests)
           : requests;
       buf
         ..writeln()
@@ -487,8 +492,6 @@ class ExportService {
   /// [LogEntry.levelText] — adding a level would likely miss one of them.
   /// It now reuses the single implementation on the model.
   static String _lvl(LogLevel l) => LogLevelText.of(l);
-
-  /// CSV 单元格转义：含逗号/引号/换行时用双引号包裹并转义内部引号。
 
   /// CSV 单元格转义：含逗号/引号/换行时用双引号包裹并转义内部引号。
   /// CSV cell escaping: wrap in quotes and escape inner quotes when needed.

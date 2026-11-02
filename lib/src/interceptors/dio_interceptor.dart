@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'http_interceptor.dart';
 import '../models/network_request.dart';
 import '../services/inspector_service.dart';
 
@@ -70,7 +71,18 @@ class InspectorDioInterceptor extends InspectorDioInterceptorBase {
     }
     if (requestId == null) {
       requestId = _generateId();
-      if (options['headers'] is Map) {
+      // 只有在 HttpClient 层拦截器运行时才注入关联头：它会在字节真正发出前
+      // （`_InspectorHttpClient.openUrl`）摘掉这个头。若宿主只挂了 Dio 拦截器、
+      // 没启用 HttpOverrides 拦截，`x-inspector-request-id` 就会真实发往服务端，
+      // 污染 HMAC / 签名、触发 CORS 预检并泄漏调试痕迹。
+      // Inject the correlation header only when the HttpClient-level interceptor
+      // is running: it strips the header right before the bytes go out (see
+      // `_InspectorHttpClient.openUrl`). If the host only installed the Dio
+      // interceptor without enabling the HttpOverrides one, `x-inspector-request-id`
+      // would really be sent to the server — polluting HMAC / signatures,
+      // triggering CORS preflight and leaking a debug marker.
+      if (InspectorHttpInterceptor.instance.isStarted &&
+          options['headers'] is Map) {
         options['headers'][_requestIdHeader] = requestId;
       }
     }
@@ -124,27 +136,36 @@ class InspectorDioInterceptor extends InspectorDioInterceptorBase {
   }
 
   /// 把 Dio 的 `data` 转成可安全存入 body 的值，规避两类问题：
-  /// - `responseType: stream` 时 data 是 ResponseBody（单次可读流）：既不读取也不
-  ///   close 会泄漏底层 socket，且 `toString()` 只会变成 "Instance of 'ResponseBody'"。
-  ///   这里按 run-time 特征识别（持有 `stream` 成员、且非字符串/Map/List），异步排空
-  ///   流以释放底层连接，body 记为 null（面板显示无 body）。本文件刻意不依赖 dio 包，
-  ///   故不引用 [ResponseBody] 类型，改用动态特征判断。
+  /// - `responseType: stream` 时 data 是 ResponseBody（单次可读流）：`toString()`
+  ///   只会变成 "Instance of 'ResponseBody'"，这里按 run-time 特征识别（持有
+  ///   `stream` 成员、且非字符串/Map/List）并记为占位说明。
+  ///   **绝不消费这个流**：它是 Dio 交给业务代码的那个 `ResponseBody`，一旦
+  ///   `listen` 排空，业务方随后读 `response.data.stream` 只会拿到空流或
+  ///   "Stream has already been listened to" —— 大文件下载 / SSE 场景业务数据被
+  ///   静默吞掉。此前这里正是这么做的（动机是"避免 socket 泄漏"），但泄漏与否
+  ///   由业务代码是否读取决定，与检查器无关。
   /// - `responseType: bytes` 时 data 是原始字节列表，直接持有会常驻内存且 `toString()`
   ///   巨大；按预览上限截断后存 base64 字符串。
-  /// Convert Dio `data` into a value safe to store as the body, avoiding two issues:
-  /// a stream ResponseBody (socket leak + useless toString) and unbounded byte lists.
-  /// This file deliberately does not depend on the `dio` package, so we detect the
-  /// stream case by its runtime shape (a `stream` member that is a Stream) instead of
+  /// Convert Dio `data` into a value safe to store as the body, handling two cases:
+  /// a stream ResponseBody (useless toString) and unbounded byte lists.
+  /// The stream is **never consumed**: it is the very `ResponseBody` Dio hands to
+  /// the business code, so draining it leaves the caller with an empty stream or
+  /// "Stream has already been listened to" — silently swallowing business data in
+  /// large-download / SSE scenarios. That is exactly what this code used to do
+  /// (motivated by "avoid a socket leak"), but whether the socket leaks is decided
+  /// by the business code reading it, not by the inspector.
+  /// This file deliberately does not depend on the `dio` package, so the stream case
+  /// is detected by its runtime shape (a `stream` member that is a Stream) instead of
   /// referencing the `ResponseBody` type.
   dynamic _previewBody(dynamic data) {
     if (data != null && data is! String && data is! Map && data is! List) {
-      // 可能是 ResponseBody：尝试读取 .stream 是否为 Stream，是则排空后记为 null。
-      // Possibly a ResponseBody: try to read `.stream`; drain it and record null.
+      // 可能是 ResponseBody：尝试读取 .stream 是否为 Stream，是则只记占位说明。
+      // Possibly a ResponseBody: try to read `.stream`; record a placeholder only.
       try {
         final s = data.stream;
         if (s is Stream) {
-          unawaited(s.listen((_) {}).asFuture().catchError((_) {}));
-          return null;
+          return '[Response body is a stream (responseType: stream); '
+              'not previewed]';
         }
       } catch (_) {
         // 没有 .stream 成员，按普通对象处理。

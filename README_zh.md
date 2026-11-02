@@ -19,7 +19,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本修复 Database 标签页两个失效的搜索框、日志累计满 500 条后过滤结果冻结、持久化环形缓冲写入重复行（多行日志 / 更新后的请求 / 重复命中的异常）、`dispose()` 顺序错误导致宿主的 `FlutterError.onError` 被永久替换为死回调，以及 toast 重复移除引发的断言崩溃；新增上次会话网络记录的回放开关（`enableNetworkReplay`）。建议所有用户升级到最新版本（`^1.17.0`）。
+> **🔔 推荐升级：** 本版本修复了宿主 `MaterialApp` 自带 `navigatorKey` 时悬浮按钮与面板完全不显示的问题——浮层现在会正确挂载到宿主的导航器上，不再陷入"每帧重试"的死循环。建议所有用户升级到最新版本（`^2.0.1`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -101,7 +101,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^1.17.0
+  zero_inspector_kit: ^2.0.1
 ```
 
 ### GitHub
@@ -111,7 +111,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v1.17.0   # 将 1.17.0 替换为你需要的版本号
+      ref: release/v2.0.1   # 将 2.0.1 替换为你需要的版本号
 ```
 
 ---

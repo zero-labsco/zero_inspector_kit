@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
@@ -49,7 +48,18 @@ class InspectorLogInterceptor {
   }
 
   /// 停止日志捕获 / Stop log capture
+  ///
+  /// 与 [start] 对称，未启动时不执行任何恢复动作。此前缺少这层守卫：未 start 就
+  /// stop、或宿主在 start **之后**自行安装了 Crashlytics / Sentry 的 handler 时，
+  /// 恢复动作会用启动瞬间的旧快照（可能为 null）覆盖宿主当前的
+  /// `FlutterError.onError`，导致宿主错误上报静默失效。
+  /// Symmetric to [start]: does nothing when not started. Without this guard,
+  /// stopping without starting — or after the host installed its own Crashlytics /
+  /// Sentry handler *after* start — replaced the host's current
+  /// `FlutterError.onError` with the snapshot taken at start time (possibly null),
+  /// silently breaking host error reporting.
   void stop() {
+    if (!_isStarted) return;
     _isStarted = false;
     _restoreDebugPrint();
     _restoreFlutterOnError();
@@ -202,17 +212,6 @@ class InspectorLogInterceptor {
   void error(String message, {String? tag}) =>
       log(LogLevel.error, message, tag: tag);
 
-  /// 通过 print 输出日志并捕获 / Output log via print and capture
-  void logPrint(String message) {
-    // 仅在调试模式输出到控制台，避免 release 包泄漏日志到 stdout。
-    // Only print to console in debug mode to avoid leaking logs in release builds.
-    assert(() {
-      debugPrint(message);
-      return true;
-    }());
-    captureLog(message, LogLevel.debug);
-  }
-
   /// 生成唯一的日志 ID / Generate unique log ID
   ///
   /// 使用单调递增计数器而非时间戳：第三方库同步逐行 print 的多行日志会在
@@ -224,6 +223,10 @@ class InspectorLogInterceptor {
   String _generateId() {
     return 'log_${_logIdCounter++}';
   }
+
+  /// ANSI 转义序列（颜色码）匹配模式，编译一次复用。
+  /// ANSI escape sequence (color code) pattern, compiled once and reused.
+  static final RegExp _ansiEscapePattern = RegExp(r'\x1B\[[0-9;]*[A-Za-z]');
 
   /// 根据日志内容自动识别日志级别 / Automatically detect log level based on message content
   /// 支持以下标准格式（方括号级别标记）：/ Supports the following standard formats (bracket level markers):
@@ -241,7 +244,12 @@ class InspectorLogInterceptor {
     var processed = message.trim();
 
     // 移除 ANSI 颜色代码（如 [34m[D] message[0m）/ Remove ANSI color codes (e.g., [34m[D] message[0m)
-    processed = processed.replaceAll(RegExp(r'\x1B\[[0-9;]*[A-Za-z]'), '');
+    //
+    // 正则提到静态常量：`detectLogLevel` 对**每一行** print / debugPrint 都会
+    // 调用，此前每调用一次就重新编译一次正则。
+    // The regex is a static constant: `detectLogLevel` runs for **every** print /
+    // debugPrint line, and it used to recompile the regex on every call.
+    processed = processed.replaceAll(_ansiEscapePattern, '');
 
     // 提取级别前缀（如 [D], [INFO]）/ Extract level prefix (e.g., [D], [INFO])
     String levelPrefix = '';
@@ -284,34 +292,9 @@ class InspectorLogInterceptor {
   }
 }
 
-/// 使用检查器 Zone 运行应用 / Run app with inspector Zone
-/// 通过 ZoneSpecification 捕获所有 print() 调用 / Capture all print() calls via ZoneSpecification
-/// [appRunner] 应用运行回调 / App runner callback
-void runInspectorApp(VoidCallback appRunner) {
-  InspectorLogInterceptor.instance.start();
-
-  runZonedGuarded(
-    appRunner,
-    (error, stackTrace) {
-      InspectorLogInterceptor.instance.captureLog(
-        error.toString(),
-        LogLevel.error,
-      );
-      InspectorLogInterceptor.instance.captureLog(
-        stackTrace.toString(),
-        LogLevel.error,
-      );
-    },
-    zoneSpecification: ZoneSpecification(
-      print: (self, parent, zone, line) {
-        // 先调用原始的 print 确保日志正常输出到控制台 / Call original print first to ensure normal console output
-        parent.print(zone, line);
-        // 识别日志级别并捕获 / Detect log level and capture
-        final level = InspectorLogInterceptor.instance.detectLogLevel(
-          line.toString(),
-        );
-        InspectorLogInterceptor.instance.captureLog(line.toString(), level);
-      },
-    ),
-  );
-}
+// `runInspectorApp` 已在 2.0.0 移除（此前是死代码：不挂载悬浮按钮与路由观察者，
+// 也没有启动网络 / 数据库 / 路由采集）。请改用
+// `ZeroInspectorKit.runAppWithInspector()`。
+// `runInspectorApp` was removed in 2.0.0 (it was dead code: it never installed the
+// floating button or the route observer, nor started network / database / route
+// capture). Use `ZeroInspectorKit.runAppWithInspector()` instead.

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_inspector_kit/src/interceptors/dio_interceptor.dart';
+import 'package:zero_inspector_kit/src/services/inspector_service.dart';
 
 /// 回归测试 / Regression tests
 ///
@@ -32,7 +33,13 @@ void main() {
           'headers': <String, dynamic>{},
         };
         interceptor.onRequest(options);
-        ids.add(options['headers']['x-inspector-request-id'] as String);
+        // 从记录本身取 ID：关联头只有在 HttpClient 层拦截器运行时才会注入（否则
+        // 调试头会真实发往服务端），因此不再从 headers 里读。
+        // Read the id from the record itself: the correlation header is only
+        // injected when the HttpClient-level interceptor is running (otherwise the
+        // debug header would really be sent to the server), so it is no longer read
+        // from `headers`.
+        ids.add(InspectorService.instance.networkRequests.first.id);
       }
       expect(
         ids.length,
@@ -54,7 +61,7 @@ void main() {
           'headers': <String, dynamic>{},
         };
         interceptor.onRequest(options);
-        ids.add(options['headers']['x-inspector-request-id'] as String);
+        ids.add(InspectorService.instance.networkRequests.first.id);
       }
       expect(ids.toSet().length, equals(ids.length));
     });

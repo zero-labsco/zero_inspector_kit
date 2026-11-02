@@ -99,8 +99,14 @@ void main() {
   );
 
   test(
-    'queryTable 返回第一个非空结果 / queryTable returns the first non-empty result',
+    'queryTable 返回第一个**未报错**的结果，合法的空表不会被跳过 / queryTable '
+    'returns the first non-error result; a legitimately empty table is not skipped',
     () async {
+      // 回归：此前用 `rows.isNotEmpty` 判定成功，一张合法的空表会让循环继续尝试
+      // 后面的 provider，把**另一个数据源**的内容当成这个 dbPath 的结果返回。
+      // Regression: this used to test `rows.isNotEmpty`, so a legitimately empty
+      // table made the loop keep trying later providers and could return another
+      // data source's content for this dbPath.
       DatabaseRegistry.instance.registerProvider(
         _FakeDatabaseProvider(
           'svc-a',
@@ -119,7 +125,8 @@ void main() {
         ),
       );
       final r = await DatabaseService.instance.queryTable('/p', 't');
-      expect(r.rows.length, 1);
+      expect(r.rows, isEmpty);
+      expect(r.hasError, isFalse);
     },
   );
 

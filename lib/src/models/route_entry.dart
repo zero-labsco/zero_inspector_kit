@@ -36,6 +36,8 @@ class RouteEntry {
         return 'Pop Until';
       case RouteAction.pushNamed:
         return 'Push Named';
+      case RouteAction.remove:
+        return 'Remove';
       case RouteAction.unknown:
         return 'Unknown';
     }
@@ -43,4 +45,24 @@ class RouteEntry {
 }
 
 /// 路由操作类型枚举 / Route action type enumeration
-enum RouteAction { push, pop, pushReplacement, popUntil, pushNamed, unknown }
+///
+/// [remove] 是新增值，对应 `NavigatorObserver.didRemove` —— 它既不是 push 也不是
+/// pop（`pushReplacement` / `removeRoute` / 页面被替换后销毁都会触发），此前被
+/// 错误地记成 `pop`。
+/// [remove] is a new value for `NavigatorObserver.didRemove`, which is neither a
+/// push nor a pop (it fires for `pushReplacement` / `removeRoute` / a page being
+/// destroyed after being replaced) and used to be mislabeled as `pop`.
+///
+/// 注意：新增枚举值对写了对本类型做**穷尽 switch 且无 default** 的调用方是
+/// 源码级不兼容的（Dart 3 会报未穷尽），因此放在 minor 版本而非补丁版本。
+/// Note: adding an enum value is source-incompatible for callers with an
+/// exhaustive switch and no `default`, which is why this ships in a minor release.
+enum RouteAction {
+  push,
+  pop,
+  pushReplacement,
+  popUntil,
+  pushNamed,
+  unknown,
+  remove,
+}

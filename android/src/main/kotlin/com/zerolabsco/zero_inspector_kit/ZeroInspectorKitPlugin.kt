@@ -31,16 +31,13 @@ class ZeroInspectorKitPlugin :
             "getPlatformVersion" -> {
                 result.success("Android ${android.os.Build.VERSION.RELEASE}")
             }
-            "getNativeLogs" -> {
-                val limit = call.argument<Int>("limit") ?: 100
-                result.success(getLogcatLogs(limit))
-            }
-            "startNativeLogListener" -> {
-                result.success(null)
-            }
-            "stopNativeLogListener" -> {
-                result.success(null)
-            }
+            // getNativeLogs / startNativeLogListener / stopNativeLogListener 已移除：
+            // Dart 侧的 PlatformChannel 位于 lib/src/ 且未导出，从未有人调用，原生
+            // 实现（logcat 读取 + 两个空实现）因此是死代码。
+            // getNativeLogs / startNativeLogListener / stopNativeLogListener were
+            // removed: the Dart-side PlatformChannel lives in lib/src/ and is not
+            // exported, so nobody ever called them and the native implementations
+            // (logcat reading + two no-ops) were dead code.
             "getProcessMemoryInfo" -> {
                 result.success(getProcessMemoryInfo())
             }
@@ -185,23 +182,6 @@ class ZeroInspectorKitPlugin :
             // 读取失败返回 0 / Return 0 on read failure
         }
         return 0L
-    }
-
-    private fun getLogcatLogs(limit: Int): List<String> {
-        val logs = mutableListOf<String>()
-        try {
-            val process = Runtime.getRuntime().exec("logcat -d -t $limit")
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-            var line: String?
-            while (reader.readLine().also { line = it } != null) {
-                logs.add(line!!)
-            }
-            reader.close()
-            process.waitFor()
-        } catch (e: Exception) {
-            logs.add("Error reading logcat: ${e.message}")
-        }
-        return logs
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {

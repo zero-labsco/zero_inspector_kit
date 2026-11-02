@@ -229,14 +229,28 @@ class NetworkRequest {
     if (bytes.length <= maxBytes) return str;
     // 按字节截断后再解码为合法字符串，避免截断在字符中途产生乱码。
     // Truncate by bytes, then decode back to a valid string (no mid-codeunit split).
+    // 先对齐到 UTF-8 字符边界再解码：此前用"解码失败就 end--"的回退，每回退
+    // 一个字节都要重新 sublist 出一份 ~32 KB 数组并完整解码一次（最坏 3 次
+    // 全量解码）。continuation 字节的特征是 `b & 0xC0 == 0x80`，从截断点向前
+    // 最多扫 3 字节即可找到 lead byte / ASCII，只做一次 sublist + 一次解码。
+    // Align to a UTF-8 character boundary *before* decoding: the old fallback
+    // ("decrement end and retry") re-`sublist`ed a ~32 KB array and fully decoded
+    // it for every byte walked back (up to 3 full decodes). Continuation bytes
+    // satisfy `b & 0xC0 == 0x80`, so scanning back at most 3 bytes from the cut
+    // finds the lead byte / ASCII — one sublist and one decode total.
     var end = maxBytes;
-    while (end > 0) {
-      try {
-        final slice = utf8.decode(bytes.sublist(0, end));
-        return '$slice\n[… truncated ${bytes.length - end} bytes …]';
-      } on FormatException {
-        end--;
-      }
+    final floor = maxBytes - 3;
+    while (end > floor && bytes[end] & 0xC0 == 0x80) {
+      end--;
+    }
+    if (end > 0) {
+      final slice = utf8.decode(
+        bytes.sublist(0, end),
+        // 极端情况（整段都是 continuation 字节）兜底，绝不抛异常。
+        // Fallback for pathological input (all continuation bytes) — never throws.
+        allowMalformed: true,
+      );
+      return '$slice\n[… truncated ${bytes.length - end} bytes …]';
     }
     return '[… truncated ${bytes.length} bytes …]';
   }

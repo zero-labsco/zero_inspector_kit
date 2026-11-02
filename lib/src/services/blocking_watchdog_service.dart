@@ -169,10 +169,4 @@ class BlockingWatchdogService extends ChangeNotifier {
     final line = message.split('\n').first.trim();
     return line.length <= 80 ? line : '${line.substring(0, 80)}…';
   }
-
-  @override
-  void dispose() {
-    stop();
-    super.dispose();
-  }
 }

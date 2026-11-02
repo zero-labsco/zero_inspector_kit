@@ -57,26 +57,30 @@ class _InspectorHttpClient implements HttpClient {
   /// 会被 HttpOverrides 拦截并显示在网络列表中，造成刷屏。
   /// WebSocket handshake is essentially an HTTP request with Upgrade: websocket,
   /// which gets intercepted by HttpOverrides and floods the network list.
-  /// 这里通过 URL path 以 `/ws` 结尾进行过滤（覆盖 VM Service 等常见端点）
-  /// Filters by URL path ending with `/ws` (covers common VM Service endpoints)
+  /// 判定依据是 `Upgrade: websocket` 头 + ws/wss scheme + Zone 标记，
+  /// **不再**用 "path 以 /ws 结尾" 猜测：那会把 `/api/ws`、`/notify/ws`
+  /// 这类普通 REST 接口一并静默剔除，它们在面板里完全不可见且无法配置。
+  /// Detection uses the `Upgrade: websocket` header + ws/wss scheme + the zone
+  /// marker, and no longer guesses from "path ends with /ws": that silently
+  /// filtered out ordinary REST endpoints like `/api/ws` and `/notify/ws`, making
+  /// them completely invisible in the panel with no way to opt out.
   bool _isWebSocketHandshake(HttpClientRequest request) {
     final upgrade = request.headers.value('upgrade');
     if (upgrade != null && upgrade.toLowerCase().contains('websocket')) {
       return true;
     }
-    return request.uri.path.endsWith('/ws');
+    return _isWebSocketRequest(request.uri);
   }
 
-  /// 通过 URL 判定是否为 WebSocket 握手（scheme ws/wss，或 path 以 /ws 结尾）。
+  /// 通过 URL 判定是否为 WebSocket 握手（仅 ws/wss scheme）。
   /// 注意：在 openUrl 阶段 header 尚未被 WebSocket.connect 写入 Upgrade 头
-  /// （它在 openUrl 返回之后才设置），因此必须用 URL scheme 判定，而非 upgrade 头。
-  /// Detect a WebSocket handshake via URL (ws/wss scheme, or /ws path). Note: at
-  /// openUrl time the Upgrade header is not set yet (WebSocket.connect writes it
-  /// AFTER openUrl resolves), so we rely on the URL scheme, not the header.
+  /// （它在 openUrl 返回之后才设置），因此这里只能用 URL scheme 判定。
+  /// Detect a WebSocket handshake via URL (ws/wss scheme only). Note: at openUrl
+  /// time the Upgrade header is not set yet (WebSocket.connect writes it AFTER
+  /// openUrl resolves), so only the URL scheme can be used here.
   bool _isWebSocketRequest(Uri url) {
     final scheme = url.scheme.toLowerCase();
-    if (scheme == 'ws' || scheme == 'wss') return true;
-    return url.path.endsWith('/ws');
+    return scheme == 'ws' || scheme == 'wss';
   }
 
   @override

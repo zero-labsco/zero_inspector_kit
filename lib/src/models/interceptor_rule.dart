@@ -58,6 +58,32 @@ class RequestInterceptorRule {
     this.responseBody,
   });
 
+  /// 编译后的正则（惰性、按实例缓存）/ Compiled regex (lazy, per-instance cache)
+  ///
+  /// `matches()` 会被热路径反复调用：`_InspectorResponseProxy._getRule()` 在
+  /// `statusCode` / `headers` / `contentLength` / `_wrappedStream` 四处被调用，
+  /// 而只读一次状态码就会走到两次全规则遍历 —— 每次都重新 `RegExp(pattern)`
+  /// 编译一份，是纯粹的浪费。[urlPattern] 是 final，缓存永远有效。
+  /// `matches()` runs on a hot path: `_InspectorResponseProxy._getRule()` is called
+  /// from `statusCode` / `headers` / `contentLength` / `_wrappedStream`, and
+  /// reading the status code once already triggers two full rule scans — each of
+  /// which used to recompile `RegExp(pattern)`. [urlPattern] is final, so the
+  /// cache is always valid.
+  RegExp? _cachedRegex;
+  bool _regexCompiled = false;
+
+  RegExp? get _regex {
+    if (!_regexCompiled) {
+      _regexCompiled = true;
+      try {
+        _cachedRegex = RegExp(urlPattern);
+      } catch (_) {
+        _cachedRegex = null;
+      }
+    }
+    return _cachedRegex;
+  }
+
   /// 判断是否匹配指定的请求 / Check if matches the specified request
   /// [url] 请求URL / Request URL
   /// [method] 请求方法 / Request method
@@ -70,12 +96,8 @@ class RequestInterceptorRule {
     if (!methodMatches) return false;
 
     if (useRegex) {
-      try {
-        final regex = RegExp(urlPattern);
-        return regex.hasMatch(url);
-      } catch (_) {
-        return false;
-      }
+      final regex = _regex;
+      return regex?.hasMatch(url) ?? false;
     } else {
       return url == urlPattern;
     }

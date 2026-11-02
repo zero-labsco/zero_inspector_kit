@@ -14,30 +14,43 @@ part 'inspector_response_proxy.dart';
 /// Trim the byte prefix guaranteed to survive preview truncation, so we never
 /// decode the tail that gets thrown away.
 ///
-/// 面板对 body 只保留头部 [maxChars] 个字符（[NetworkRequest.copyWith] 按字符
+/// 面板对 body 只保留头部 [maxBytes] 个字节（[NetworkRequest.copyWith] 按字节
 /// 截断），而缓冲字节最多可达 512 KB —— 直接 `utf8.decode` 整段会把绝大部分
-/// 解码成本花在随后被丢弃的尾巴上（512 KB 对 32 K 字符，纯 ASCII 下 16 倍浪费）。
-/// The panel keeps only the leading [maxChars] characters of a body
-/// ([NetworkRequest.copyWith] truncates by character), while the buffered bytes
-/// can reach 512 KB — decoding all of it spends most of the cost on a tail that
-/// is discarded right after (16x waste for pure ASCII).
+/// 解码成本花在随后被丢弃的尾巴上（512 KB 对 32 KB，纯 ASCII 下 16 倍浪费）。
+/// The panel keeps only the leading [maxBytes] bytes of a body
+/// ([NetworkRequest.copyWith] truncates by byte), while the buffered bytes can
+/// reach 512 KB — decoding all of it spends most of the cost on a tail that is
+/// discarded right after (16x waste for pure ASCII).
 ///
-/// UTF-8 中一个字符最多占 4 字节，因此 `maxChars * 4 + 3` 字节足以产出满额的
-/// [maxChars] 个字符；额外多取 3 字节是为了不把多字节字符切在中间 —— 那会让
-/// `utf8.decode` 抛错并被误判成"二进制响应"。
-/// One UTF-8 character is at most 4 bytes, so `maxChars * 4 + 3` bytes can
-/// always yield a full [maxChars] characters; the extra 3 bytes keep us from
-/// cutting a multi-byte character in half, which would make `utf8.decode` throw
-/// and get misread as a "binary response".
+/// 截断点必须落在 UTF-8 字符边界上，否则 `utf8.decode` 会抛 `FormatException`，
+/// 下游把它当成"非 UTF-8"处理，一段**完全合法**的中文 / emoji 正文就会被显示成
+/// `[Binary response — N bytes]`。判据是：continuation 字节的特征为
+/// `b & 0xC0 == 0x80`，因此从截断点向前回退（最多 3 字节，即一个字符的最大
+/// continuation 长度）直到遇到 lead byte 或 ASCII 字节即可对齐。
+/// 此前的 `maxChars * 4 + 3` 写法并不能保证对齐：多出来的 3 字节只是把截断点
+/// 挪远，同样可能**制造**新的跨界。
+/// The cut must land on a UTF-8 character boundary, otherwise `utf8.decode`
+/// throws `FormatException`, downstream treats it as "not UTF-8" and a perfectly
+/// valid CJK / emoji body is rendered as `[Binary response — N bytes]`. The test
+/// is: a continuation byte satisfies `b & 0xC0 == 0x80`, so walk back from the
+/// cut (at most 3 bytes — the max continuation length of one character) until a
+/// lead byte or an ASCII byte is found. The previous `maxChars * 4 + 3` did not
+/// guarantee alignment: the extra 3 bytes merely moved the cut and could just as
+/// easily *create* a new split.
 ///
-/// [maxChars] <= 0 表示不限制，原样返回（调用方未取到配置时的安全默认）。
-/// [maxChars] <= 0 means no limit — returns as-is (safe default when the caller
+/// [maxBytes] <= 0 表示不限制，原样返回（调用方未取到配置时的安全默认）。
+/// [maxBytes] <= 0 means no limit — returns as-is (safe default when the caller
 /// could not read the configured cap).
-List<int> _bytesForPreviewDecode(List<int> bytes, int maxChars) {
-  if (maxChars <= 0) return bytes;
-  final limit = maxChars * 4 + 3;
-  if (bytes.length <= limit) return bytes;
-  return bytes.sublist(0, limit);
+List<int> _bytesForPreviewDecode(List<int> bytes, int maxBytes) {
+  if (maxBytes <= 0) return bytes;
+  if (bytes.length <= maxBytes) return bytes;
+  var end = maxBytes;
+  final floor = maxBytes - 3;
+  while (end > floor && bytes[end] & 0xC0 == 0x80) {
+    end--;
+  }
+  if (end <= 0) return const <int>[];
+  return bytes.sublist(0, end);
 }
 
 /// HTTP 请求拦截器 / HTTP request interceptor

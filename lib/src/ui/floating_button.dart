@@ -124,9 +124,37 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
   @override
   void dispose() {
     AlertService.instance.unreadCount.removeListener(_onUnreadChanged);
-    _dockListener = null;
+    _clearDockAnimation();
     _dockController.dispose();
     super.dispose();
+  }
+
+  /// 摘掉并丢弃当前吸附动画的监听器 / Detach and drop the current dock listener
+  ///
+  /// 必须真正 `removeListener`，不能只把字段置 null：`_dockAnim` 是
+  /// `Tween.animate(CurvedAnimation(parent: _dockController, ...))`，
+  /// `addListener` 会沿 `AnimationWithParentMixin` 把 `CurvedAnimation` 挂到
+  /// **同一个 `_dockController`** 上。仅置 null 只断开 State 的字段引用，控制器
+  /// 到 listener 的引用链完好 —— 每次"拖动 → 松手吸附"都会多挂一个永不移除的
+  /// listener，下次 `forward()` 时旧 listener 仍会用旧的 begin/end/side 执行
+  /// setState，与新动画争抢 `_x`（表现为小球抖动 / 回跳）。
+  /// Must call `removeListener`, not just null the fields: `_dockAnim` is
+  /// `Tween.animate(CurvedAnimation(parent: _dockController, ...))` and
+  /// `addListener` attaches the `CurvedAnimation` to the **same
+  /// `_dockController`** via `AnimationWithParentMixin`. Nulling the fields only
+  /// drops the State's references while the controller→listener link stays
+  /// intact — every "drag → release to dock" cycle attached another listener that
+  /// is never removed, and the next `forward()` made stale listeners setState with
+  /// their old begin/end/side, fighting the new animation over `_x` (visible as
+  /// the ball jittering / snapping back).
+  void _clearDockAnimation() {
+    final anim = _dockAnim;
+    final listener = _dockListener;
+    if (anim != null && listener != null) {
+      anim.removeListener(listener);
+    }
+    _dockAnim = null;
+    _dockListener = null;
   }
 
   /// 未读告警数变化 → 触发重绘红点 / Unread alert change → repaint red dot
@@ -234,10 +262,11 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
   void _handlePanStart(DragStartDetails details) {
     _isDragging = true;
     _dragStart = details.globalPosition;
-    // 取消进行中的吸附动画 / Cancel running dock animation
+    // 取消进行中的吸附动画（必须真正摘掉 listener，见 [_clearDockAnimation]）
+    // Cancel the running dock animation (the listener must really be removed —
+    // see [_clearDockAnimation]).
     _dockController.stop();
-    _dockAnim = null;
-    _dockListener = null;
+    _clearDockAnimation();
     // 解除吸附状态，_x 保持当前实际位置 / Undock; keep _x at its actual current position
     setState(() => _dockSide = _DockSide.none);
     _startX = _x;
@@ -293,9 +322,7 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
       });
       return;
     }
-    if (_dockAnim != null && _dockListener != null) {
-      _dockAnim!.removeListener(_dockListener!);
-    }
+    _clearDockAnimation();
     _dockAnim = Tween<double>(begin: startX, end: targetX).animate(
       CurvedAnimation(parent: _dockController, curve: Curves.easeOutCubic),
     );

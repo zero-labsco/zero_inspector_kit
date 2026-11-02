@@ -2,28 +2,22 @@ import Darwin
 import Flutter
 import UIKit
 
+/// 注：控制台日志监听（`getNativeLogs` / `startNativeLogListener` /
+/// `stopNativeLogListener`）已整体移除。Dart 侧的 `PlatformChannel` 位于
+/// `lib/src/` 且未被 barrel 导出，消费方无法调用、包内也零调用点，因此这套
+/// 进程级 stdout / stderr `dup2` 重定向永远不会被触发 —— 它却是一个一旦开启
+/// 就无法还原的全局副作用。
+/// Note: the console-log listener (`getNativeLogs` / `startNativeLogListener` /
+/// `stopNativeLogListener`) was removed entirely. The Dart-side `PlatformChannel`
+/// lives in `lib/src/` and is not exported by the barrel, so consumers cannot call
+/// it and nothing inside the package did — meaning this process-wide `dup2`
+/// redirection of stdout / stderr could never be triggered, while being a global
+/// side effect that cannot be undone once started.
 public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
-    private var logs: [String] = []
     /// 系统内存压力状态，由内存压力监听维护，驱动 lowMemory 字段
     /// System memory-pressure state, maintained by the memory-pressure monitor and driving the lowMemory field
     private var isUnderMemoryPressure = false
     private var memoryPressureSource: DispatchSourceMemoryPressure?
-
-    // MARK: - 控制台日志监听 / Console log listener
-
-    /// 控制台日志环形缓冲上限：无界增长会把宿主 App 的全部打印堆在内存里。
-    /// Cap for the console-log ring buffer: unbounded growth would pile every
-    /// host print into memory.
-    private static let maxConsoleLogEntries = 500
-
-    /// 重定向前备份的原始 stdout / stderr 描述符，stopLogListener 据此还原。
-    /// Backed-up original stdout / stderr descriptors, restored by stopLogListener.
-    private var savedStdoutFd: Int32?
-    private var savedStderrFd: Int32?
-
-    /// 管道读取端，stop 时摘除 readabilityHandler 并关闭。
-    /// The pipe's read end; its handler is removed and the handle closed on stop.
-    private var consoleReadHandle: FileHandle?
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "zero_inspector_kit", binaryMessenger: registrar.messenger())
@@ -36,18 +30,6 @@ public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
         switch call.method {
         case "getPlatformVersion":
             result("iOS " + UIDevice.current.systemVersion)
-        case "getNativeLogs":
-            if let limit = call.arguments as? [String: Any], let limitValue = limit["limit"] as? Int {
-                result(getConsoleLogs(limit: limitValue))
-            } else {
-                result(getConsoleLogs(limit: 100))
-            }
-        case "startNativeLogListener":
-            startLogListener()
-            result(nil)
-        case "stopNativeLogListener":
-            stopLogListener()
-            result(nil)
         case "getProcessMemoryInfo":
             result(getProcessMemoryInfo())
         default:
@@ -176,68 +158,5 @@ public class ZeroInspectorKitPlugin: NSObject, FlutterPlugin {
         }
         source.resume()
         memoryPressureSource = source
-    }
-
-    private func getConsoleLogs(limit: Int) -> [String] {
-        return Array(logs.suffix(limit))
-    }
-
-    /// 开始把进程 stdout / stderr 重定向到管道并收集控制台日志。
-    /// Start redirecting the process stdout / stderr into a pipe and collect console logs.
-    ///
-    /// 三个此前的缺陷在这里修复 / Three previous defects fixed here:
-    /// 1. 重定向是**进程级**的，stop 时若不还原 fd，宿主 App 的 print 会永久
-    ///    写进一个无人再读的管道（管道缓冲区写满后写入方甚至会阻塞）。
-    ///    The redirection is process-wide; without restoring the fds on stop,
-    ///    host prints stay trapped in a pipe nobody reads (writes can even
-    ///    block once the pipe buffer fills).
-    /// 2. `logs` 无上限增长 —— 改为环形缓冲（`maxConsoleLogEntries` 量级）。
-    ///    `logs` grew without bound — now a ring buffer.
-    /// 3. 重复 start 会叠加多层重定向、再也无法还原 —— 加重入守卫。
-    ///    Repeated starts stacked redirects that could never be undone — guarded.
-    private func startLogListener() {
-        guard consoleReadHandle == nil else { return }
-        let pipe = Pipe()
-        let fileHandle = pipe.fileHandleForReading
-
-        // 先备份原始 fd 再重定向，stop 时才有得还原。
-        // Back up the original fds before redirecting so stop can restore them.
-        savedStdoutFd = dup(STDOUT_FILENO)
-        savedStderrFd = dup(STDERR_FILENO)
-        dup2(pipe.fileHandleForWriting.fileDescriptor, STDOUT_FILENO)
-        dup2(pipe.fileHandleForWriting.fileDescriptor, STDERR_FILENO)
-
-        consoleReadHandle = fileHandle
-        fileHandle.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            guard let string = String(data: data, encoding: .utf8) else { return }
-            let line = string.trimmingCharacters(in: .newlines)
-            guard !line.isEmpty, let self else { return }
-            self.logs.append(line)
-            if self.logs.count > ZeroInspectorKitPlugin.maxConsoleLogEntries {
-                self.logs.removeFirst(
-                    self.logs.count - ZeroInspectorKitPlugin.maxConsoleLogEntries
-                )
-            }
-        }
-    }
-
-    /// 停止监听：还原 stdout / stderr、摘除 handler、关闭管道并清空缓冲。
-    /// Stop listening: restore stdout / stderr, detach the handler, close the pipe and clear the buffer.
-    private func stopLogListener() {
-        if let fd = savedStdoutFd {
-            dup2(fd, STDOUT_FILENO)
-            close(fd)
-            savedStdoutFd = nil
-        }
-        if let fd = savedStderrFd {
-            dup2(fd, STDERR_FILENO)
-            close(fd)
-            savedStderrFd = nil
-        }
-        consoleReadHandle?.readabilityHandler = nil
-        try? consoleReadHandle?.close()
-        consoleReadHandle = nil
-        logs.removeAll()
     }
 }

@@ -249,9 +249,10 @@ class ZeroInspectorKit {
     // Widget 树与网络瀑布图默认开启（快照式，不影响运行时性能，无需开关）。
     // Widget tree & network waterfall are on by default (snapshot-based, no
     // runtime cost, so no user toggle needed).
-    if (enableWidgetInspector) {
-      WidgetTreeService.instance.isEnabled = true;
-    }
+    // 传 false 也要真的关掉：此前只在 true 时赋值，`enableWidgetInspector: false`
+    // 完全无效。A false value must actually disable it: this used to assign only
+    // when true, so `enableWidgetInspector: false` had no effect at all.
+    WidgetTreeService.instance.isEnabled = enableWidgetInspector;
     // 预置网络瀑布图偏好（详情页默认展示时间轴）。
     // Pre-seed the timeline preference (detail page shows the timeline by default).
     InspectorService.instance.preferNetworkTimeline = enableNetworkTimeline;
@@ -321,6 +322,20 @@ class ZeroInspectorKit {
   /// Typical use: at the end of integration tests, or when the host app wants to
   /// switch off debug collection at runtime (e.g. a privacy "stop collecting"
   /// toggle). Call [init] again to re-enable.
+  ///
+  /// 这里刻意调用各服务的 `stop()` / `stopMonitoring()`，而**不是**它们的
+  /// `ChangeNotifier.dispose()`：这些服务是进程级单例，且面板 UI（可能仍然挂载）
+  /// 正监听着它们。一旦 dispose，之后任何 `notifyListeners()` 以及 UI 侧随后的
+  /// `removeListener()` 都会在 debug 下断言崩溃，而且"dispose 后可再 init
+  /// 重新启用"的承诺也会被打破。此前这几个 `dispose()` 覆写全仓无人调用（死
+  /// 代码），现已移除；释放监听的工作仍由各自的 `stop()` 完成。
+  /// This deliberately calls each service's `stop()` / `stopMonitoring()` rather
+  /// than their `ChangeNotifier.dispose()`: these services are process-wide
+  /// singletons and the panel UI (potentially still mounted) listens to them.
+  /// Disposing would make any later `notifyListeners()` — and the UI's subsequent
+  /// `removeListener()` — assert in debug, and would break the "re-enable via
+  /// init" promise. Those `dispose()` overrides were dead code (no call sites
+  /// anywhere) and have been removed; `stop()` still releases everything.
   static Future<void> dispose() async {
     // 顺序很重要：ErrorService.install() 保存的“上一个 FlutterError.onError”
     // 正是日志拦截器的包装器。若先 stop 日志拦截器（其内部会把原始回调置
@@ -561,6 +576,20 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   /// MaterialApp 的 navigatorKey / MaterialApp's navigatorKey
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
+  /// 实际被注入观察者的 navigatorKey。
+  /// 宿主 MaterialApp 自带 `navigatorKey` 时，[ZeroInspectorKit] 会把宿主的 key
+  /// 透传给被装饰的 MaterialApp（见 [_decorateMaterialApp]），此时 `_navigatorKey`
+  /// 不再挂到任何 widget 上，其 `currentState` 永久为 null。若 [_initEntries] 仍用
+  /// `_navigatorKey` 取 Navigator，会陷入"每帧重试、浮层永不插入"的死循环，且悬浮
+  /// 按钮与面板完全不显示。因此记录真正被挂载的那把 key 供 [_initEntries] 使用。
+  /// The navigatorKey actually mounted into the decorated MaterialApp. When the
+  /// host MaterialApp supplies its own `navigatorKey`, [ZeroInspectorKit] forwards
+  /// that key (see [_decorateMaterialApp]) so `_navigatorKey` is never attached to
+  /// any widget and its `currentState` stays null forever. [_initEntries] must use
+  /// the real key, otherwise it loops every frame retrying and never inserts the
+  /// overlay — the floating button and panel vanish completely.
+  GlobalKey<NavigatorState>? _effectiveNavigatorKey;
+
   /// 面板打开状态监听 / Panel open state notifier
   final ValueNotifier<bool> _isPanelOpenNotifier = ValueNotifier(false);
 
@@ -602,7 +631,13 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   void _initEntries() {
     if (_initialized) return;
 
-    final navigatorState = _navigatorKey.currentState;
+    // 用实际挂载的 key：宿主 MaterialApp 自带 navigatorKey 时必须用那把 key，
+    // 否则 currentState 永久为 null，整段重试逻辑会每帧空转且浮层永不出现。
+    // Use the actually-mounted key: when the host MaterialApp supplies its own
+    // navigatorKey we must read that one, else currentState is always null and the
+    // retry loop spins every frame while the overlay is never inserted.
+    final navigatorKey = _effectiveNavigatorKey ?? _navigatorKey;
+    final navigatorState = navigatorKey.currentState;
     if (navigatorState == null) {
       // Navigator 尚未挂载，下一帧重试 / Navigator not mounted yet, retry next frame
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -680,6 +715,8 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
 
   /// 构建面板内容 / Build panel content
   ///
+  /// 构建面板内容 / Build panel content
+  ///
   /// 采用分层结构避免"点背景关闭"被误触发：
   /// - 底层：覆盖全屏的透明 GestureDetector（onTap: 关闭面板）
   /// - 上层：居中面板内容，内部 GestureDetector(onTap: (){}) 消费点击，
@@ -693,13 +730,13 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   /// tapping the panel itself never bubbles to the close layer. The previous
   /// single opaque GestureDetector was occasionally hit by a synthetic pointer
   /// event when InspectorPanel rebuilt from MemoryInspectorService's frequent
-  /// 构建面板内容 / Build panel content
+  /// notifyListeners, which auto-closed the panel once memory monitoring was on.
   ///
-  /// 用 ScaffoldMessenger + 全屏 Scaffold 包裹整个面板浮层：面板内所有
+  /// 同时用 ScaffoldMessenger + 全屏 Scaffold 包裹整个面板浮层：面板内所有
   /// `ScaffoldMessenger.of(context)` 会就近解析到这个 ScaffoldMessenger，提示
   /// 因此被渲染进面板所在的那一层 Overlay、且位于面板之上（不会被面板遮挡）。
-  /// Uses ScaffoldMessenger + a full-screen Scaffold to host the whole panel
-  /// overlay, so `ScaffoldMessenger.of(context)` inside the panel resolves here
+  /// It also wraps the whole panel overlay in a ScaffoldMessenger + full-screen
+  /// Scaffold, so `ScaffoldMessenger.of(context)` inside the panel resolves here
   /// and toasts render into the same overlay layer — above the panel.
   Widget _buildPanelContent() {
     return ScaffoldMessenger(
@@ -854,9 +891,14 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   /// do not apply — route tracking is not yet supported for such apps (every
   /// other behavior is unaffected).
   MaterialApp _decorateMaterialApp(MaterialApp app) {
+    // 记录真正被挂载的那把 key：宿主自带 navigatorKey 时用宿主的，否则用内部
+    // `_navigatorKey`。[_initEntries] 据此取 Navigator，避免 key 错位导致浮层不显示。
+    // Record the actually-mounted key: prefer the host's own when present, else the
+    // internal `_navigatorKey`. [_initEntries] reads this to find the Navigator.
+    _effectiveNavigatorKey = app.navigatorKey ?? _navigatorKey;
     return MaterialApp(
       key: app.key,
-      navigatorKey: app.navigatorKey ?? _navigatorKey,
+      navigatorKey: _effectiveNavigatorKey,
       scaffoldMessengerKey: app.scaffoldMessengerKey,
       navigatorObservers: [
         ...(app.navigatorObservers ?? []),
@@ -902,6 +944,10 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
   /// 回退包装：新建外层 MaterialApp 包裹 app（注入路由观察者的已知降级行为）。
   /// Decorated fallback: wrap app with a new outer MaterialApp.
   Widget _fallbackWrap(Widget app) {
+    // 回退路径：新建外层 MaterialApp 包裹，必然是内部 `_navigatorKey` 被挂载。
+    // Fallback path: a new outer MaterialApp is built, so the internal
+    // `_navigatorKey` is the one mounted.
+    _effectiveNavigatorKey = _navigatorKey;
     return MaterialApp(
       navigatorKey: _navigatorKey,
       builder: (context, child) {
