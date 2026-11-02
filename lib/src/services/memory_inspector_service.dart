@@ -631,12 +631,13 @@ class MemoryInspectorService extends ChangeNotifier {
         _currentProcessRss = nativeRss;
       }
 
-      // 通过 liveNotifier 通知（500ms tick 已合并最新 Native 数据），
-      // 不再触发主 ChangeNotifier，避免内存页整页每 3s 重建。
-      // Notify via liveNotifier (latest Native data is already merged into the
-      // snapshot every 500ms), not the main ChangeNotifier, so the memory page
-      // is no longer fully rebuilt every 3s.
-      _liveNotifier.notifyListeners();
+      // 缓存字段已更新；500ms 的 _refreshMemoryData tick 会把最新 Native 数据并入
+      // 每个快照，数值未变时它本身也会跳过重绘，因此这里不再额外通知——否则会与
+      // tick 重叠触发一次多余的浮层重建。
+      // Cache fields are updated above; the 500ms _refreshMemoryData tick already
+      // merges this latest native data into every snapshot (and skips the rebuild
+      // when values are unchanged), so notifying here is redundant and would cause
+      // a needless overlay rebuild every 3s.
     } catch (_) {}
   }
 
@@ -708,9 +709,20 @@ class MemoryInspectorService extends ChangeNotifier {
         await _fetchDartHeapData();
       }
 
-      // 3. 创建并保存快照（合并 Native + Dart Heap 数据）
-      // 3. Create and save snapshot (merging Native + Dart Heap data)
+      // 3. 创建快照（合并 Native + Dart Heap 数据）
+      // 3. Create snapshot (merging Native + Dart Heap data)
       final snapshot = _buildSnapshot();
+
+      // 空闲（内存数据未变化）时不入历史、不通知，避免每 500ms 无谓重建浮层、省电。
+      // 趋势图按索引等距绘制且末值取最新快照，因此跳过重复点不会造成视觉异常。
+      // When idle (sampled values unchanged), skip history + notify so the overlay
+      // is not rebuilt every 500ms — saves battery. The trend chart is index-spaced
+      // and reads the latest value, so dropping flat points is visually harmless.
+      if (_memorySnapshots.isNotEmpty &&
+          _memorySnapshots.last.hasSameValues(snapshot)) {
+        return;
+      }
+
       _memorySnapshots.add(snapshot);
 
       // 4. 限制历史快照数量，移除最旧的数据

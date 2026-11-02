@@ -352,6 +352,42 @@ class MemorySnapshot {
     );
   }
 
+  /// 判断与 [other] 的**展示字段**是否完全一致（忽略 [timestamp]）。
+  /// 用于在采样数值未变化时跳过新增快照与通知，避免空闲 App 每 500ms 无谓重建浮层。
+  /// Whether this snapshot's displayed fields equal [other]'s, ignoring
+  /// [timestamp]. Used to skip recording a new snapshot (and notifying listeners)
+  /// when the sampled memory values are unchanged, so an idle app does not rebuild
+  /// the overlay every 500ms.
+  bool hasSameValues(MemorySnapshot other) {
+    return processRss == other.processRss &&
+        totalPss == other.totalPss &&
+        dalvikPss == other.dalvikPss &&
+        nativePss == other.nativePss &&
+        nativePrivateDirty == other.nativePrivateDirty &&
+        dalvikPrivateDirty == other.dalvikPrivateDirty &&
+        totalPrivateDirty == other.totalPrivateDirty &&
+        totalRss == other.totalRss &&
+        nativeRss == other.nativeRss &&
+        dalvikRss == other.dalvikRss &&
+        physicalFootprint == other.physicalFootprint &&
+        internalCompressed == other.internalCompressed &&
+        internalSize == other.internalSize &&
+        deviceTotalMem == other.deviceTotalMem &&
+        deviceAvailMem == other.deviceAvailMem &&
+        isLowMemory == other.isLowMemory &&
+        isNativeDataAvailable == other.isNativeDataAvailable &&
+        heapUsage == other.heapUsage &&
+        heapCapacity == other.heapCapacity &&
+        externalUsage == other.externalUsage &&
+        newSpaceUsage == other.newSpaceUsage &&
+        newSpaceCapacity == other.newSpaceCapacity &&
+        newSpaceExternalUsage == other.newSpaceExternalUsage &&
+        oldSpaceUsage == other.oldSpaceUsage &&
+        oldSpaceCapacity == other.oldSpaceCapacity &&
+        oldSpaceExternalUsage == other.oldSpaceExternalUsage &&
+        isHeapDataAvailable == other.isHeapDataAvailable;
+  }
+
   /// 转换为 JSON Map / Convert to JSON Map
   ///
   /// 用于序列化存储或调试输出

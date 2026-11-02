@@ -7,6 +7,11 @@
 - Fixed the inspector overlay (floating button and panel) never appearing when the host `MaterialApp` supplies its own `navigatorKey`: `_InspectorAppWrapper._initEntries` resolved the navigator only via the internal `_navigatorKey`, which is never attached to any widget in that case, so `currentState` stayed `null` — the overlay insert retried every frame and never succeeded. It now uses the actually-mounted key (the host's `navigatorKey` when provided, else the internal one).
   - 修复宿主 `MaterialApp` 自带 `navigatorKey` 时悬浮按钮与面板完全不显示的问题：`_InspectorAppWrapper._initEntries` 之前只用内部 `_navigatorKey` 取导航器，而该情况下它不会挂到任何 widget 上，`currentState` 永久为 `null`，导致浮层每帧重试却永不插入。现在改用真正被挂载的 key（宿主提供则用宿主的，否则用内部的）。
 
+### Changed / 优化
+
+- Reduced needless inspector-overlay rebuilds while memory is idle: `_refreshMemoryData` no longer appends a new snapshot or notifies listeners when the sampled memory values are unchanged (the trend chart is index-spaced and reads the latest value, so dropping flat points is visually harmless). The 3-second native memory poll also stopped emitting a redundant `liveNotifier` notification, since the 500ms refresh tick already folds the latest native data into every snapshot.
+  - 降低空闲时浮层无谓重建：采样内存数值未变化时，`_refreshMemoryData` 不再新增快照或通知监听者（趋势图按索引等距绘制且取最新值，跳过持平点不会造成视觉异常）。3 秒原生内存轮询也去掉了一次多余的 `liveNotifier` 通知——500ms 刷新 tick 本就会把最新 Native 数据并入每个快照。
+
 ## 2.0.0
 
 ### Fixed / 修复
