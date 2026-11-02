@@ -1,6 +1,6 @@
 {
   "name": "zero_inspector_kit",
-  "version": "1.12.0",
+  "version": "2.0.1",
   "description": "One-line in-app developer console for Flutter on OpenHarmony.",
   "main": "index.ets",
   "author": "",
