@@ -131,6 +131,47 @@ Notes / 说明:
 7. `pub-publish.yml` publishes via `k-paxian/dart-package-publisher@v1.6` using the `PUB_CREDENTIALS_JSON` secret (fields `accessToken`, `refreshToken`; set `flutter: true`). Do NOT pass OIDC fields (`idToken` / `tokenEndpoint` / `scopes`); the action does not support them and emits invalid-input warnings.
    - Note: `k-paxian` internally uses older actions that emit Node 20 deprecation warnings. This is accepted (B1 decision); functionality is unaffected.
 
+### OpenHarmony (ohos) version sync
+
+The OpenHarmony (ArkTS) native port lives ONLY on the `ohos/v*` branches. `main` does NOT contain the `ohos/` directory (it was intentionally removed from the primary plugin history), but every other file (`lib/`, `ios/`, `android/`, `test/`, `example/`, `pubspec.yaml`, `README*`, `CHANGELOG.md`, `analysis_options.yaml`) is the same published plugin code as `main`. So each new release's OpenHarmony port is produced by taking `main`'s shared code at version `X.Y.Z` and re-attaching the `ohos/` native directory from the previous `ohos/v<PRIOR>` branch. This is why the shared (non-native) code "just syncs" between `main` and the ohos port — only the `ohos/` native tree differs.
+
+Why a plain `git merge main` is WRONG here: `main` has no `ohos/` tree, so merging it into an `ohos/v*` branch DELETES the OpenHarmony native files and breaks the build. The sync MUST preserve `ohos/`.
+
+Prerequisites: the release has already been cut on `main` (tag `vX.Y.Z` + `release/vX.Y.Z` archive branch, per the "Release and publish" steps above), and a previous `ohos/v<PRIOR>` branch exists (e.g. `ohos/v1.17.0`).
+
+Runbook:
+1. `git fetch --all`.
+2. Branch from the previous ohos release: `git checkout -b ohos/vX.Y.Z origin/ohos/v<PRIOR>` (e.g. `ohos/v2.0.1` from `origin/ohos/v1.17.0`).
+3. Merge `main` but PRESERVE the ohos native tree. Because `main` removed `ohos/`, use `--no-commit` and restore it before committing:
+   ```bash
+   git merge origin/main --no-commit --no-ff --no-edit
+   # main has no ohos/ tree, so the merge would delete it — restore from the base:
+   git checkout ohos/v<PRIOR> -- ohos/
+   git add ohos/
+   # Take main's version of all shared (non-ohos) code so the port tracks X.Y.Z:
+   git checkout --theirs -- lib pubspec.yaml pubspec.lock README.md README_zh.md \
+     CHANGELOG.md ios android test example analysis_options.yaml
+   git add -A
+   git commit -m "Merge main (X.Y.Z) into ohos/vX.Y.Z: preserve ohos/ native, bump to X.Y.Z"
+   ```
+   - The shared directories come from `main` (already at `X.Y.Z` after the main release, so no separate version bump is needed for `pubspec.yaml` / `ios` podspec / `README` / `CHANGELOG`).
+   - Keep ONLY `ohos/` from the previous ohos branch.
+   - Verify: `git ls-tree -r HEAD -- ohos/ | head` lists the native files (e.g. `ZeroInspectorKitPlugin.ets`), and `grep '^version' pubspec.yaml` shows `X.Y.Z`.
+4. **Sync the ohos package version.** `ohos/oh-package.json5` carries `"version"` (the ArkTS HAR/package version). Bump it to match the plugin `X.Y.Z` (e.g. `2.0.1`) so the OpenHarmony port is traceable to the plugin release — this is the convention the maintainer established (the port version intentionally tracks the plugin version). Commit and push:
+   ```bash
+   git commit -am "chore(ohos): bump oh-package version to X.Y.Z"
+   git push
+   ```
+   - Note: `ohos/src/main/module.json5` and `ohos/build-profile.json5` have NO `version` field, so nothing else to bump there.
+5. Push the branch: `git push -u origin ohos/vX.Y.Z`.
+6. The OpenHarmony build cannot be verified in this repo (no ohos SDK / DevEco toolchain). The maintainer must build and verify on an OpenHarmony dev environment.
+
+Full release + ohos sync checklist (the end-to-end flow each release):
+- [ ] Merge the code PR into `main` after the 3 required checks pass.
+- [ ] On `main`: `git pull`, then tag `vX.Y.Z` (triggers `pub-publish.yml`) and push the `release/vX.Y.Z` archive branch (per "Release and publish" above).
+- [ ] Create `ohos/vX.Y.Z` from `ohos/v<PRIOR>` and sync `main` (preserving `ohos/`, syncing `oh-package.json5` to `X.Y.Z`) per the runbook above.
+- [ ] Cleanup: keep only `main`, `gh-pages`, `release/vX.Y.Z`, `ohos/vX.Y.Z` both locally and remotely. Delete the old `release/v*` / `ohos/v*` branches and the merged feature branch. (Never delete `gh-pages`.)
+
 ### Pub publish validation pitfalls (observed during v1.3.0)
 `dart pub publish` (run by `pub-publish.yml`) performs validation that FAILS the build (exit 65) on certain warnings. The following were hit and the fixes applied. Re-verify with `flutter pub publish --dry-run` before tagging.
 
