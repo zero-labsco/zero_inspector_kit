@@ -16,7 +16,14 @@ class InspectorReplayEditor extends StatefulWidget {
   /// 原始被重放的请求 / The original captured request
   final NetworkRequest request;
 
-  const InspectorReplayEditor({super.key, required this.request});
+  /// 关闭回调：由展示层（OverlayEntry / 模态）注入，用于关闭浮层。
+  /// 未提供时回退到 [Navigator.of(context).pop]，以兼容旧的调用方式。
+  /// Close callback injected by the presenter (OverlayEntry / dialog) to dismiss
+  /// the overlay. Falls back to [Navigator.of(context).pop] when null, for
+  /// backward compatibility with the old showModalBottomSheet usage.
+  final VoidCallback? onClose;
+
+  const InspectorReplayEditor({super.key, required this.request, this.onClose});
 
   @override
   State<InspectorReplayEditor> createState() => _InspectorReplayEditorState();
@@ -145,7 +152,13 @@ class _InspectorReplayEditorState extends State<InspectorReplayEditor> {
                   ),
                   const Spacer(),
                   TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      if (widget.onClose != null) {
+                        widget.onClose!();
+                      } else {
+                        Navigator.of(context).pop();
+                      }
+                    },
                     child: Text(
                       'Close',
                       style: TextStyle(
@@ -325,12 +338,70 @@ class _ParamRow {
       value = TextEditingController(text: v);
 }
 
-/// 显示可编辑重放弹窗 / Show the editable replay sheet
+/// 显示可编辑重放编辑器 / Show the editable replay editor
+///
+/// 不用 showModalBottomSheet：本面板是插入宿主 Navigator Overlay 的浮层，
+/// sheet 的 route 在嵌套 Navigator 下会被推入内层 Overlay，渲染在面板之下
+/// （正是此前弹窗被主面板挡住的问题）。这里改向 root overlay 手动插入独立
+/// OverlayEntry，与持久化弹层、toast 同一条已验证能显示在面板之上的通道。
+/// Why not showModalBottomSheet: the inspector panel itself is an overlay layer
+/// inserted into the host Navigator's Overlay. Under a nested Navigator the sheet
+/// route can land on an inner Overlay and render *under* the panel (the exact bug
+/// reported). Instead we insert a dedicated OverlayEntry into the root overlay —
+/// the same verified channel the toast / persisted sheet use (always above panel).
 void showReplayEditor(BuildContext context, NetworkRequest request) {
-  showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => InspectorReplayEditor(request: request),
+  final messenger = Overlay.of(context, rootOverlay: true);
+  late final OverlayEntry entry;
+  void close() => entry.remove();
+  entry = OverlayEntry(
+    builder: (_) => _ReplayEditorOverlay(request: request, onClose: close),
   );
+  messenger.insert(entry);
+}
+
+/// 重放编辑器的浮层包装：全屏遮罩 + 底部对齐的编辑器卡片。
+/// Overlay wrapper for the replay editor: a full-screen barrier plus a
+/// bottom-aligned editor card.
+class _ReplayEditorOverlay extends StatelessWidget {
+  const _ReplayEditorOverlay({required this.request, required this.onClose});
+
+  final NetworkRequest request;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final screen = MediaQuery.of(context).size;
+    return Material(
+      type: MaterialType.transparency,
+      child: Stack(
+        children: [
+          // 全屏遮罩：点空白关闭 / Full-screen barrier: tap to dismiss
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onClose,
+              child: Container(color: Colors.black.withValues(alpha: 0.5)),
+            ),
+          ),
+          // 底部对齐的编辑器卡片 / Bottom-aligned editor card
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: SafeArea(
+              top: false,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: screen.width,
+                  maxHeight: screen.height * 0.9,
+                ),
+                child: InspectorReplayEditor(
+                  request: request,
+                  onClose: onClose,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

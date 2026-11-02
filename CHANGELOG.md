@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.1
+
+### Fixed / 修复
+
+- Fixed the inspector overlay (floating button and panel) never appearing when the host `MaterialApp` supplies its own `navigatorKey`: `_InspectorAppWrapper._initEntries` resolved the navigator only via the internal `_navigatorKey`, which is never attached to any widget in that case, so `currentState` stayed `null` — the overlay insert retried every frame and never succeeded. It now uses the actually-mounted key (the host's `navigatorKey` when provided, else the internal one).
+  - 修复宿主 `MaterialApp` 自带 `navigatorKey` 时悬浮按钮与面板完全不显示的问题：`_InspectorAppWrapper._initEntries` 之前只用内部 `_navigatorKey` 取导航器，而该情况下它不会挂到任何 widget 上，`currentState` 永久为 `null`，导致浮层每帧重试却永不插入。现在改用真正被挂载的 key（宿主提供则用宿主的，否则用内部的）。
+  - 修复重放编辑器在嵌套导航器下被主面板盖住的问题：`showReplayEditor` 原先使用 `showModalBottomSheet`，其 route 可能落在内层 Overlay、渲染在面板之下。现已改为向 root overlay 插入独立 `OverlayEntry`（与 toast / 持久化弹层同一条已验证通道），编辑器始终绘制在面板之上。
+  - 修复拦截规则面板在检查器面板内溢出 / 被裁切的问题：原先写死 `MediaQuery.size.height * 0.85` 高度，在极小屏 / 横屏下面板可用区域更小，会被裁切。现改用 `Positioned` 约束到可用区域，内容区（ListView）内部滚动。
+
+### Changed / 优化
+
+- Reduced needless inspector-overlay rebuilds while memory is idle: `_refreshMemoryData` no longer appends a new snapshot or notifies listeners when the sampled memory values are unchanged (the trend chart is index-spaced and reads the latest value, so dropping flat points is visually harmless). The 3-second native memory poll also stopped emitting a redundant `liveNotifier` notification, since the 500ms refresh tick already folds the latest native data into every snapshot.
+  - 降低空闲时浮层无谓重建：采样内存数值未变化时，`_refreshMemoryData` 不再新增快照或通知监听者（趋势图按索引等距绘制且取最新值，跳过持平点不会造成视觉异常）。3 秒原生内存轮询也去掉了一次多余的 `liveNotifier` 通知——500ms 刷新 tick 本就会把最新 Native 数据并入每个快照。
+
 ## 2.0.0
 
 ### Fixed / 修复
