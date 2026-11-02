@@ -383,12 +383,21 @@ class _NetworkViewerState extends State<NetworkViewer> {
               if (_showInterceptorPanel &&
                   _editingRule != null &&
                   _selectedRequest != null)
-                InterceptorRulePanel(
-                  request: _selectedRequest!,
-                  initialRule: _editingRule!,
-                  onSave: _saveRule,
-                  onDelete: _deleteRule,
-                  onClose: _closePanel,
+                // 受约束于可用区域，避免固定 0.85*屏幕高在更小的面板内被裁切/溢出。
+                // Bounded to the available area so the fixed 0.85*screen height no
+                // longer overflows / gets clipped inside the smaller panel region.
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  top: 12,
+                  bottom: 12,
+                  child: InterceptorRulePanel(
+                    request: _selectedRequest!,
+                    initialRule: _editingRule!,
+                    onSave: _saveRule,
+                    onDelete: _deleteRule,
+                    onClose: _closePanel,
+                  ),
                 ),
             ],
           ),
@@ -1811,11 +1820,15 @@ class _InterceptorRulePanelState extends State<InterceptorRulePanel> {
 
   @override
   Widget build(BuildContext context) {
+    // 高度不再写死：由外部 Positioned 约束到可用区域，内容区（ListView）可滚动，
+    // 这样在极小屏 / 横屏 / 键盘弹起时都不会溢出或被裁切。
+    // Height is no longer hard-coded: the caller bounds it via Positioned, and the
+    // content area (ListView) scrolls, so it never overflows or gets clipped on
+    // tiny / landscape screens or when the keyboard is up.
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
       decoration: BoxDecoration(
         color: InspectorColors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
