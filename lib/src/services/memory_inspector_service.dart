@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../models/leak_record.dart';
 import '../models/memory_snapshot.dart';
+import '../models/class_allocation_entry.dart';
 import '../platform/platform_channel.dart';
 import 'database_provider.dart';
 import 'sqlite_provider.dart';
@@ -346,6 +347,11 @@ class MemoryInspectorService extends ChangeNotifier {
   /// 当前老生代外部内存使用量 / Current old space external memory usage
   int _currentOldSpaceExternalUsage = 0;
 
+  /// 类分配直方图（来自 VM Service `getAllocationProfile`，按需抓取，非轮询）
+  /// Class allocation histogram (from VM Service `getAllocationProfile`,
+  /// fetched on demand, not polled).
+  List<ClassAllocationEntry> _allocationProfile = const [];
+
   /// 获取当前 Dart Heap 已使用大小 / Get current Dart Heap used size
   int get currentHeapUsage => _currentHeapUsage;
 
@@ -366,6 +372,15 @@ class MemoryInspectorService extends ChangeNotifier {
 
   /// 获取当前老生代已使用大小 / Get current old space used size
   int get currentOldSpaceUsage => _currentOldSpaceUsage;
+
+  /// 获取类分配直方图（按占用字节降序）/ Get the class allocation histogram (bytes desc)
+  ///
+  /// 为空表示尚未抓取；调用 [fetchAllocationProfile] 按需加载。
+  /// Empty means not yet fetched; call [fetchAllocationProfile] to load on demand.
+  List<ClassAllocationEntry> get allocationProfile => _allocationProfile;
+
+  /// 是否已抓取过类分配直方图 / Whether a class allocation histogram has been fetched
+  bool get hasAllocationProfile => _allocationProfile.isNotEmpty;
 
   /// 获取当前老生代容量 / Get current old space capacity
   int get currentOldSpaceCapacity => _currentOldSpaceCapacity;
@@ -573,6 +588,9 @@ class MemoryInspectorService extends ChangeNotifier {
     _currentOldSpaceUsage = 0;
     _currentOldSpaceCapacity = 0;
     _currentOldSpaceExternalUsage = 0;
+
+    // 清空类分配直方图 / Clear class allocation histogram
+    _allocationProfile = const [];
   }
 
   /// 检测当前平台是否支持 Native 内存采集
@@ -1333,6 +1351,64 @@ class MemoryInspectorService extends ChangeNotifier {
       // Immediately refresh data once so user can see GC effect
       await _fetchDartHeapData();
       _currentProcessRss = ProcessInfo.currentRss;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 抓取类分配直方图 / Fetch the class allocation histogram
+  ///
+  /// 调用 VM Service 的 `getAllocationProfile` RPC，返回每个 Dart 类的实例数与字节数，
+  /// 按占用字节降序排列，可直接看出"哪类对象最占内存 / 哪类在涨"。
+  /// Calls VM Service `getAllocationProfile` and returns per-class instance counts
+  /// and bytes (sorted by bytes desc) — shows at a glance which classes dominate
+  /// memory or are growing (see `ClassAllocationEntry.newBytes`).
+  ///
+  /// 与 500ms 轮询不同，这是**按需**抓取（该 RPC 比 getMemoryUsage 重），由 UI 按钮触发。
+  /// Unlike the 500ms poll, this is **on-demand** (heavier than getMemoryUsage),
+  /// triggered by a UI button.
+  ///
+  /// 返回 true 表示成功 / Returns true on success; false if VM Service is unavailable.
+  Future<bool> fetchAllocationProfile() async {
+    if (!_vmServiceAvailable) return false;
+    if (!_useWebSocket && _vmServiceHttpUri == null) return false;
+    if (_useWebSocket && _vmServiceWsUri == null) return false;
+
+    // 如果尚未获取到主 isolate ID，先尝试获取一次
+    // If main isolate ID is not yet obtained, try to get it once
+    if (_mainIsolateId == null) {
+      final ok = await _validateVmServiceConnection();
+      if (!ok || _mainIsolateId == null) return false;
+    }
+
+    try {
+      final Map<String, dynamic> data;
+      if (_useWebSocket) {
+        // WebSocket 模式 / WebSocket mode
+        data = await _callWebSocketRpc('getAllocationProfile', {
+          'isolateId': _mainIsolateId,
+        }).timeout(const Duration(seconds: 5));
+      } else {
+        // HTTP 模式 / HTTP mode
+        final response = await http
+            .get(
+              Uri.parse(
+                '$_vmServiceHttpUri/getAllocationProfile?isolateId=$_mainIsolateId',
+              ),
+              headers: {'Content-Type': 'application/json'},
+            )
+            .timeout(const Duration(seconds: 5));
+
+        if (response.statusCode != 200) return false;
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      }
+
+      // VM Service 返回格式：{ type: 'AllocationProfile', classes: [...] }
+      if (data['type'] != 'AllocationProfile') return false;
+
+      _allocationProfile = ClassAllocationEntry.fromJson(data);
       notifyListeners();
       return true;
     } catch (_) {

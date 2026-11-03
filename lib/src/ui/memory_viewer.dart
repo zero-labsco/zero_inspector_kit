@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'theme/inspector_theme.dart';
 import '../utils/formatters.dart';
 import '../models/leak_record.dart';
+import '../models/class_allocation_entry.dart';
 import '../services/memory_inspector_service.dart';
 import 'inspector_toast.dart';
 import 'memory_trend_chart.dart';
@@ -100,6 +101,8 @@ class _MemoryViewerState extends State<MemoryViewer> {
                 listenable: service.liveNotifier,
                 builder: (context, _) => _buildHeapDetailsCard(),
               ),
+              const SizedBox(height: 12),
+              _buildAllocationHistogramCard(),
               const SizedBox(height: 12),
               _buildLeakDetectionCard(),
               const SizedBox(height: 12),
@@ -1383,6 +1386,172 @@ class _MemoryViewerState extends State<MemoryViewer> {
   /// - 追踪中对象列表（显示类型、标签、注册时间、预期释放时间）
   ///   Tracking object list (shows type, tag, register time, expected release time)
   /// - "Clear All" 按钮：清空所有追踪记录
+  /// 构建类分配直方图卡片 / Build class allocation histogram card
+  ///
+  /// 通过 VM Service `getAllocationProfile` 按需抓取每个 Dart 类的实例数与字节数，
+  /// 按占用字节降序展示，并标出上次 GC 以来新分配（在涨）的类。
+  /// On-demand `getAllocationProfile` snapshot: per-class instance counts and bytes,
+  /// sorted by bytes desc, with a "+new" badge for classes grown since last GC.
+  /// 仅在 debug/profile 模式（VM Service 可用）下可用。
+  /// Only available in debug/profile mode (when VM Service is reachable).
+  Widget _buildAllocationHistogramCard() {
+    final service = MemoryInspectorService.instance;
+    final available = service.vmServiceAvailable;
+    final profile = service.allocationProfile;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: InspectorColors.card,
+        borderRadius: BorderRadius.circular(InspectorDimensions.cardRadius),
+        border: Border.all(color: InspectorColors.border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.bar_chart_rounded,
+                size: 16,
+                color: InspectorColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Class Allocation',
+                style: TextStyle(
+                  color: InspectorColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              _buildVmServiceStatusChip(available),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (available)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    icon: Icons.refresh_rounded,
+                    label: 'Load /\nRefresh',
+                    color: InspectorColors.accent,
+                    onTap: () async {
+                      final ok = await service.fetchAllocationProfile();
+                      if (mounted) {
+                        _showToast(
+                          ok
+                              ? 'Class allocation loaded'
+                              : 'Failed (VM Service unavailable)',
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          const SizedBox(height: 12),
+          if (!available)
+            _buildUnavailableRow(
+              'Class allocation requires VM Service\n'
+              'Available in debug/profile mode only',
+            )
+          else if (profile.isEmpty)
+            _buildUnavailableRow('Tap "Load" to capture a class histogram')
+          else ...[
+            _buildSectionTitle('Top by size', InspectorColors.textSecondary),
+            const SizedBox(height: 8),
+            ...profile.take(50).map(_buildClassRow),
+            if (profile.length > 50)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  '... and ${profile.length - 50} more classes',
+                  style: TextStyle(
+                    color: InspectorColors.textHint,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 构建单条类分配行 / Build a single class allocation row
+  Widget _buildClassRow(ClassAllocationEntry entry) {
+    final hasGrowth = entry.newBytes > 0 || entry.newInstances > 0;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+      decoration: BoxDecoration(
+        color: InspectorColors.surface,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: InspectorColors.border.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              entry.className,
+              style: TextStyle(
+                color: InspectorColors.textPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                formatBytes(entry.bytes),
+                style: TextStyle(
+                  color: InspectorColors.textPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                '${entry.instances} objs',
+                style: TextStyle(color: InspectorColors.textHint, fontSize: 9),
+              ),
+            ],
+          ),
+          if (hasGrowth) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: InspectorColors.warning.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '+${formatBytes(entry.newBytes)}',
+                style: TextStyle(
+                  color: InspectorColors.warning,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 构建泄漏检测卡片 / Build leak detection card
+  ///
   ///   "Clear All" button: clear all tracking records
   ///
   /// 若无任何追踪记录，显示使用说明文案

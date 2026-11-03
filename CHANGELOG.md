@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.0
+
+### Added / 新增
+
+- Added `enablePrintZoneCapture` to `ZeroInspectorKit.init()` and `ZeroInspectorKit.runAppWithInspector()` (default `true`). Set it to `false` to stop wrapping `runApp` in any global `Zone` — raw `print()` is then no longer captured, while `debugPrint` capture and every other capability stay on. This gives hosts wary of global `Zone` intrusion a full escape hatch, with no behavior change for existing one-line integrations.
+  - 在 `ZeroInspectorKit.init()` 与 `ZeroInspectorKit.runAppWithInspector()` 新增 `enablePrintZoneCapture`（默认 `true`）。设为 `false` 后将不再用任何全局 `Zone` 包裹 `runApp`——裸 `print()` 不再被捕获，而 `debugPrint` 捕获与其余所有能力照常工作。为警惕全局 Zone 侵入的宿主提供了彻底退出的逃生舱，且对既有的一行式集成零行为变更。
+- Added an **on-demand class allocation histogram** to the Memory panel: tap "Load / Refresh" to call the VM Service `getAllocationProfile` RPC and list every Dart class by retained bytes (descending), with a `+new` badge marking classes grown since the last GC. It is fetched only on demand (not polled) to keep overhead low, and is exclusive to debug/profile mode where VM Service is reachable — deep object-graph / retaining-path analysis stays with official DevTools.
+  - 在内存面板新增**按需抓取的类分配直方图**：点 "Load / Refresh" 调用 VM Service 的 `getAllocationProfile` RPC，按占用字节降序列出每个 Dart 类，并用 `+new` 角标标出上次 GC 以来仍在涨的类。它仅在点击时抓取（不轮询）以压低开销，且仅在能连上 VM Service 的 debug/profile 模式可用——真正的对象图 / 引用链深度分析仍交给官方 DevTools。
+
 ## 2.0.1
 
 ### Fixed / 修复
