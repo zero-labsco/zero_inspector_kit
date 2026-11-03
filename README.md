@@ -19,7 +19,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release fixes the inspector overlay (floating button and panel) never appearing when the host `MaterialApp` supplies its own `navigatorKey` — the overlay is now attached to the correct navigator instead of spinning a per-frame retry loop. All users are encouraged to upgrade to the latest version (`^2.0.1`).
+> **🔔 Upgrade recommended:** This release adds an opt-out for the global Zone — pass `enablePrintZoneCapture: false` to `runAppWithInspector` so no global Zone is ever introduced — and documents the library's non-intrusive design: `HttpOverrides` is chained over your existing one and the captured `HttpClient` is a transparent proxy, so your retry / proxy / interceptor logic is never altered. All users are encouraged to upgrade to the latest version (`^2.1.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -36,6 +36,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 - [Installation](#installation)
 - [Usage](#usage)
   - [Zero-Invasion Integration](#zero-invasion-integration-recommended)
+  - [Non-intrusive by design](#non-intrusive-by-design)
   - [Logging](#logging)
   - [Error Monitor](#error-monitor)
   - [Session Persistence](#session-persistence)
@@ -63,7 +64,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 - **Error Monitor** — Dedicated Errors tab (since v1.9.0): hooks `FlutterError.onError` + `runZonedGuarded`, aggregates & dedups crashes by type + stack signature with count and first/last seen; a red count badge sits on the Errors tab icon; optional `onErrorReport` hook (since v1.16.0) forwards aggregated errors to Sentry / Firebase Crashlytics.
 - **Session Persistence** — Logs / network / errors / **alerts** are asynchronously flushed into the inspector's own `zero_inspector_kit.db` (since v1.9.0; a disk ring buffer that also shows up in the Database tab); on launch logs, errors & alerts replay into their tabs, and network requests can be replayed too with `init(enableNetworkReplay: true)` (since v1.17.0); export & share the full session archive (now including alerts) from the panel header.
 - **Database Viewer** — Inspect SQLite and other databases via custom providers.
-- **Memory Monitor** — Trend chart, Dart Heap, Native memory breakdown, leak detection, image-cache & storage stats (master switch to avoid overhead). Since v1.9.0 the leak detector also bridges Flutter's official `FlutterMemoryAllocations` to cut false positives.
+- **Memory Monitor** — Trend chart, Dart Heap, Native memory breakdown, leak detection, image-cache & storage stats, and an on-demand **class allocation histogram** (VM Service `getAllocationProfile`, lists the top classes by retained bytes with a "+new" badge for classes grown since last GC). All behind a master switch to avoid overhead; deep object-graph / retaining-path analysis stays with official DevTools. Since v1.9.0 the leak detector also bridges Flutter's official `FlutterMemoryAllocations` to cut false positives.
 - **FPS Monitor** — Real-time FPS, jank detection, trend chart, frame records with **phased build + raster timing** and an **adaptive jank threshold** derived from the display refresh rate (so 120Hz screens stay strict). Master switch to avoid overhead.
 - **Route Tracker** — Navigation history and current route (`navigatorObservers: [InspectorRouteObserver()]`).
 - **Alert System** — Rule-based alerts on network/logs/memory/FPS with unread badge and throttling; alerts are persisted to disk and survive app restarts.
@@ -102,7 +103,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.0.1
+  zero_inspector_kit: ^2.1.0
 ```
 
 ### GitHub
@@ -112,7 +113,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.0.1   # replace 2.0.1 with the version you need
+      ref: release/v2.1.0   # replace 2.1.0 with the version you need
 ```
 
 ### OpenHarmony (鸿蒙)
@@ -124,7 +125,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.0.1   # replace 2.0.1 with the version you need
+      ref: ohos/v2.1.0   # replace 2.1.0 with the version you need
 ```
 
 Requires the OpenHarmony Flutter SDK and DevEco Studio; the bundled `ohos/` native module must be built as part of your OHOS app.
@@ -173,6 +174,30 @@ class MyApp extends StatelessWidget {
 | ✅ Route Tracking | Via `InspectorRouteObserver` (auto-injected into `MaterialApp`) |
 
 **Production Build:** The inspector is automatically disabled in release mode — tree-shaking removes all related code, so you never need to delete anything.
+
+> **Prefer zero global Zone?** The one-liner above wraps `runApp` in a `Zone` *only* so that raw `print()` calls get captured. If your team is wary of any global Zone, drop it entirely — `debugPrint()` capture and every other capability stay on:
+>
+> ```dart
+> void main() {
+>   // No global Zone is ever introduced; only debugPrint capture stays active.
+>   ZeroInspectorKit.runAppWithInspector(
+>     const MyApp(),
+>     enablePrintZoneCapture: false,
+>   );
+> }
+> ```
+
+### Non-intrusive by design
+
+We know developers are rightfully cautious about third-party libraries that hijack global state. `zero_inspector_kit` is built to stay out of your way:
+
+- **`HttpOverrides` is *chained*, not replaced.** The plugin wraps whatever `HttpOverrides` your app already uses (proxy / cert-pinning / custom `createHttpClient`) and forwards every call to the original. Your existing retry logic, proxy settings and interceptors keep working untouched — the inspector only *reads* a copy of the traffic.
+- **The captured `HttpClient` is a transparent proxy.** `authenticate`, `findProxy`, `connectionFactory`, `badCertificateCallback`, `maxConnectionsPerHost` and friends are all delegated to your real client. Nothing about the request lifecycle is altered.
+- **The `Zone` is shallow and optional.** It exists only to capture raw `print()`; it degrades gracefully to a no-op if the Flutter binding is already initialized, and you can remove it completely with `enablePrintZoneCapture: false`.
+- **Everything is reversible via `dispose()`.** `dispose()` restores your original `FlutterError.onError`, restores the previous `HttpOverrides`, stops all timers and monitoring, and tears down the overlay — so you can switch collection off at runtime (e.g. a privacy "stop collecting" toggle) and `init()` again later.
+- **Release-safe.** All collection code is tree-shaken out in release builds, so it can never affect production behavior or binary size.
+
+This is a *complement* to Flutter DevTools, not a competitor: use the in-app console for quick on-device triage during development and review, and reach for DevTools' deep Heap Snapshot and CPU profiler when you need authoritative, offline analysis.
 
 ### Manual Integration (More Control)
 

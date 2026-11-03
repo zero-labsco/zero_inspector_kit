@@ -138,6 +138,17 @@ import 'src/services/blocking_watchdog_service.dart';
 class ZeroInspectorKit {
   static bool _initialized = false;
 
+  /// 是否通过全局 Zone 抓取裸 `print()` 输出（默认 true）。
+  /// 设为 false 时 `runAppWithInspector` 不再用 `runZonedGuarded` 包裹 `runApp`，
+  /// 彻底不引入任何全局 Zone —— 仅依靠 `debugPrint` 覆写抓日志（裸 `print()`
+  /// 不捕获）。这是给"警惕全局 Zone 侵入"的宿主用的逃生舱。
+  /// Whether raw `print()` is captured via a global Zone (default true).
+  /// When false, `runAppWithInspector` no longer wraps `runApp` in a
+  /// `runZonedGuarded`, so no global Zone is ever introduced — log capture
+  /// relies solely on the `debugPrint` override (raw `print()` is not captured).
+  /// This is an escape hatch for hosts wary of any global Zone intrusion.
+  static bool _enablePrintZoneCapture = true;
+
   /// init() 注册的 SQLite 查看器提供者实例，供 [dispose] 关闭其缓存的只读连接。
   /// The SQLite viewer provider registered by init(); lets dispose close its
   /// cached read-only connections.
@@ -156,6 +167,13 @@ class ZeroInspectorKit {
   ///   launch (default false). Historical and live requests mixed together are
   ///   easy to misread, so enable it only when a post-restart investigation of
   ///   the previous session is actually wanted.
+  /// [enablePrintZoneCapture] 是否用全局 Zone 抓取裸 `print()` 输出（默认 true）。
+  ///   设为 false 时彻底不引入任何全局 Zone（仅 `debugPrint` 覆写仍生效，裸
+  ///   `print()` 不捕获），给"警惕全局 Zone 侵入"的宿主一个逃生舱。
+  ///   Whether raw `print()` is captured through a global Zone (default true).
+  ///   When false, no global Zone is ever introduced (only the `debugPrint`
+  ///   override stays active, raw `print()` is not captured) — an escape hatch
+  ///   for hosts wary of any global Zone intrusion.
   /// [customButton] 自定义悬浮按钮组件（可选）/ Custom floating button widget (optional)
   /// [onLogCaptured] 日志捕获回调，用于集成第三方日志库（可选）/ Log capture callback for third-party logging library integration (optional)
   /// [maxNetworkItems] 网络请求缓存上限（默认 100）/ Network request cache cap (default 100)
@@ -175,6 +193,7 @@ class ZeroInspectorKit {
     bool enableWidgetInspector = true,
     bool enableNetworkTimeline = true,
     bool enableNetworkReplay = false,
+    bool enablePrintZoneCapture = true,
     Widget? customButton,
     void Function(LogEntry)? onLogCaptured,
     void Function(ErrorRecord)? onErrorReport,
@@ -185,6 +204,11 @@ class ZeroInspectorKit {
   }) {
     if (_initialized) return;
     _initialized = true;
+
+    // 记录是否用全局 Zone 抓裸 print()；runAppWithInspector 据此决定是否套 Zone。
+    // Record whether to capture raw print() via a global Zone; runAppWithInspector
+    // uses this to decide whether to wrap runApp in a Zone.
+    _enablePrintZoneCapture = enablePrintZoneCapture;
 
     if (!enable) return;
 
@@ -430,7 +454,11 @@ class ZeroInspectorKit {
     return _InspectorAppWrapper(app: app, enable: enable);
   }
 
-  /// 使用检查器 Zone 运行应用，确保所有 print() 调用都能被捕获 / Run app with inspector Zone to ensure all print() calls are captured
+  /// 运行应用并接入检查器。默认用 Zone 抓取 print()，可通过
+  /// [enablePrintZoneCapture] 关闭 Zone、改为仅 debugPrint 覆写抓日志。
+  /// Run the app with the inspector attached. By default a Zone captures
+  /// print(); pass [enablePrintZoneCapture] = false to drop the Zone and rely
+  /// solely on the debugPrint override.
   /// 此方法会自动调用 init() / This method automatically calls init()
   /// [app] 应用根组件 / App root widget
   /// [enable] 是否启用检查器（默认 true）/ Whether to enable inspector (default true)
@@ -443,6 +471,13 @@ class ZeroInspectorKit {
   /// [enableNetworkReplay] 是否回放上次会话的网络记录（默认 false），透传给
   ///   [init]。/ Whether to replay the previous session's network records
   ///   (default false); forwarded to [init].
+  /// [enablePrintZoneCapture] 是否用全局 Zone 抓取裸 `print()` 输出（默认 true），
+  ///   透传给 [init]。设为 false 时**彻底不引入任何全局 Zone**——仅 `debugPrint`
+  ///   覆写生效，裸 `print()` 不捕获。给"警惕全局 Zone 侵入"的宿主一个逃生舱。
+  ///   Whether raw `print()` is captured through a global Zone (default true),
+  ///   forwarded to [init]. When false, **no global Zone is ever introduced** —
+  ///   only the `debugPrint` override stays active and raw `print()` is not
+  ///   captured. An escape hatch for hosts wary of any global Zone intrusion.
   static void runAppWithInspector(
     Widget app, {
     bool enable = true,
@@ -450,6 +485,7 @@ class ZeroInspectorKit {
     bool enableNetworkTimeline = true,
     bool enableErrorCapture = true,
     bool enableNetworkReplay = false,
+    bool enablePrintZoneCapture = true,
   }) {
     init(
       enable: enable,
@@ -457,7 +493,18 @@ class ZeroInspectorKit {
       enableNetworkTimeline: enableNetworkTimeline,
       enableErrorCapture: enableErrorCapture,
       enableNetworkReplay: enableNetworkReplay,
+      enablePrintZoneCapture: enablePrintZoneCapture,
     );
+
+    // 宿主显式关闭 Zone 级 print 捕获：彻底不套 Zone，直接 runApp。
+    // debugPrint 覆写仍生效，仅裸 print() 不捕获——满足"零全局 Zone 侵入"诉求。
+    // Host explicitly disabled Zone-based print capture: skip the Zone entirely
+    // and runApp directly. The debugPrint override still works, only raw print()
+    // is not captured — satisfying the "zero global Zone intrusion" requirement.
+    if (!_enablePrintZoneCapture) {
+      runApp(wrapApp(app, enable: enable));
+      return;
+    }
 
     // binding 已在调用方（外层 Zone）初始化时不能再套 Zone，否则 Flutter 会抛
     // "Zone mismatch" 直接崩溃 —— 见 [_isFlutterBindingInitialized]。
