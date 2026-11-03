@@ -128,6 +128,7 @@ After adding or editing files, normalize the tree before committing:
 
 ```bash
 powershell -File tool/normalize-eol.ps1   # Windows
+bash tool/normalize-eol.sh                 # macOS / Linux
 ```
 
 This rewrites CRLF → LF and strips the UTF-8 BOM across `lib/`, `test/`, `example/`, docs, and native sources, while skipping binaries and build directories (`build/`, `.dart_tool/`, `node_modules/`, `.next`). The `dart-format-fix.yml` CI workflow also self-heals formatting on PRs.
