@@ -63,7 +63,7 @@
 - **异常监控**：独立的 Errors 标签页（v1.9.0 起）：接管 `FlutterError.onError` + `PlatformDispatcher.onError` + `runZonedGuarded`，按类型 + 堆栈签名去重聚合崩溃，记录次数与首末次时间；Errors 标签图标带红色计数；v1.16.0 起新增 `onErrorReport` 钩子，可把聚合异常转发到 Sentry / Firebase Crashlytics。
 - **会话持久化**：日志 / 网络 / 异常 / **告警**异步写入插件自有的 `zero_inspector_kit.db` 数据库（v1.9.0 起；磁盘环形缓冲，也会出现在 Database 标签页）；启动时日志、异常与告警回放入各自标签页，网络请求留档供导出，也可用 `init(enableNetworkReplay: true)`（v1.17.0 起）回放入 Network 标签页；可从面板头部导出完整会话存档（含告警段）并分享。
 - **数据库查看器**：支持 SQLite 及其他数据库，可自定义提供者。
-- **内存监控**：趋势图、Dart Heap、Native 内存分项、泄漏检测、图片缓存与存储统计（总开关避免开销）。v1.9.0 起泄漏检测额外桥接 Flutter 官方 `FlutterMemoryAllocations`，降低误报。
+- **内存监控**：趋势图、Dart Heap、Native 内存分项、泄漏检测、图片缓存与存储统计，以及**按需抓取的类分配直方图**（VM Service `getAllocationProfile`，按占用字节降序列出占用最高的类，并用 `+new` 角标标出上次 GC 以来仍在涨的类）。全部由总开关控制以避免开销；真正的对象图 / 引用链深度分析仍交给官方 DevTools。v1.9.0 起泄漏检测额外桥接 Flutter 官方 `FlutterMemoryAllocations`，降低误报。
 - **FPS 监控**：实时帧率、掉帧检测、趋势图，带 **build + raster 分项耗时**的帧记录与按设备刷新率换算的**自适应卡顿阈值**（120Hz 屏幕同样严格）。总开关避免开销。
 - **路由追踪器**：导航历史与当前路由（`navigatorObservers: [InspectorRouteObserver()]`）。
 - **告警系统**：针对网络/日志/内存/FPS 的告警规则，带未读红点与节流；告警会持久化到磁盘并可跨启动存活。
