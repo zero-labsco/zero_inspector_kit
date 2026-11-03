@@ -33,6 +33,8 @@ This file defines the architecture, coding conventions, and required workflows f
 - Follow `effective_dart`; style is enforced by `flutter analyze` / `flutter_lints` (v6) in CI.
 - Use Conventional Commits for both commit messages AND PR titles: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `perf:`, `test:`, `build:`, `ci:`, `chore:`, `revert:`.
 - Do not break the public API without a major version bump.
+- **All text files use LF line endings** (enforced by `.gitattributes`, `* text=auto eol=lf`). Never commit CRLF — it makes `dart format` output differ between Windows and CI (Linux), causing repeated format-failure churn. After adding or editing files, run `powershell -File tool/normalize-eol.ps1` to normalize the tree before committing.
+  - 所有文本文件统一使用 **LF** 换行（`.gitattributes` 强制）。严禁提交 CRLF——否则 `dart format` 在 Windows 与 CI 上输出不一致。新增/修改文件后先跑 `powershell -File tool/normalize-eol.ps1` 归一化再提交。
 
 ## Workflows
 
@@ -79,6 +81,17 @@ Notes / 说明:
   PR **标题**仅用英文，且必须符合约定式提交（`pr-title-check.yml` 强制校验）。双语内容只放在正文。
 - For Dependabot PRs, do NOT author the body manually — `dependabot-pr-bilingual.yml` auto-appends the bilingual summary (see CI section).
   Dependabot 的 PR 不要手动写正文，由 `dependabot-pr-bilingual.yml` 自动追加双语摘要（见 CI 段）。
+
+### Line endings
+
+All text files in this repository use **LF** line endings, enforced by `.gitattributes` (`* text=auto eol=lf`). Never commit CRLF — it makes `dart format` produce different output on Windows vs CI (Linux), causing repeated format-failure churn.
+
+- After adding or editing files, normalize the tree before committing:
+  - Windows: `powershell -File tool/normalize-eol.ps1`
+  - (or any equivalent that rewrites CRLF → LF, strips the UTF-8 BOM, and skips binaries / `build/` / `.dart_tool/` / `node_modules` / `.next`)
+- The `dart-format-fix.yml` CI workflow self-heals formatting on PRs, but normalizing locally keeps the tree clean and avoids surprise bot commits.
+
+/ 本仓库所有文本文件统一使用 **LF** 换行，由 `.gitattributes`（`* text=auto eol=lf`）强制。严禁提交 CRLF——否则 `dart format` 在 Windows 与 CI（Linux）上输出不一致，导致格式检查反复失败。新增/修改文件后请先跑 `powershell -File tool/normalize-eol.ps1` 归一化，再提交。
 
 ### CI
 - `ci.yml`: `actions/checkout@v7`, `subosito/flutter-action@v2`, `actions/cache@v5` (pub cache keyed on `pubspec.lock` plus `example/pubspec.lock`); runs `flutter analyze`, `flutter test`, and `pana` score check.

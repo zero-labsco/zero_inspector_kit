@@ -120,6 +120,20 @@ CI uses `dart format --set-exit-if-changed` to enforce formatting.
 
 > 提交前运行 `dart format` 格式化。CI 使用 `--set-exit-if-changed` 强制检查。
 
+### Line Endings
+
+All text files in this repository use **LF** line endings, enforced by `.gitattributes` (`* text=auto eol=lf`). Never commit CRLF — it makes `dart format` produce different output on Windows vs CI (Linux), causing repeated format-failure churn.
+
+After adding or editing files, normalize the tree before committing:
+
+```bash
+powershell -File tool/normalize-eol.ps1   # Windows
+```
+
+This rewrites CRLF → LF and strips the UTF-8 BOM across `lib/`, `test/`, `example/`, docs, and native sources, while skipping binaries and build directories (`build/`, `.dart_tool/`, `node_modules/`, `.next`). The `dart-format-fix.yml` CI workflow also self-heals formatting on PRs.
+
+> 本仓库所有文本文件统一使用 **LF** 换行，由 `.gitattributes`（`* text=auto eol=lf`）强制。严禁提交 CRLF——否则 `dart format` 在 Windows 与 CI（Linux）上输出不一致，导致格式检查反复失败。新增/修改文件后请先跑 `powershell -File tool/normalize-eol.ps1` 归一化，再提交（会跳过二进制与 `build/`、`.dart_tool/` 等目录）。`dart-format-fix.yml` 也会在 PR 上自愈格式。
+
 ### Analysis
 
 Run before committing:
