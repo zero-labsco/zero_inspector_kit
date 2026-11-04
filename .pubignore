@@ -18,9 +18,10 @@ tools/
 # Nextra documentation site source — compiled and published to gh-pages by CI, never part of the package.
 website/
 
-# Consumer-facing package should not ship tests, generated docs, images, or IDE files.
-# (example/ is kept so pub.dev still renders the Example tab.)
+# Consumer-facing package should not ship tests, generated docs, or IDE files.
+# (example/ is kept so pub.dev still renders the Example tab; image/screenshot/ is kept
+#  because pubspec.yaml `screenshots` references those files and pub.dev requires them in the archive.)
 test/
 docs/
-image/
+image/mascot/
 *.iml
