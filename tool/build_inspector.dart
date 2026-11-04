@@ -21,8 +21,7 @@ void main(List<String> args) {
 
   try {
     final pubspec = File('pubspec.yaml').readAsStringSync();
-    final match =
-        RegExp(r'inspector_modes:\s*([A-Za-z]+)').firstMatch(pubspec);
+    final match = RegExp(r'inspector_modes:\s*([A-Za-z]+)').firstMatch(pubspec);
     if (match != null) {
       final value = match.group(1)!;
       // Only forward values we recognize; keep `debug` as the safe default.

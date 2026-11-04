@@ -49,8 +49,10 @@ class InspectorEnvironment {
   /// - `'debug'`（默认）：debug/profile 启用，release 下被 tree-shake 剔除。
   /// - `'all'` / `'release'`：release（AOT）构建也同样打进并启用（用于 QA / 内部测试）。
   /// 未设置时回退为 `'debug'`。
-  static const String inspectorModes =
-      String.fromEnvironment('INSPECTOR_MODES', defaultValue: 'debug');
+  static const String inspectorModes = String.fromEnvironment(
+    'INSPECTOR_MODES',
+    defaultValue: 'debug',
+  );
 
   /// Whether the inspector is allowed to run in a release (AOT) build.
   /// Compile-time constant so the inspector code is tree-shaken out by default
