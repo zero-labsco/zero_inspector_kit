@@ -23,7 +23,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本新增可选开关，可将检查器一并打进 release（AOT）构建，供 QA / 内部测试使用——在你的应用 `pubspec.yaml`（即依赖本包的那个应用）中添加 `zero_inspector_kit.inspector_modes: all`，并通过 `dart tools/build_inspector.dart build apk --release`（把脚本复制到你的应用 `tool/` 下，或直接传 `--dart-define=INSPECTOR_MODES=all`）构建。默认情况下 release 仍禁用并被 tree-shake 剔除。注意：即便开启，VM Service 相关功能（内存分配直方图、对象图分析）在 release 下依然不可用——需要完整内存分析请使用 `--profile` 构建。建议所有用户升级到最新版本（`^2.2.0`）。
+> **🔔 推荐升级：** 本版本新增可选开关，可将检查器一并打进 release（AOT）构建，供 QA / 内部测试使用——在你的应用 `pubspec.yaml`（即依赖本包的那个应用）中添加 `zero_inspector_kit.inspector_modes: all`，并通过 `dart run zero_inspector_kit:build_inspector build apk --release`（该辅助脚本随包发布，或直接传 `--dart-define=INSPECTOR_MODES=all`）构建。默认情况下 release 仍禁用并被 tree-shake 剔除。注意：即便开启，VM Service 相关功能（内存分配直方图、对象图分析）在 release 下依然不可用——需要完整内存分析请使用 `--profile` 构建。建议所有用户升级到最新版本（`^2.2.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -145,11 +145,11 @@ zero_inspector_kit:
   inspector_modes: all   # 默认为 `debug`
 ```
 
-然后通过构建辅助脚本构建（把 `tools/build_inspector.dart` 复制到你的应用 `tool/` 下，或直接传入 flag）：
+然后通过构建辅助脚本构建（`dart run zero_inspector_kit:build_inspector`，或直接传入 flag）：
 
 ```bash
 # 在你的应用目录下执行
-dart tools/build_inspector.dart build apk --release
+dart run zero_inspector_kit:build_inspector build apk --release
 # 或直接传入 flag：
 flutter build apk --release --dart-define=INSPECTOR_MODES=all
 ```

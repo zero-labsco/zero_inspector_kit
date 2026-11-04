@@ -1,17 +1,17 @@
-// Zero Inspector Kit — build helper (run from the HOST APP, not the plugin).
+// Zero Inspector Kit — build helper (published as a `bin/` executable).
 //
 // Reads the `zero_inspector_kit.inspector_modes` key from the host app's own
 // `pubspec.yaml` and forwards every argument to `flutter`, injecting the
 // matching `--dart-define=INSPECTOR_MODES=...` so the inspector can be bundled
 // into release (AOT) builds when configured.
 //
-// This script lives in the plugin repo's `tools/`. In a real host app, copy it
-// into your app's `tool/` (or just pass the flag directly):
-//   flutter build apk --release --dart-define=INSPECTOR_MODES=all
+// This executable ships with the package, so from the host app's directory you
+// can simply run it (no need to copy anything):
+//   dart run zero_inspector_kit:build_inspector build apk --release
+//   dart run zero_inspector_kit:build_inspector run --release
 //
-// Usage (from your app's directory):
-//   dart tools/build_inspector.dart build apk --release
-//   dart tools/build_inspector.dart run --release
+// Or skip the helper and pass the flag directly:
+//   flutter build apk --release --dart-define=INSPECTOR_MODES=all
 
 import 'dart:convert';
 import 'dart:io';

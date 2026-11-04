@@ -76,13 +76,13 @@ zero_inspector_kit:
   inspector_modes: all   # default is `debug`
 ```
 
-Then build through the provided helper (copy `tools/build_inspector.dart` from the plugin repo into your app's `tool/`, or just pass the flag directly):
+Then build through the provided helper (`dart run zero_inspector_kit:build_inspector`, or just pass the flag directly):
 
-随后通过构建辅助脚本构建（把插件仓库的 `tools/build_inspector.dart` 复制到你的应用 `tool/` 下，或直接传入 flag）：
+随后通过构建辅助脚本构建（`dart run zero_inspector_kit:build_inspector`，或直接传入 flag）：
 
 ```bash
 # from your app's directory / 在你的应用目录下执行
-dart tools/build_inspector.dart build apk --release
+dart run zero_inspector_kit:build_inspector build apk --release
 # or pass the flag directly / 或直接传入 flag：
 flutter build apk --release --dart-define=INSPECTOR_MODES=all
 ```
