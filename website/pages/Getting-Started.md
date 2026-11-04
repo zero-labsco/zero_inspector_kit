@@ -61,6 +61,45 @@ The inspector is **automatically disabled** in release mode. You don't need to r
 
 检查器在 release 模式下会**自动禁用**，无需移除任何代码，Flutter 的 tree-shaking 会自动移除所有检查器相关代码。
 
+## Enabling in Release Builds (QA / Internal Testing) / 在 Release 构建中启用（QA / 内部测试）
+
+By default the inspector is **auto-disabled and tree-shaken out of release (AOT) builds** — its code is physically absent from the production binary. If you add **no** `zero_inspector_kit:` config to your app's `pubspec.yaml` at all, it falls back to `debug`, so release builds stay tree-shaken, exactly as before.
+
+默认情况下，检查器在 release（AOT）构建中**自动禁用并被 tree-shake 剔除**。若你的 `pubspec.yaml` 完全不加入 `zero_inspector_kit:` 配置，则回退为 `debug`，release 构建仍被 tree-shake 剔除，与之前完全一致。
+
+To ship a release build that still carries the inspector for QA / internal testers, opt in at **compile time** by adding the following to **your app's** `pubspec.yaml` (the app that depends on this package):
+
+若希望发布仍携带检查器、供 QA / 内部测试的 release 构建，需在**编译期**显式开启：在你的应用（即依赖本包的那个应用）的 `pubspec.yaml` 中加入：
+
+```yaml
+zero_inspector_kit:
+  inspector_modes: all   # default is `debug`
+```
+
+Then build through the provided helper (copy `tool/build_inspector.dart` from the plugin repo into your app's `tool/`, or just pass the flag directly):
+
+随后通过构建辅助脚本构建（把插件仓库的 `tool/build_inspector.dart` 复制到你的应用 `tool/` 下，或直接传入 flag）：
+
+```bash
+# from your app's directory / 在你的应用目录下执行
+dart tool/build_inspector.dart build apk --release
+# or pass the flag directly / 或直接传入 flag：
+flutter build apk --release --dart-define=INSPECTOR_MODES=all
+```
+
+- `debug` (default): enabled in debug/profile, disabled (tree-shaken) in release. / `debug`（默认）：debug/profile 启用，release 禁用（tree-shake 剔除）。
+- `all` / `release`: also bundled and enabled in release builds. / `all` / `release`：release 构建也一并打进并启用。
+
+> **⚠️ What does NOT work in a release build even when enabled / ⚠️ 即便开启，release 下仍无法检查到的内容**
+> A release (AOT) build disables the Dart VM Service, so everything that depends on it is unavailable regardless of this flag:
+> release（AOT）构建会禁用 Dart VM Service，因此一切依赖它的功能都不可用，与是否开启本开关无关：
+> - Memory **allocation histogram** (VM Service `getAllocationProfile`) / 内存**分配直方图**（VM Service 的 `getAllocationProfile`）
+> - Deep object-graph / retaining-path analysis / 对象图 / 引用链深度分析
+> - Any live VM Service introspection / 任何实时的 VM Service 内省
+>
+> What still works in release: **HTTP / WebSocket / gRPC inspection, logs, error aggregation, FPS jank tracking, routes, and the bug-report exporter.** If testers need full memory profiling, give them a **`--profile`** build instead — it keeps the VM Service reachable while behaving like release.
+> release 下仍然可用：**HTTP / WebSocket / gRPC 检查、日志、错误聚合、FPS 卡顿追踪、路由，以及缺陷报告导出。** 若测试需要完整内存分析，请给他们一个 **`--profile`** 构建——它保留可达的 VM Service，行为却与 release 相近。
+
 ## Alternative Integration / 替代集成方式
 
 If you prefer more control, use the two-line approach:

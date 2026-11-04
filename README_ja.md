@@ -136,6 +136,8 @@ OpenHarmony の Flutter SDK と DevEco Studio が必要です；同梱の `ohos/
 
 デフォルトでは、インスペクターは release（AOT）ビルドで**自動無効化され、tree-shake によって除外されます**——そのコードは最終バイナリに存在しないため、実行時に有効化することはできません。QA／社内テスト用にインスペクターを同梱した release ビルドを配布するには、**コンパイル時に**オプトインする必要があります。
 
+もし `pubspec.yaml` に `zero_inspector_kit:` キーを一切追加しなければ、デフォルトの `debug` に戻り、release ビルドは引き続き tree-shake により除外され、以前と変わりません。
+
 **あなたのアプリの `pubspec.yaml`**（このパッケージに依存するアプリ）にオプション設定を追加します：
 
 ```yaml

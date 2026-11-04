@@ -136,6 +136,8 @@ Benötigt das OpenHarmony Flutter SDK und DevEco Studio; das mitgelieferte `ohos
 
 Standardmäßig ist der Inspector in Release-(AOT-)Builds **automatisch deaktiviert und wird weg-optimiert (tree-shaken)** – sein Code fehlt im fertigen Binary, kann also zur Laufzeit nicht eingeschaltet werden. Um einen Release-Build auszuliefern, der für QA / interne Tester trotzdem den Inspector enthält, muss man ihn zur **Kompilierzeit** aktivieren.
 
+Fügst du den Schlüssel `zero_inspector_kit:` gar nicht hinzu, wird auf `debug` zurückgefallen – Release-Builds bleiben weg-optimiert, exakt wie zuvor.
+
 Füge die optionale Konfiguration in **deine `pubspec.yaml`** (die App, die dieses Paket verwendet) ein:
 
 ```yaml

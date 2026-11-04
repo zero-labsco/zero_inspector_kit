@@ -136,6 +136,8 @@ dependencies:
 
 默认情况下，检查器在 release（AOT）构建中**自动禁用并被 tree-shake 剔除**——其代码并不存在于最终二进制中，因此无法在运行时开启。若想发布一个仍携带检查器、供 QA / 内部测试的 release 构建，需要在**编译期**显式开启。
 
+若你的 `pubspec.yaml` 中完全不加 `zero_inspector_kit:` 配置，则回退为 `debug`——release 构建仍会被 tree-shake 剔除，与升级前完全一致。
+
 在你的应用 `pubspec.yaml`（即**依赖本包的那个应用**）中加入可选配置：
 
 ```yaml

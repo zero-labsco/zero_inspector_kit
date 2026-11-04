@@ -136,6 +136,8 @@ Requiere el SDK de OpenHarmony Flutter y DevEco Studio; el módulo nativo `ohos/
 
 Por defecto el inspector está **desactivado automáticamente y eliminado por tree-shaking en los builds de release (AOT)** — su código no está en el binario final, por lo que no se puede activar en tiempo de ejecución. Para publicar un build de release que siga incluyendo el inspector para QA / pruebas internas, hay que optar por ello en **tiempo de compilación**.
 
+Si no añades la clave `zero_inspector_kit:` a tu pubspec, se usa `debug` por defecto — los builds de release siguen eliminados por tree-shaking, igual que antes.
+
 Añade la configuración opcional a **tu `pubspec.yaml`** (la app que depende de este paquete):
 
 ```yaml
