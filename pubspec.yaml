@@ -11,13 +11,6 @@ homepage: https://github.com/zero-labsco/zero_inspector_kit
 repository: https://github.com/zero-labsco/zero_inspector_kit
 documentation: https://zero-labsco.github.io/zero_inspector_kit/
 
-# Zero Inspector Kit — optional build-time configuration.
-# Controls whether the inspector is bundled into release (AOT) builds.
-#   inspector_modes: debug   # default: enabled in debug/profile, disabled (tree-shaken) in release
-#   inspector_modes: all     # also enabled in release builds (for QA / internal testing)
-zero_inspector_kit:
-  inspector_modes: debug
-
 screenshots:
   - description: Network tab — inspect HTTP/WebSocket/gRPC traffic with method, URL, status, response body, headers and timing.
     path: image/screenshot/network.png

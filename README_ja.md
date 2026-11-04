@@ -23,37 +23,7 @@ Flutter 向けのアプリ内開発者コンソールです。HTTP・WebSocket�
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 アップグレードを推奨：** このリリースでは、QA／社内テスト向けにインスペクターを release（AOT）ビルドに同梱するオプションを追加しました——`pubspec.yaml` で `inspector_modes: all` を設定し、`dart tool/build_inspector.dart build apk --release`（または `--dart-define=INSPECTOR_MODES=all` を指定）でビルドします。release ビルドはデフォルトで無効かつ tree-shake により除外されたままです。注意：VM Service 系の機能（メモリ割り当てヒストグラム、オブジェクトグラフ解析）は、たとえ有効にしても release では引き続き利用できません——完全なメモリ解析には `--profile` ビルドを使用してください。すべてのユーザーに最新バージョン（`^2.2.0`）へのアップグレードをお勧めします。
-
-## release ビルドでのインスペクター有効化（QA／社内テスト）
-
-デフォルトでは、インスペクターは release（AOT）ビルドで**自動無効化され、tree-shake によって除外されます**——そのコードは最終バイナリに存在しないため、実行時に有効化することはできません。QA／社内テスト用にインスペクターを同梱した release ビルドを配布するには、**コンパイル時に**オプトインする必要があります。
-
-アプリの `pubspec.yaml` にオプション設定を追加します：
-
-```yaml
-zero_inspector_kit:
-  inspector_modes: all   # デフォルトは `debug`
-```
-
-その後、付属のビルド補助スクリプトでビルドします（このキーを読み取り、対応する `--dart-define` を透過的に渡します）：
-
-```bash
-dart tool/build_inspector.dart build apk --release
-# または直接フラグを指定：
-flutter build apk --release --dart-define=INSPECTOR_MODES=all
-```
-
-- `debug`（デフォルト）：debug/profile で有効、release では無効（tree-shake 除外）。
-- `all` / `release`：release ビルドにも同梱・有効化されます。
-
-> **⚠️ 有効にしても release では利用できないもの**
-> release（AOT）ビルドでは Dart VM Service が無効化されるため、それに依存する機能はこのフラグに関わらず利用できません：
-> - メモリ**割り当てヒストグラム**（VM Service の `getAllocationProfile`）
-> - オブジェクトグラフ／リテイン・パスの深い解析
-> - 任意のライブ VM Service イントロスペクション
->
-> release でも利用できるもの：**HTTP／WebSocket／gRPC 検査、ログ、エラー集約、FPS ジャンク追跡、ルート、バグレポート出力。** テスターが完全なメモリ解析を必要とする場合は、**`--profile`** ビルドを渡してください——VM Service は到達可能なまま、挙動は release に近いです。
+> **🔔 アップグレードを推奨：** このリリースでは、QA／社内テスト向けにインスペクターを release（AOT）ビルドに同梱するオプションを追加しました——あなたのアプリの `pubspec.yaml`（このパッケージに依存するアプリ）に `zero_inspector_kit.inspector_modes: all` を追加し、`dart tool/build_inspector.dart build apk --release`（スクリプトをアプリの `tool/` にコピーするか、`--dart-define=INSPECTOR_MODES=all` を指定）でビルドします。release ビルドはデフォルトで無効かつ tree-shake により除外されたままです。注意：VM Service 系の機能（メモリ割り当てヒストグラム、オブジェクトグラフ解析）は、たとえ有効にしても release では引き続き利用できません——完全なメモリ解析には `--profile` ビルドを使用してください。すべてのユーザーに最新バージョン（`^2.2.0`）へのアップグレードをお勧めします。
 
 🌐 **[公式ウェブサイト](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[pub.dev で見る](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[GitHub で見る](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -64,6 +34,7 @@ flutter build apk --release --dart-define=INSPECTOR_MODES=all
 - [機能](#機能)
 - [スクリーンショット](#スクリーンショット)
 - [インストール](#インストール)
+- [release ビルドでのインスペクター有効化](#release-ビルドでのインスペクター有効化)
 - [使い方](#使い方)
   - [ゼロ侵略的統合（推奨）](#ゼロ侵略的統合推奨)
   - [設計上非侵襲](#設計上非侵襲)
@@ -158,6 +129,39 @@ dependencies:
 ```
 
 OpenHarmony の Flutter SDK と DevEco Studio が必要です；同梱の `ohos/` ネイティブモジュールは OHOS アプリの一部としてビルドする必要があります。
+
+---
+
+## release ビルドでのインスペクター有効化
+
+デフォルトでは、インスペクターは release（AOT）ビルドで**自動無効化され、tree-shake によって除外されます**——そのコードは最終バイナリに存在しないため、実行時に有効化することはできません。QA／社内テスト用にインスペクターを同梱した release ビルドを配布するには、**コンパイル時に**オプトインする必要があります。
+
+**あなたのアプリの `pubspec.yaml`**（このパッケージに依存するアプリ）にオプション設定を追加します：
+
+```yaml
+zero_inspector_kit:
+  inspector_modes: all   # デフォルトは `debug`
+```
+
+その後、ビルド補助スクリプトでビルドします（`tool/build_inspector.dart` をあなたのアプリの `tool/` にコピーするか、直接フラグを指定）：
+
+```bash
+# アプリのディレクトリで実行
+dart tool/build_inspector.dart build apk --release
+# または直接フラグを指定：
+flutter build apk --release --dart-define=INSPECTOR_MODES=all
+```
+
+- `debug`（デフォルト）：debug/profile で有効、release では無効（tree-shake 除外）。
+- `all` / `release`：release ビルドにも同梱・有効化されます。
+
+> **⚠️ 有効にしても release では利用できないもの**
+> release（AOT）ビルドでは Dart VM Service が無効化されるため、それに依存する機能はこのフラグに関わらず利用できません：
+> - メモリ**割り当てヒストグラム**（VM Service の `getAllocationProfile`）
+> - オブジェクトグラフ／リテイン・パスの深い解析
+> - 任意のライブ VM Service イントロスペクション
+>
+> release でも利用できるもの：**HTTP／WebSocket／gRPC 検査、ログ、エラー集約、FPS ジャンク追跡、ルート、バグレポート出力。** テスターが完全なメモリ解析を必要とする場合は、**`--profile`** ビルドを渡してください——VM Service は到達可能なまま、挙動は release に近いです。
 
 ---
 

@@ -23,37 +23,7 @@ Una consola de desarrollador integrada en la app para Flutter: inspecciona tráf
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Se recomienda actualizar:** Esta versión añade una opción para incluir el inspector en builds de release (AOT) para QA / pruebas internas — define `inspector_modes: all` en `pubspec.yaml` y compila con `dart tool/build_inspector.dart build apk --release` (o pasa `--dart-define=INSPECTOR_MODES=all`). Los builds de release siguen desactivados y eliminados por tree-shaking por defecto. Nota: las funciones de VM Service (histograma de asignación de memoria, análisis de grafo de objetos) siguen sin estar disponibles en release aunque esté activado — usa un build `--profile` para el análisis completo de memoria. Se recomienda a todos los usuarios actualizar a la última versión (`^2.2.0`).
-
-## Activar el inspector en builds de release (QA / pruebas internas)
-
-Por defecto el inspector está **desactivado automáticamente y eliminado por tree-shaking en los builds de release (AOT)** — su código no está en el binario final, por lo que no se puede activar en tiempo de ejecución. Para publicar un build de release que siga incluyendo el inspector para QA / pruebas internas, hay que optar por ello en **tiempo de compilación**.
-
-Añade la configuración opcional a tu `pubspec.yaml`:
-
-```yaml
-zero_inspector_kit:
-  inspector_modes: all   # el valor por defecto es `debug`
-```
-
-Luego compila con el helper incluido (lee esa clave y reenvía el `--dart-define` correspondiente):
-
-```bash
-dart tool/build_inspector.dart build apk --release
-# o pasa el flag directamente:
-flutter build apk --release --dart-define=INSPECTOR_MODES=all
-```
-
-- `debug` (por defecto): activo en debug/profile, desactivado (tree-shaken) en release.
-- `all` / `release`: también incluido y activo en builds de release.
-
-> **⚠️ Qué NO funciona en un build de release aunque esté activado**
-> Un build de release (AOT) desactiva el Dart VM Service, por lo que todo lo que depende de él no está disponible, sea cual sea este flag:
-> - **Histograma de asignación** de memoria (VM Service `getAllocationProfile`)
-> - Análisis profundo de grafo de objetos / caminos de retención
-> - Cualquier introspección en vivo del VM Service
->
-> Lo que sí funciona en release: **inspección HTTP / WebSocket / gRPC, logs, agregación de errores, seguimiento de FPS/jank, rutas y el exportador de informes de bug.** Si los testers necesitan el análisis completo de memoria, dales un build **`--profile`** — mantiene el VM Service accesible y se comporta como release.
+> **🔔 Se recomienda actualizar:** Esta versión añade una opción para incluir el inspector en builds de release (AOT) para QA / pruebas internas — añade `zero_inspector_kit.inspector_modes: all` a tu `pubspec.yaml` (la app que depende de este paquete) y compila con `dart tool/build_inspector.dart build apk --release` (copia el script a tu `tool/`, o pasa `--dart-define=INSPECTOR_MODES=all`). Los builds de release siguen desactivados y eliminados por tree-shaking por defecto. Nota: las funciones de VM Service (histograma de asignación de memoria, análisis de grafo de objetos) siguen sin estar disponibles en release aunque esté activado — usa un build `--profile` para el análisis completo de memoria. Se recomienda a todos los usuarios actualizar a la última versión (`^2.2.0`).
 
 🌐 **[Sitio web oficial](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[Ver en pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[Ver en GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -64,6 +34,7 @@ flutter build apk --release --dart-define=INSPECTOR_MODES=all
 - [Características](#características)
 - [Capturas de pantalla](#capturas-de-pantalla)
 - [Instalación](#instalación)
+- [Activar el inspector en builds de release](#activar-el-inspector-en-builds-de-release)
 - [Uso](#uso)
   - [Integración Zero-Invasion (Recomendada)](#integración-zero-invasion-recomendada)
   - [No intrusivo por diseño](#no-intrusivo-por-diseño)
@@ -158,6 +129,39 @@ dependencies:
 ```
 
 Requiere el SDK de OpenHarmony Flutter y DevEco Studio; el módulo nativo `ohos/` incluido debe compilarse como parte de tu app OHOS.
+
+---
+
+## Activar el inspector en builds de release
+
+Por defecto el inspector está **desactivado automáticamente y eliminado por tree-shaking en los builds de release (AOT)** — su código no está en el binario final, por lo que no se puede activar en tiempo de ejecución. Para publicar un build de release que siga incluyendo el inspector para QA / pruebas internas, hay que optar por ello en **tiempo de compilación**.
+
+Añade la configuración opcional a **tu `pubspec.yaml`** (la app que depende de este paquete):
+
+```yaml
+zero_inspector_kit:
+  inspector_modes: all   # el valor por defecto es `debug`
+```
+
+Luego compila con el helper (copia `tool/build_inspector.dart` a tu `tool/` de la app, o pasa el flag directamente):
+
+```bash
+# en el directorio de tu app
+dart tool/build_inspector.dart build apk --release
+# o pasa el flag directamente:
+flutter build apk --release --dart-define=INSPECTOR_MODES=all
+```
+
+- `debug` (por defecto): activo en debug/profile, desactivado (tree-shaken) en release.
+- `all` / `release`: también incluido y activo en builds de release.
+
+> **⚠️ Qué NO funciona en un build de release aunque esté activado**
+> Un build de release (AOT) desactiva el Dart VM Service, por lo que todo lo que depende de él no está disponible, sea cual sea este flag:
+> - **Histograma de asignación** de memoria (VM Service `getAllocationProfile`)
+> - Análisis profundo de grafo de objetos / caminos de retención
+> - Cualquier introspección en vivo del VM Service
+>
+> Lo que sí funciona en release: **inspección HTTP / WebSocket / gRPC, logs, agregación de errores, seguimiento de FPS/jank, rutas y el exportador de informes de bug.** Si los testers necesitan el análisis completo de memoria, dales un build **`--profile`** — mantiene el VM Service accesible y se comporta como release.
 
 ---
 
