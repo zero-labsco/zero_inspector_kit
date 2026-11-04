@@ -33,3 +33,12 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+# --- Zero Inspector Kit demo config ---
+# This demonstrates opting a release (AOT) build into the inspector for QA.
+# In a real host app, add this to YOUR app's pubspec.yaml (the app that depends
+# on this package) and build with:
+#   flutter build apk --release --dart-define=INSPECTOR_MODES=all
+# (or run `dart run zero_inspector_kit:build_inspector build apk --release` — the helper ships with the package).
+zero_inspector_kit:
+  inspector_modes: all

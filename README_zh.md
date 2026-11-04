@@ -23,7 +23,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本新增全局 Zone 的关闭开关——向 `runAppWithInspector` 传入 `enablePrintZoneCapture: false` 即可彻底不引入任何全局 Zone——并补充了「非侵入式设计」文档：`HttpOverrides` 是在你原有配置之外链式包裹、被拦截的 `HttpClient` 是透明代理，因此你的重试 / 代理 / 拦截器逻辑绝不会被改动。建议所有用户升级到最新版本（`^2.1.0`）。
+> **🔔 推荐升级：** 本版本新增可选开关，可将检查器一并打进 release（AOT）构建，供 QA / 内部测试使用——在你的应用 `pubspec.yaml`（即依赖本包的那个应用）中添加 `zero_inspector_kit.inspector_modes: all`，并通过 `dart run zero_inspector_kit:build_inspector build apk --release`（推荐——辅助脚本会读取你 `pubspec.yaml` 中的配置；若不想用脚本，也可直接传 `--dart-define=INSPECTOR_MODES=all`）构建。默认情况下 release 仍禁用并被 tree-shake 剔除。注意：即便开启，VM Service 相关功能（内存分配直方图、对象图分析）在 release 下依然不可用——需要完整内存分析请使用 `--profile` 构建。建议所有用户升级到最新版本（`^2.2.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -34,6 +34,7 @@
 - [功能特性](#功能特性)
 - [截图](#截图)
 - [安装](#安装)
+- [在 release 构建中启用检查器](#在-release-构建中启用检查器)
 - [使用方法](#使用方法)
   - [零侵入集成](#零侵入集成推荐)
   - [非侵入式设计](#非侵入式设计)
@@ -102,7 +103,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.1.0
+  zero_inspector_kit: ^2.2.0
 ```
 
 ### GitHub
@@ -112,7 +113,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.1.0   # 将 2.1.0 替换为你需要的版本号
+      ref: release/v2.2.0   # 将 2.2.0 替换为你需要的版本号
 ```
 
 ### OpenHarmony（鸿蒙）
@@ -124,10 +125,45 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.1.0   # 将 2.1.0 替换为你需要的版本号
+      ref: ohos/v2.2.0   # 将 2.2.0 替换为你需要的版本号
 ```
 
 需配合 OpenHarmony Flutter SDK 与 DevEco Studio；随包提供的 `ohos/` 原生模块需作为你的 OHOS 应用的一部分一起构建。
+
+---
+
+## 在 release 构建中启用检查器
+
+默认情况下，检查器在 release（AOT）构建中**自动禁用并被 tree-shake 剔除**——其代码并不存在于最终二进制中，因此无法在运行时开启。若想发布一个仍携带检查器、供 QA / 内部测试的 release 构建，需要在**编译期**显式开启。
+
+若你的 `pubspec.yaml` 中完全不加 `zero_inspector_kit:` 配置，则回退为 `debug`——release 构建仍会被 tree-shake 剔除，与升级前完全一致。
+
+在你的应用 `pubspec.yaml`（即**依赖本包的那个应用**）中加入可选配置：
+
+```yaml
+zero_inspector_kit:
+  inspector_modes: all   # 默认为 `debug`
+```
+
+推荐做法是在 `pubspec.yaml` 中保留该配置，并通过随包发布的辅助脚本构建（它会读取 `inspector_modes` 并自动注入 flag）：
+
+```bash
+# 在你的应用目录下执行
+dart run zero_inspector_kit:build_inspector build apk --release
+# 或直接传入 flag：
+flutter build apk --release --dart-define=INSPECTOR_MODES=all
+```
+
+- `debug`（默认）：debug/profile 启用，release 禁用（tree-shake 剔除）。
+- `all`：release 构建也一并打进并启用。
+
+> **⚠️ 即便开启，release 下仍无法检查到的内容**
+> release（AOT）构建会禁用 Dart VM Service，因此一切依赖它的功能都不可用，与是否开启本开关无关：
+> - 内存**分配直方图**（VM Service 的 `getAllocationProfile`）
+> - 对象图 / 引用链深度分析
+> - 任何实时的 VM Service 内省
+>
+> release 下仍然可用：**HTTP / WebSocket / gRPC 检查、日志、错误聚合、FPS 卡顿追踪、路由，以及缺陷报告导出。** 若测试需要完整内存分析，请给他们一个 **`--profile`** 构建——它保留可达的 VM Service，行为却与 release 相近。
 
 ---
 
