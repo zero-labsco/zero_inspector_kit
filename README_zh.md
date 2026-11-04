@@ -23,7 +23,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本新增可选开关，可将检查器一并打进 release（AOT）构建，供 QA / 内部测试使用——在你的应用 `pubspec.yaml`（即依赖本包的那个应用）中添加 `zero_inspector_kit.inspector_modes: all`，并通过 `dart run zero_inspector_kit:build_inspector build apk --release`（推荐——辅助脚本会读取你 `pubspec.yaml` 中的配置；若不想用脚本，也可直接传 `--dart-define=INSPECTOR_MODES=all`）构建。默认情况下 release 仍禁用并被 tree-shake 剔除。注意：即便开启，VM Service 相关功能（内存分配直方图、对象图分析）在 release 下依然不可用——需要完整内存分析请使用 `--profile` 构建。建议所有用户升级到最新版本（`^2.2.0`）。
+> **🔔 推荐升级：** 本版本新增 `InspectorHttpOverrides` / `createInspectorHttpClient()`（在 `HttpOverrides.runWithHttpOverrides()` 等 zone 内继续保持捕获）与 `reinstallHttpOverrides()`（init 后重设全局 override 时重新挂载），并让默认 release（AOT）构建真正做到零侵入。建议所有用户升级到最新版本（`^2.3.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -103,7 +103,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.2.0
+  zero_inspector_kit: ^2.3.0
 ```
 
 ### GitHub
@@ -113,7 +113,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.2.0   # 将 2.2.0 替换为你需要的版本号
+      ref: release/v2.3.0   # 将 2.3.0 替换为你需要的版本号
 ```
 
 ### OpenHarmony（鸿蒙）
@@ -125,7 +125,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.2.0   # 将 2.2.0 替换为你需要的版本号
+      ref: ohos/v2.3.0   # 将 2.3.0 替换为你需要的版本号
 ```
 
 需配合 OpenHarmony Flutter SDK 与 DevEco Studio；随包提供的 `ohos/` 原生模块需作为你的 OHOS 应用的一部分一起构建。
@@ -134,9 +134,9 @@ dependencies:
 
 ## 在 release 构建中启用检查器
 
-默认情况下，检查器在 release（AOT）构建中**自动禁用并被 tree-shake 剔除**——其代码并不存在于最终二进制中，因此无法在运行时开启。若想发布一个仍携带检查器、供 QA / 内部测试的 release 构建，需要在**编译期**显式开启。
+默认情况下，检查器在 release（AOT）构建中**被完全跳过**：`init()`、`wrapApp()`、`runAppWithInspector()` 都走空路径，不启动日志/网络采集、不引入全局 Zone、不挂浮层、不写磁盘。该分支是编译期常量，无法在运行时开启。请注意 `pubspec.yaml` 声明的原生插件依赖仍会被平台构建链接，因此包体积并非零影响——可用 `flutter build apk --analyze-size` 实测。若想发布一个仍携带检查器、供 QA / 内部测试的 release 构建，需要在**编译期**显式开启。
 
-若你的 `pubspec.yaml` 中完全不加 `zero_inspector_kit:` 配置，则回退为 `debug`——release 构建仍会被 tree-shake 剔除，与升级前完全一致。
+若你的 `pubspec.yaml` 中完全不加 `zero_inspector_kit:` 配置，则回退为 `debug`——默认 release 构建仍保持完全不激活。
 
 在你的应用 `pubspec.yaml`（即**依赖本包的那个应用**）中加入可选配置：
 
@@ -154,7 +154,7 @@ dart run zero_inspector_kit:build_inspector build apk --release
 flutter build apk --release --dart-define=INSPECTOR_MODES=all
 ```
 
-- `debug`（默认）：debug/profile 启用，release 禁用（tree-shake 剔除）。
+- `debug`（默认）：debug/profile 启用；release 下完全跳过（不采集、不套 Zone、不落盘）。
 - `all`：release 构建也一并打进并启用。
 
 > **⚠️ 即便开启，release 下仍无法检查到的内容**
@@ -203,12 +203,12 @@ class MyApp extends StatelessWidget {
 | 能力 | 实现方式 |
 |------|----------|
 | ✅ 日志捕获 | 通过 Zone 捕获所有 `print()` / `debugPrint()` 与 Flutter 错误 |
-| ✅ 网络拦截 | 通过 `HttpOverrides` 拦截 **http** 与 **Dio** 请求（Dio 使用 `HttpClient`） |
+| ✅ 网络拦截 | 通过 `HttpOverrides` 拦截 **http** 与 **Dio** 请求（仅限 `dart:io` `HttpClient`） |
 | ✅ 数据库扫描 | 自动扫描并注册 SQLite 数据库 |
 | ✅ 悬浮按钮 | 通过 `Overlay` 自动显示，无需手动添加组件 |
 | ✅ 路由追踪 | 通过 `InspectorRouteObserver`（自动注入 `MaterialApp`） |
 
-**生产构建**：检查器在 release 模式下会自动禁用——tree-shaking 会移除所有相关代码，你无需删除任何代码。
+**生产构建**：默认 release 模式下检查器会被完全跳过——不启动采集、不引入 Zone、不写磁盘，你无需删除任何代码。但原生插件依赖仍会被链接进 release 应用，可用 `flutter build apk --analyze-size` 实测体积影响。
 
 > **不想有任何全局 Zone？** 上面的一行式集成用 `Zone` 包裹 `runApp`，**仅**是为了抓取裸 `print()`。如果你的团队对任何全局 Zone 都心存警惕，可以彻底拿掉它——`debugPrint()` 捕获与其余所有能力照常工作：
 >
@@ -230,7 +230,7 @@ class MyApp extends StatelessWidget {
 - **被拦截的 `HttpClient` 是透明代理。** `authenticate`、`findProxy`、`connectionFactory`、`badCertificateCallback`、`maxConnectionsPerHost` 等全部委托给你的真实 client，请求生命周期没有任何改动。
 - **`Zone` 极浅且可选。** 它仅用于抓取裸 `print()`；若 Flutter binding 已初始化则自动降级为空操作，你也可以用 `enablePrintZoneCapture: false` 把它彻底移除。
 - **一切都可经 `dispose()` 还原。** `dispose()` 会恢复你原本的 `FlutterError.onError`、还原先前的 `HttpOverrides`、停止所有定时器与监控并拆除浮层——因此你可以在运行时随时关闭采集（例如隐私侧的"停止采集"开关），之后再用 `init()` 重新开启。
-- **发布安全。** 所有采集代码在发布构建中都会被 tree-shake 掉，绝不会影响生产行为或包体积。
+- **默认发布安全。** 编译期常量会在默认 release 构建中跳过所有采集、全局 Zone 与磁盘写入，生产行为不受影响。但 `sqflite`、`path_provider`、`share_plus`、`device_info_plus` 等原生插件依赖仍会被平台构建链接，包体积并非零影响——请用 `flutter build apk --analyze-size` 核实。
 
 它是 Flutter DevTools 的**补充**而非替代：开发期与评审期用应用内控制台做快速的在设备初判，需要权威的离线深度分析时（Heap Snapshot、CPU 性能分析）再交给 DevTools。
 
@@ -376,7 +376,7 @@ await PersistenceService.instance.clearAll();
 
 ### 网络请求
 
-所有 HTTP 请求（包括 **http 包**和 **Dio**）在初始化后都会通过 `HttpOverrides` 自动拦截，无需额外配置。
+所有基于 `dart:io` `HttpClient` 的 HTTP 请求（包括 **http 包**和 **Dio**）在初始化后都会通过 `HttpOverrides` 自动拦截，无需额外配置；覆盖范围限制见下文。
 
 ```dart
 import 'package:http/http.dart' as http;
@@ -409,6 +409,8 @@ ws.add('ping'); // 出站帧也会被自动记录
 ```
 
 抓取到的帧出现在 **Network** 列表（method 标 `WS`），复用时间轴与详情页。关闭抓取时，`InspectorWebSocket.connect` 与 `WebSocket.connect` 行为完全一致，零开销。
+
+> **覆盖范围限制与应对方式：** `HttpOverrides` 只能看到基于 `dart:io` `HttpClient` 的客户端；Firebase、`cupertino_http`、`native_dio_adapter` 的流量不可见——可用 `InspectorService.instance.addNetworkRequest(NetworkRequest(...))` 手动喂入。`HttpOverrides.runZoned` 创建的 zone 会绕过全局 override：把 `InspectorHttpOverrides(HttpOverrides.current)` 传给 `HttpOverrides.runWithHttpOverrides(...)`，或把 `createInspectorHttpClient` 传给 `runZoned(createHttpClient: ...)` 即可继续捕获。若宿主在 `init()` 之后重设了 `HttpOverrides.global`，调用一次 `ZeroInspectorKit.reinstallHttpOverrides()`（或先 `dispose()` 再 `init()`）；`dispose()` 也不会再覆盖宿主较新的 override。
 
 **gRPC / web_socket_channel / 其他协议栈：** 这些无法被 `dart:io` 透明拦截，请使用手动 hook：
 
@@ -525,7 +527,7 @@ ZeroInspectorKit.runAppWithInspector(
 - **最近日志**：最近捕获的若干条日志。
 - **最近网络**：最近捕获的若干条请求。
 
-敏感请求头会与网络标签页一样被遮蔽（面板内可切换"敏感信息隐藏"）。除你选择的分享目标（邮件、IM 等）外，数据不会离开设备。
+敏感请求头、URL query 与 body 中的凭据会与网络标签页一样被遮蔽（面板内可切换"敏感信息隐藏"），日志文本同样会脱敏。完整会话存档也默认脱敏——如需原文复现请求，可给 `buildSessionArchiveJson()` / `exportSessionArchiveAndShare()` 传 `maskSensitive: false`。除你选择的分享目标（邮件、IM 等）外，数据不会离开设备。
 
 > 无需任何额外配置——检查器运行后即可使用。
 

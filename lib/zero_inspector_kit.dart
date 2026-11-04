@@ -204,6 +204,13 @@ class ZeroInspectorKit {
     int? maxRouteItems,
     int? maxBodyPreviewBytes,
   }) {
+    // 编译期 gate：默认 release（AOT）构建完全不启动采集，也不写磁盘。
+    // 必须是 const 条件，AOT 才能折叠分支并摇掉后续不可达的采集代码。
+    // Compile-time gate: default release (AOT) builds never start collection
+    // or write to disk. Must stay a const condition so AOT can fold the
+    // branch and tree-shake the unreachable collection code below.
+    if (InspectorEnvironment.isInspectorDisabledInCurrentBuild) return;
+
     if (_initialized) return;
     _initialized = true;
 
@@ -453,7 +460,23 @@ class ZeroInspectorKit {
   /// [app] 应用根组件 / App root widget
   /// [enable] 是否启用检查器（默认 true）/ Whether to enable inspector (default true)
   static Widget wrapApp(Widget app, {bool enable = true}) {
+    // 默认 release 下连 wrapper widget 都不引入（不注入 RouteObserver、
+    // 不挂 OverlayEntry），宿主应用保持原样。
+    // In default release builds skip even the wrapper widget (no injected
+    // RouteObserver, no OverlayEntry): the host app stays untouched.
+    if (InspectorEnvironment.isInspectorDisabledInCurrentBuild) return app;
     return _InspectorAppWrapper(app: app, enable: enable);
+  }
+
+  /// 宿主在 `init()` 之后重设了 `HttpOverrides.global` 时，重新安装链式网络拦截。
+  /// Re-install the chained HTTP interception after the host replaced
+  /// `HttpOverrides.global` following `init()`.
+  ///
+  /// 默认 release 构建下为空操作；重复调用不会叠加多层 override。
+  /// A no-op in default release builds; repeated calls never stack layers.
+  static void reinstallHttpOverrides() {
+    if (InspectorEnvironment.isInspectorDisabledInCurrentBuild) return;
+    InspectorHttpInterceptor.instance.reinstall();
   }
 
   /// 运行应用并接入检查器。默认用 Zone 抓取 print()，可通过
@@ -489,6 +512,18 @@ class ZeroInspectorKit {
     bool enableNetworkReplay = false,
     bool enablePrintZoneCapture = true,
   }) {
+    // 默认 release 构建连全局 Zone / wrapper 都不引入：既不 init（无采集、
+    // 无落盘），也不改动宿主 app 的 widget 树。仅 `INSPECTOR_MODES=all`
+    // 的 QA 包才会走下面的完整路径。
+    // Default release builds introduce neither the global Zone nor the
+    // wrapper: no init (no collection, no disk writes) and no changes to the
+    // host widget tree. Only `INSPECTOR_MODES=all` QA builds take the full
+    // path below.
+    if (InspectorEnvironment.isInspectorDisabledInCurrentBuild) {
+      runApp(app);
+      return;
+    }
+
     init(
       enable: enable,
       enableWidgetInspector: enableWidgetInspector,

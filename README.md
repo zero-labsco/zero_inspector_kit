@@ -23,7 +23,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release adds an opt-in to bundle the inspector into release (AOT) builds for QA / internal testers — add `zero_inspector_kit.inspector_modes: all` to your app's `pubspec.yaml` and build via `dart run zero_inspector_kit:build_inspector build apk --release` (recommended — the helper reads the config from your `pubspec.yaml`; or pass `--dart-define=INSPECTOR_MODES=all` directly if you prefer not to use it). Release builds stay disabled and tree-shaken by default. Note: VM Service features (memory allocation histogram, object-graph analysis) remain unavailable in release even when enabled — use a `--profile` build for full memory profiling. All users are encouraged to upgrade to the latest version (`^2.2.0`).
+> **🔔 Upgrade recommended:** This release adds `InspectorHttpOverrides` / `createInspectorHttpClient()` for capture inside `HttpOverrides.runWithHttpOverrides()` zones and `reinstallHttpOverrides()` for hosts that replace the global override after init, and makes default release (AOT) builds truly inert. All users are encouraged to upgrade to the latest version (`^2.3.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -104,7 +104,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.2.0
+  zero_inspector_kit: ^2.3.0
 ```
 
 ### GitHub
@@ -114,7 +114,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.2.0   # replace 2.2.0 with the version you need
+      ref: release/v2.3.0   # replace 2.3.0 with the version you need
 ```
 
 ### OpenHarmony (鸿蒙)
@@ -126,7 +126,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.2.0   # replace 2.2.0 with the version you need
+      ref: ohos/v2.3.0   # replace 2.3.0 with the version you need
 ```
 
 Requires the OpenHarmony Flutter SDK and DevEco Studio; the bundled `ohos/` native module must be built as part of your OHOS app.
@@ -135,9 +135,9 @@ Requires the OpenHarmony Flutter SDK and DevEco Studio; the bundled `ohos/` nati
 
 ## Enabling the inspector in release builds
 
-By default the inspector is **auto-disabled and tree-shaken out of release (AOT) builds** — its code is physically absent from the production binary, so it cannot be toggled on at runtime. To ship a release build that still carries the inspector for QA / internal testers, opt in at **compile time**.
+By default the inspector is **fully skipped in release (AOT) builds**: `init()`, `wrapApp()` and `runAppWithInspector()` take an inert path, so no log/network capture, no global Zone, no overlay and no disk writes are activated. This is a compile-time constant branch, so it cannot be toggled on at runtime. Note that the native plugin dependencies declared in `pubspec.yaml` are still linked by the platform build, so binary size is not zero-impact — measure with `flutter build apk --analyze-size`. To ship a release build that still carries the inspector for QA / internal testers, opt in at **compile time**.
 
-If you add no `zero_inspector_kit:` key to your pubspec at all, it falls back to `debug` — release builds stay tree-shaken, exactly as before.
+If you add no `zero_inspector_kit:` key to your pubspec at all, it falls back to `debug` — release builds stay inert by default.
 
 Add the optional config to **your app's `pubspec.yaml`** (the app that depends on this package):
 
@@ -155,7 +155,7 @@ dart run zero_inspector_kit:build_inspector build apk --release
 flutter build apk --release --dart-define=INSPECTOR_MODES=all
 ```
 
-- `debug` (default): enabled in debug/profile, disabled (tree-shaken) in release.
+- `debug` (default): enabled in debug/profile; skipped in release (no collection, no Zone, no disk writes).
 - `all`: also bundled and enabled in release (AOT) builds.
 
 > **⚠️ What does NOT work in a release build even when enabled**
@@ -204,12 +204,12 @@ class MyApp extends StatelessWidget {
 | Capability | How |
 |------------|-----|
 | ✅ Log Capture | All `print()` / `debugPrint()` calls and Flutter errors via Zone |
-| ✅ Network Interception | All **http** & **Dio** requests via `HttpOverrides` (Dio uses `HttpClient`) |
+| ✅ Network Interception | **http** & **Dio** requests via `HttpOverrides` (`dart:io` `HttpClient` only) |
 | ✅ Database Scan | Auto-scans and registers SQLite databases |
 | ✅ Floating Button | Shown via `Overlay`, no manual widget needed |
 | ✅ Route Tracking | Via `InspectorRouteObserver` (auto-injected into `MaterialApp`) |
 
-**Production Build:** The inspector is automatically disabled in release mode — tree-shaking removes all related code, so you never need to delete anything.
+**Production Build:** The inspector is skipped by default in release mode — no collection, no Zone and no disk writes are activated, so you never need to delete any code. Native plugin dependencies are still linked into release apps; use `flutter build apk --analyze-size` to measure the size impact.
 
 > **Prefer zero global Zone?** The one-liner above wraps `runApp` in a `Zone` *only* so that raw `print()` calls get captured. If your team is wary of any global Zone, drop it entirely — `debugPrint()` capture and every other capability stay on:
 >
@@ -231,7 +231,7 @@ We know developers are rightfully cautious about third-party libraries that hija
 - **The captured `HttpClient` is a transparent proxy.** `authenticate`, `findProxy`, `connectionFactory`, `badCertificateCallback`, `maxConnectionsPerHost` and friends are all delegated to your real client. Nothing about the request lifecycle is altered.
 - **The `Zone` is shallow and optional.** It exists only to capture raw `print()`; it degrades gracefully to a no-op if the Flutter binding is already initialized, and you can remove it completely with `enablePrintZoneCapture: false`.
 - **Everything is reversible via `dispose()`.** `dispose()` restores your original `FlutterError.onError`, restores the previous `HttpOverrides`, stops all timers and monitoring, and tears down the overlay — so you can switch collection off at runtime (e.g. a privacy "stop collecting" toggle) and `init()` again later.
-- **Release-safe.** All collection code is tree-shaken out in release builds, so it can never affect production behavior or binary size.
+- **Release-safe by default.** A compile-time constant skips all collection, the global Zone and disk writes in default release builds, so production behavior is untouched. Native plugin dependencies (`sqflite`, `path_provider`, `share_plus`, `device_info_plus`) are still linked by the platform build, so binary size is not zero-impact — verify with `flutter build apk --analyze-size`.
 
 This is a *complement* to Flutter DevTools, not a competitor: use the in-app console for quick on-device triage during development and review, and reach for DevTools' deep Heap Snapshot and CPU profiler when you need authoritative, offline analysis.
 
@@ -377,7 +377,7 @@ Toggle with `enablePersistence` in `init()` (default `true`). Set both `enableEr
 
 ### Network Requests
 
-All HTTP requests (both **http** and **Dio**) are intercepted via `HttpOverrides` automatically after init — no setup required.
+All HTTP requests built on `dart:io`'s `HttpClient` (both **http** and **Dio**) are intercepted via `HttpOverrides` automatically after init — no setup required. See the coverage limits below.
 
 ```dart
 import 'package:http/http.dart' as http;
@@ -410,6 +410,8 @@ ws.add('ping'); // outgoing frames are auto-captured too
 ```
 
 Captured frames appear in the **Network** list (method `WS`), reusing the timeline & detail view. When capture is off, `InspectorWebSocket.connect` behaves exactly like `WebSocket.connect` with zero overhead.
+
+> **Coverage limits & how to cover them:** `HttpOverrides` only sees clients built on `dart:io`'s `HttpClient`; Firebase, `cupertino_http` and `native_dio_adapter` traffic is invisible — feed it manually via `InspectorService.instance.addNetworkRequest(NetworkRequest(...))`. Zones created by `HttpOverrides.runZoned` bypass the global override: pass `InspectorHttpOverrides(HttpOverrides.current)` to `HttpOverrides.runWithHttpOverrides(...)` or `createInspectorHttpClient` to `runZoned(createHttpClient: ...)` to keep capturing. If the host reassigns `HttpOverrides.global` after `init()`, call `ZeroInspectorKit.reinstallHttpOverrides()` once (or `dispose()` then `init()`); `dispose()` no longer overwrites the host's newer override.
 
 **gRPC / web_socket_channel / other stacks:** these can't be transparently intercepted by `dart:io`, so use the manual hook:
 
@@ -525,7 +527,7 @@ The shared text snapshot includes:
 - **Recent logs:** the latest captured log entries.
 - **Recent network:** the latest captured requests.
 
-Sensitive headers are masked the same way as in the Network tab (toggle "Sensitive hidden" in the panel). No data leaves the device except through the share target you choose (mail, IM, etc.).
+Sensitive headers, URL query values and credentials in bodies are masked the same way as in the Network tab (toggle "Sensitive hidden" in the panel), and log lines are masked too. The full-session archive is masked by default as well — pass `maskSensitive: false` to `buildSessionArchiveJson()` / `exportSessionArchiveAndShare()` when verbatim data is needed to reproduce a request. No data leaves the device except through the share target you choose (mail, IM, etc.).
 
 > Requires no extra setup — it works as soon as the inspector is running.
 

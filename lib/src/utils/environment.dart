@@ -61,6 +61,22 @@ class InspectorEnvironment {
   /// 仅当显式 `INSPECTOR_MODES=all` 时才被打进包。
   static bool get isInspectorAllowedInRelease => inspectorModes == 'all';
 
+  /// 当前构建是否必须**完全跳过**检查器（默认 release / AOT 且未开
+  /// `INSPECTOR_MODES=all`）。/ Whether the current build must skip the
+  /// inspector entirely (default release / AOT without `INSPECTOR_MODES=all`).
+  ///
+  /// 刻意写成 `const` 而非 getter：AOT 需要把 `init()` / `wrapApp()` /
+  /// `runAppWithInspector()` 里的判断折叠成常量，才能摇掉后面不可达的采集代码。
+  /// 注意 pubspec 声明的原生插件依赖仍由平台构建链接，因此这里**不承诺**
+  /// release 包体积零影响。
+  /// Deliberately a `const` (not a getter) so AOT can constant-fold the checks
+  /// in `init()` / `wrapApp()` / `runAppWithInspector()` and tree-shake the
+  /// unreachable collection code. Native plugin dependencies declared in
+  /// `pubspec.yaml` are still linked by the platform build, so this is NOT a
+  /// promise of zero binary-size impact.
+  static const bool isInspectorDisabledInCurrentBuild =
+      kReleaseMode && inspectorModes != 'all';
+
   /// 是否为调试模式 / Whether in debug mode
   static bool get isDebug => kDebugMode;
 }
