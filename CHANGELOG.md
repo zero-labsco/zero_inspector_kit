@@ -4,8 +4,8 @@
 
 ### Added / 新增
 
-- Added an opt-in to bundle the inspector into release (AOT) builds for QA / internal testing. Configure `inspector_modes: all` under the `zero_inspector_kit:` key in `pubspec.yaml` (default `debug`) and build via `dart tool/build_inspector.dart build apk --release`, or pass `--dart-define=INSPECTOR_MODES=all` directly. The release build stays disabled and tree-shaken by default; VM-Service-only features (memory allocation histogram, object-graph analysis) remain unavailable in release even when enabled — use a `--profile` build for full memory profiling.
-  - 新增可选开关：可将检查器一并打进 release（AOT）构建，供 QA / 内部测试使用。在 `pubspec.yaml` 的 `zero_inspector_kit:` 下设置 `inspector_modes: all`（默认 `debug`），并通过 `dart tool/build_inspector.dart build apk --release` 构建，或直接传 `--dart-define=INSPECTOR_MODES=all`。默认 release 仍禁用并被 tree-shake 剔除；即便开启，仅依赖 VM Service 的功能（内存分配直方图、对象图分析）在 release 下仍不可用——需要完整内存分析请使用 `--profile` 构建。
+- Added an opt-in to bundle the inspector into release (AOT) builds for QA / internal testing. Configure `inspector_modes: all` under the `zero_inspector_kit:` key in `pubspec.yaml` (default `debug`) and build via `dart tools/build_inspector.dart build apk --release`, or pass `--dart-define=INSPECTOR_MODES=all` directly. The release build stays disabled and tree-shaken by default; VM-Service-only features (memory allocation histogram, object-graph analysis) remain unavailable in release even when enabled — use a `--profile` build for full memory profiling.
+  - 新增可选开关：可将检查器一并打进 release（AOT）构建，供 QA / 内部测试使用。在 `pubspec.yaml` 的 `zero_inspector_kit:` 下设置 `inspector_modes: all`（默认 `debug`），并通过 `dart tools/build_inspector.dart build apk --release` 构建，或直接传 `--dart-define=INSPECTOR_MODES=all`。默认 release 仍禁用并被 tree-shake 剔除；即便开启，仅依赖 VM Service 的功能（内存分配直方图、对象图分析）在 release 下仍不可用——需要完整内存分析请使用 `--profile` 构建。
 
 ## 2.1.0
 

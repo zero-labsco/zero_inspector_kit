@@ -23,7 +23,7 @@ Eine In-App-Entwicklerkonsole für Flutter: Inspektion von HTTP-, WebSocket- und
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade empfohlen:** Dieses Release fügt eine Opt-in-Möglichkeit hinzu, den Inspector in Release-(AOT-)Builds für QA / interne Tester einzubinden – füge `zero_inspector_kit.inspector_modes: all` in deiner `pubspec.yaml` (der App, die dieses Paket nutzt) hinzu und baue via `dart tool/build_inspector.dart build apk --release` (kopiere das Skript in dein App-`tool/`, oder übergebe `--dart-define=INSPECTOR_MODES=all`). Release-Builds bleiben standardmäßig deaktiviert und werden weg-optimiert. Hinweis: VM-Service-Funktionen (Speicher-Allocationshistogramm, Objektgraphen-Analyse) bleiben im Release selbst bei Aktivierung unverfügbar – nutze für die vollständige Speicheranalyse einen `--profile`-Build. Allen Nutzern wird ein Upgrade auf die neueste Version (`^2.2.0`) empfohlen.
+> **🔔 Upgrade empfohlen:** Dieses Release fügt eine Opt-in-Möglichkeit hinzu, den Inspector in Release-(AOT-)Builds für QA / interne Tester einzubinden – füge `zero_inspector_kit.inspector_modes: all` in deiner `pubspec.yaml` (der App, die dieses Paket nutzt) hinzu und baue via `dart tools/build_inspector.dart build apk --release` (kopiere das Skript in dein App-`tool/`, oder übergebe `--dart-define=INSPECTOR_MODES=all`). Release-Builds bleiben standardmäßig deaktiviert und werden weg-optimiert. Hinweis: VM-Service-Funktionen (Speicher-Allocationshistogramm, Objektgraphen-Analyse) bleiben im Release selbst bei Aktivierung unverfügbar – nutze für die vollständige Speicheranalyse einen `--profile`-Build. Allen Nutzern wird ein Upgrade auf die neueste Version (`^2.2.0`) empfohlen.
 
 🌐 **[Offizielle Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[Auf pub.dev ansehen](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[Auf GitHub ansehen](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -145,11 +145,11 @@ zero_inspector_kit:
   inspector_modes: all   # Standard ist `debug`
 ```
 
-Baue dann über das Hilfsskript (kopiere `tool/build_inspector.dart` in dein App-`tool/`, oder gib das Flag direkt an):
+Baue dann über das Hilfsskript (kopiere `tools/build_inspector.dart` in dein App-`tool/`, oder gib das Flag direkt an):
 
 ```bash
 # im Verzeichnis deiner App
-dart tool/build_inspector.dart build apk --release
+dart tools/build_inspector.dart build apk --release
 # oder das Flag direkt übergeben:
 flutter build apk --release --dart-define=INSPECTOR_MODES=all
 ```

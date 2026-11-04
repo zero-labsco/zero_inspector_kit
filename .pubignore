@@ -9,3 +9,8 @@ CONTRIBUTING.md
 
 # Local build artifacts (test caches, native assets) — not needed by consumers.
 build/
+
+# Dev/build scripts (normalize-eol, check_release, build_inspector) — repo-internal
+# tooling only, not part of the published package.
+tool/
+tools/

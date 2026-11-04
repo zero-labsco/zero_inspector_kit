@@ -5,13 +5,13 @@
 // matching `--dart-define=INSPECTOR_MODES=...` so the inspector can be bundled
 // into release (AOT) builds when configured.
 //
-// This script lives in the plugin repo's `tool/`. In a real host app, copy it
+// This script lives in the plugin repo's `tools/`. In a real host app, copy it
 // into your app's `tool/` (or just pass the flag directly):
 //   flutter build apk --release --dart-define=INSPECTOR_MODES=all
 //
 // Usage (from your app's directory):
-//   dart tool/build_inspector.dart build apk --release
-//   dart tool/build_inspector.dart run --release
+//   dart tools/build_inspector.dart build apk --release
+//   dart tools/build_inspector.dart run --release
 
 import 'dart:convert';
 import 'dart:io';
