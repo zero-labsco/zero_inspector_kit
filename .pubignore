@@ -10,7 +10,7 @@ CONTRIBUTING.md
 # Local build artifacts (test caches, native assets) — not needed by consumers.
 build/
 
-# Dev/build scripts (normalize-eol, check_release, build_inspector) — repo-internal
-# tooling only, not part of the published package.
-tool/
+# Dev-only scripts (normalize-eol, check_release) live in tools/ and are repo-internal
+# tooling, NOT part of the published package. The build helper is published instead as a
+# Dart bin/ executable (bin/build_inspector.dart) and is intentionally NOT excluded.
 tools/
