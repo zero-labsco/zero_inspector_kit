@@ -155,7 +155,7 @@ flutter build apk --release --dart-define=INSPECTOR_MODES=all
 ```
 
 - `debug`（默认）：debug/profile 启用，release 禁用（tree-shake 剔除）。
-- `all` / `release`：release 构建也一并打进并启用。
+- `all`：release 构建也一并打进并启用。
 
 > **⚠️ 即便开启，release 下仍无法检查到的内容**
 > release（AOT）构建会禁用 Dart VM Service，因此一切依赖它的功能都不可用，与是否开启本开关无关：

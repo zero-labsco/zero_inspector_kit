@@ -155,7 +155,7 @@ flutter build apk --release --dart-define=INSPECTOR_MODES=all
 ```
 
 - `debug` (Standard): in debug/profile aktiv, in Release deaktiviert (weg-optimiert).
-- `all` / `release`: auch in Release-Builds eingebunden und aktiviert.
+- `all`: auch in Release-Builds eingebunden und aktiviert.
 
 > **⚠️ Was im Release auch bei Aktivierung NICHT funktioniert**
 > Ein Release-(AOT-)Build deaktiviert den Dart VM Service, daher ist alles, was davon abhängt, unabhängig von diesem Schalter nicht verfügbar:

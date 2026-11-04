@@ -26,7 +26,7 @@ void main(List<String> args) {
     if (match != null) {
       final value = match.group(1)!;
       // Only forward values we recognize; keep `debug` as the safe default.
-      if (value == 'all' || value == 'release' || value == 'debug') {
+      if (value == 'all' || value == 'debug') {
         mode = value;
       }
     }

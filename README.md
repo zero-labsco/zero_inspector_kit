@@ -156,7 +156,7 @@ flutter build apk --release --dart-define=INSPECTOR_MODES=all
 ```
 
 - `debug` (default): enabled in debug/profile, disabled (tree-shaken) in release.
-- `all` / `release`: also bundled and enabled in release builds.
+- `all`: also bundled and enabled in release (AOT) builds.
 
 > **⚠️ What does NOT work in a release build even when enabled**
 > A release (AOT) build disables the Dart VM Service, so everything that depends on it is unavailable regardless of this flag:

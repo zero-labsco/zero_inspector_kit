@@ -155,7 +155,7 @@ flutter build apk --release --dart-define=INSPECTOR_MODES=all
 ```
 
 - `debug`（デフォルト）：debug/profile で有効、release では無効（tree-shake 除外）。
-- `all` / `release`：release ビルドにも同梱・有効化されます。
+- `all`：release ビルドにも同梱・有効化されます。
 
 > **⚠️ 有効にしても release では利用できないもの**
 > release（AOT）ビルドでは Dart VM Service が無効化されるため、それに依存する機能はこのフラグに関わらず利用できません：
