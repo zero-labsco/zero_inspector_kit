@@ -23,7 +23,7 @@ Flutter 向けのアプリ内開発者コンソールです。HTTP・WebSocket�
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 アップグレードを推奨：** このリリースでは、QA／社内テスト向けにインスペクターを release（AOT）ビルドに同梱するオプションを追加しました——あなたのアプリの `pubspec.yaml`（このパッケージに依存するアプリ）に `zero_inspector_kit.inspector_modes: all` を追加し、`dart run zero_inspector_kit:build_inspector build apk --release`（推奨——ヘルパーが `pubspec.yaml` の設定を読み取ります。使いたくない場合は `--dart-define=INSPECTOR_MODES=all` を直接指定しても可）でビルドします。release ビルドはデフォルトで無効かつ tree-shake により除外されたままです。注意：VM Service 系の機能（メモリ割り当てヒストグラム、オブジェクトグラフ解析）は、たとえ有効にしても release では引き続き利用できません——完全なメモリ解析には `--profile` ビルドを使用してください。すべてのユーザーに最新バージョン（`^2.2.0`）へのアップグレードをお勧めします。
+> **🔔 アップグレードを推奨：** このリリースでは、`HttpOverrides.runWithHttpOverrides()` などの zone 内でも捕捉を維持する `InspectorHttpOverrides` / `createInspectorHttpClient()` と、init 後にグローバル override を差し替えた場合に再装着する `reinstallHttpOverrides()` を追加し、デフォルトの release（AOT）ビルドを完全に非アクティブ化しました。すべてのユーザーに最新バージョン（`^2.3.0`）へのアップグレードをお勧めします。
 
 🌐 **[公式ウェブサイト](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[pub.dev で見る](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[GitHub で見る](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -103,7 +103,7 @@ Flutter 向けのアプリ内開発者コンソールです。HTTP・WebSocket�
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.2.0
+  zero_inspector_kit: ^2.3.0
 ```
 
 ### GitHub
@@ -113,7 +113,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.2.0   # 必要なバージョンに 2.2.0 を置き換えてください
+      ref: release/v2.3.0   # 必要なバージョンに 2.3.0 を置き換えてください
 ```
 
 ### OpenHarmony
@@ -125,7 +125,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.2.0   # 必要なバージョンに 2.2.0 を置き換えてください
+      ref: ohos/v2.3.0   # 必要なバージョンに 2.3.0 を置き換えてください
 ```
 
 OpenHarmony の Flutter SDK と DevEco Studio が必要です；同梱の `ohos/` ネイティブモジュールは OHOS アプリの一部としてビルドする必要があります。
@@ -134,9 +134,9 @@ OpenHarmony の Flutter SDK と DevEco Studio が必要です；同梱の `ohos/
 
 ## release ビルドでのインスペクター有効化
 
-デフォルトでは、インスペクターは release（AOT）ビルドで**自動無効化され、tree-shake によって除外されます**——そのコードは最終バイナリに存在しないため、実行時に有効化することはできません。QA／社内テスト用にインスペクターを同梱した release ビルドを配布するには、**コンパイル時に**オプトインする必要があります。
+デフォルトでは、インスペクターは release（AOT）ビルドで**完全にスキップされます**：`init()`、`wrapApp()`、`runAppWithInspector()` は非アクティブな経路を通るため、ログ／ネットワークの捕捉、グローバル Zone、オーバーレイ、ディスク書き込みは一切有効化されません。これはコンパイル時定数の分岐なので、実行時に有効化することはできません。なお `pubspec.yaml` で宣言したネイティブプラグイン依存はプラットフォームビルドで引き続きリンクされるため、バイナリサイズへの影響がゼロではありません——`flutter build apk --analyze-size` で計測してください。QA／社内テスト用にインスペクターを同梱した release ビルドを配布するには、**コンパイル時に**オプトインする必要があります。
 
-もし `pubspec.yaml` に `zero_inspector_kit:` キーを一切追加しなければ、デフォルトの `debug` に戻り、release ビルドは引き続き tree-shake により除外され、以前と変わりません。
+もし `pubspec.yaml` に `zero_inspector_kit:` キーを一切追加しなければ、デフォルトの `debug` に戻り、release ビルドは引き続き非アクティブなままです。
 
 **あなたのアプリの `pubspec.yaml`**（このパッケージに依存するアプリ）にオプション設定を追加します：
 
@@ -154,7 +154,7 @@ dart run zero_inspector_kit:build_inspector build apk --release
 flutter build apk --release --dart-define=INSPECTOR_MODES=all
 ```
 
-- `debug`（デフォルト）：debug/profile で有効、release では無効（tree-shake 除外）。
+- `debug`（デフォルト）：debug/profile で有効、release ではスキップ（捕捉なし、Zone なし、ディスク書き込みなし）。
 - `all`：release ビルドにも同梱・有効化されます。
 
 > **⚠️ 有効にしても release では利用できないもの**
@@ -203,12 +203,12 @@ class MyApp extends StatelessWidget {
 | 機能 | 方法 |
 |------------|-----|
 | ✅ ログ捕捉 | すべての `print()` / `debugPrint()` 呼び出しと Flutter エラーを Zone 経由で |
-| ✅ ネットワークインターセプト | すべての **http** と **Dio** リクエストを `HttpOverrides` 経由で（Dio は `HttpClient` を使用） |
+| ✅ ネットワークインターセプト | **http** と **Dio** のリクエストを `HttpOverrides` 経由で（`dart:io` の `HttpClient` のみ） |
 | ✅ データベーススキャン | SQLite データベースを自動でスキャン・登録 |
 | ✅ フローティングボタン | `Overlay` 経由で表示され、手動ウィジェットは不要 |
 | ✅ ルート追跡 | `InspectorRouteObserver` 経由（`MaterialApp` に自動で注入） |
 
-**本番ビルド：** インスペクターはリリースビルドで自動的に無効化されます——ツリーシェイキングによって関連コードがすべて削除されるため、削除作業は不要です。
+**本番ビルド：** デフォルトの release ビルドではインスペクターがスキップされます——捕捉、Zone、ディスク書き込みは有効化されないため、コードの削除は不要です。ただしネイティブプラグイン依存は release アプリに引き続きリンクされます。サイズへの影響は `flutter build apk --analyze-size` で計測してください。
 
 > **グローバル Zone を避けたい場合：** 上の 1 行は、生の `print()` 呼び出しを捕捉するため*だけ*に `runApp` を `Zone` で包みます。チームがグローバル Zone を嫌う場合は、これを完全に削除できます——`debugPrint()` の捕捉とその他すべての機能は維持されます：
 >
@@ -230,7 +230,7 @@ class MyApp extends StatelessWidget {
 - **捕捉された `HttpClient` は透過的なプロキシです。** `authenticate`、`findProxy`、`connectionFactory`、`badCertificateCallback`、`maxConnectionsPerHost` などはすべて実際のクライアントに委譲されます。リクエストのライフサイクルは何も変更されません。
 - **`Zone` は浅く、オプションです。** 生の `print()` を捕捉するためだけに存在し、Flutter のバインディングがすでに初期化されていればグレイスフルに no-op に劣化し、`enablePrintZoneCapture: false` で完全に削除できます。
 - **すべては `dispose()` で可逆です。** `dispose()` は元の `FlutterError.onError` を復元し、以前の `HttpOverrides` を戻し、すべてのタイマーと監視を停止してオーバーレイを解体します——これにより、実行時に収集をオフにでき（たとえばプライバシーの「収集を停止」トグル）、後で `init()` で再度有効化できます。
-- **リリース安全。** すべての収集コードはリリースビルドでツリーシェイクされるため、製品の挙動やバイナリサイズに影響を与えることはありません。
+- **デフォルトでリリース安全。** コンパイル時定数により、デフォルトの release ビルドではすべての捕捉、グローバル Zone、ディスク書き込みがスキップされ、製品の挙動は変わりません。ただしネイティブプラグイン依存（`sqflite`、`path_provider`、`share_plus`、`device_info_plus`）はプラットフォームビルドで引き続きリンクされるため、バイナリサイズへの影響がゼロではありません——`flutter build apk --analyze-size` で確認してください。
 
 これは Flutter DevTools の*補完*であり、競合ではありません：開発やレビューの際の手軽なオンデバイストリアージにはアプリ内コンソールを、権威的なオフライン分析には DevTools の深い Heap スナップショットや CPU プロファイラーをお使いください。
 
@@ -376,7 +376,7 @@ await PersistenceService.instance.clearAll();
 
 ### ネットワークリクエスト
 
-すべての HTTP リクエスト（**http** と **Dio** の両方）は、init 後に `HttpOverrides` 経由で自動的にインターセプトされます——設定は不要です。
+`dart:io` の `HttpClient` に基づくすべての HTTP リクエスト（**http** と **Dio** の両方）は、init 後に `HttpOverrides` 経由で自動的にインターセプトされます——設定は不要です。適用範囲の制限については下記を参照してください。
 
 ```dart
 import 'package:http/http.dart' as http;
@@ -409,6 +409,8 @@ ws.add('ping'); // 送信フレームも自動で捕捉されます
 ```
 
 捕捉されたフレームは **Network** リスト（メソッド `WS`）に表示され、タイムライン＆詳細ビューを再利用します。キャプチャがオフのとき、`InspectorWebSocket.connect` はオーバーヘッドなしで `WebSocket.connect` とまったく同じように動作します。
+
+> **適用範囲の制限と対処法：** `HttpOverrides` が捕捉できるのは `dart:io` の `HttpClient` に基づくクライアントだけです。Firebase、`cupertino_http`、`native_dio_adapter` のトラフィックは見えません——`InspectorService.instance.addNetworkRequest(NetworkRequest(...))` で手動登録してください。`HttpOverrides.runZoned` が作る zone はグローバル override をバイパスします：`HttpOverrides.runWithHttpOverrides(...)` に `InspectorHttpOverrides(HttpOverrides.current)` を、または `runZoned(createHttpClient: ...)` に `createInspectorHttpClient` を渡せば捕捉を維持できます。`init()` より後に `HttpOverrides.global` を再設定した場合は `ZeroInspectorKit.reinstallHttpOverrides()` を一度呼び出す（または `dispose()` してから `init()`）してください。`dispose()` がホストの新しい override を上書きすることもなくなりました。
 
 **gRPC / web_socket_channel / その他のスタック：** これらは `dart:io` では透過的にインターセプトできないため、手動フックを使います：
 
@@ -524,7 +526,7 @@ ZeroInspectorKit.runAppWithInspector(
 - **最近のログ：** 直近に捕捉されたログエントリ。
 - **最近のネットワーク：** 直近に捕捉されたリクエスト。
 
-機密ヘッダーは Network タブと同様にマスキングされます（パネルの「Sensitive hidden」を切り替え）。選んだ共有先（メール、IM など）を通じない限り、データがデバイス外に出ることはありません。
+機密ヘッダー、URL のクエリ値、body 内の認証情報は Network タブと同様にマスキングされ（パネルの「Sensitive hidden」を切り替え）、ログ行もマスキングされます。完全なセッションアーカイブもデフォルトでマスキングされます——リクエストを再現するために元の値が必要な場合は `buildSessionArchiveJson()` / `exportSessionArchiveAndShare()` に `maskSensitive: false` を渡してください。選んだ共有先（メール、IM など）を通じない限り、データがデバイス外に出ることはありません。
 
 > 追加の設定は不要——インスペクターが動いていればすぐに使えます。
 

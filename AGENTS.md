@@ -3,7 +3,7 @@
 This file defines the architecture, coding conventions, and required workflows for the `zero_inspector_kit` Flutter plugin. AI coding agents (CodeBuddy, Trae, Cursor, Claude Code, GitHub Copilot, Codex, etc.) should read and follow it for any task in this repository. It is the single source of truth for project conventions.
 
 ## Overview
-`zero_inspector_kit` is a Flutter plugin providing an in-app developer console: network inspection, logging, database viewing, memory monitoring, FPS monitoring, and route tracking for Android and iOS. Integration is one line (`ZeroInspectorKit.runAppWithInspector`). The inspector auto-disables in release builds (tree-shaken out).
+`zero_inspector_kit` is a Flutter plugin providing an in-app developer console: network inspection, logging, database viewing, memory monitoring, FPS monitoring, and route tracking for Android and iOS. Integration is one line (`ZeroInspectorKit.runAppWithInspector`). The inspector is skipped by a compile-time constant in default release builds; native plugin dependencies are still linked by the platform build.
 
 ## When to apply
 - Implementing features, fixing bugs, or changing the public API in `lib/`.

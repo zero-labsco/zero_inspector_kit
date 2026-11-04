@@ -306,4 +306,36 @@ class SensitiveData {
     }
     return maskText(body);
   }
+
+  /// 对一条已序列化的网络请求快照做脱敏，供网络导出与会话存档共用同一套规则。
+  /// Mask a serialized network-request snapshot so network exports and the
+  /// session archive apply exactly the same rules.
+  ///
+  /// 会话存档读回的是 `NetworkRequest.toJson()` 的 JSON，而不是对象本身，
+  /// 因此这里以 `Map<String, dynamic>` 为输入，避免两处脱敏逻辑各自漂移。
+  /// The session archive reads back JSON from `NetworkRequest.toJson()` rather
+  /// than the object, so this accepts `Map<String, dynamic>` to keep both
+  /// call sites in sync.
+  static Map<String, dynamic> maskNetworkJson(Map<String, dynamic> json) {
+    final out = Map<String, dynamic>.of(json);
+    final headers = out['headers'];
+    if (headers is Map) {
+      final asStrings = <String, String>{};
+      headers.forEach((key, value) {
+        asStrings[key.toString()] = value == null ? '' : value.toString();
+      });
+      out['headers'] = maskHeaders(asStrings);
+    }
+    final url = out['url'];
+    if (url is String && url.isNotEmpty) {
+      out['url'] = maskUrl(url);
+    }
+    for (final key in const ['body', 'responseBody']) {
+      final value = out[key];
+      if (value != null) {
+        out[key] = maskBodyByContent(value.toString());
+      }
+    }
+    return out;
+  }
 }

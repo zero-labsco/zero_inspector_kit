@@ -8,6 +8,7 @@ import '../models/error_record.dart';
 import '../models/log_entry.dart';
 import '../models/network_request.dart';
 import '../utils/inspector_internal_log.dart';
+import '../utils/sensitive_data.dart';
 import 'export_service.dart';
 
 /// 持久化环形缓冲服务 / Persistence ring-buffer service
@@ -526,11 +527,19 @@ class PersistenceService {
 
   /// 构建"本次会话完整存档"JSON（日志 + 异常 + 网络）
   /// Build the full-session archive JSON (logs + errors + network)
+  ///
+  /// [maskSensitive] 默认开启：存档是一键分享给邮件 / IM 的完整会话，默认
+  /// 遮蔽凭据、URL query 与 body 中的敏感字段；需要原文复现请求时显式传 false。
+  /// [maskSensitive] defaults to true: the archive is a one-tap share of the
+  /// whole session, so credentials, sensitive URL query values and body fields
+  /// are masked by default. Pass false explicitly when verbatim values are
+  /// needed to reproduce a request.
   Future<String> buildSessionArchiveJson({
     int logLimit = 2000,
     int netLimit = 500,
     int errLimit = 200,
     int alertLimit = 100,
+    bool maskSensitive = true,
   }) async {
     await flush();
     final logs = await loadLogs(limit: logLimit);
@@ -539,26 +548,41 @@ class PersistenceService {
     final alerts = await loadAlerts(limit: alertLimit);
     return jsonEncode({
       'generatedAt': DateTime.now().toIso8601String(),
-      'logs': logs.map((l) => l.toJson()).toList(),
-      'errors': errs
+      'logs': logs
           .map(
-            (e) => {
-              'id': e.id,
-              'type': e.type,
-              'message': e.message,
-              'count': e.count,
-              'firstSeen': e.firstSeen.toIso8601String(),
-              'lastSeen': e.lastSeen.toIso8601String(),
-              'stack': e.sampleStack,
+            (l) => <String, dynamic>{
+              ...l.toJson(),
+              if (maskSensitive) 'message': SensitiveData.maskText(l.message),
             },
           )
           .toList(),
-      'network': nets,
+      'errors': errs
+          .map(
+            (e) => <String, dynamic>{
+              'id': e.id,
+              'type': e.type,
+              'message': maskSensitive
+                  ? SensitiveData.maskText(e.message)
+                  : e.message,
+              'count': e.count,
+              'firstSeen': e.firstSeen.toIso8601String(),
+              'lastSeen': e.lastSeen.toIso8601String(),
+              'stack': maskSensitive && e.sampleStack != null
+                  ? SensitiveData.maskText(e.sampleStack!)
+                  : e.sampleStack,
+            },
+          )
+          .toList(),
+      'network': maskSensitive
+          ? nets.map(SensitiveData.maskNetworkJson).toList()
+          : nets,
       'alerts': alerts
           .map(
-            (a) => {
+            (a) => <String, dynamic>{
               'source': a.source,
-              'message': a.message,
+              'message': maskSensitive
+                  ? SensitiveData.maskText(a.message)
+                  : a.message,
               'timestamp': a.time.toIso8601String(),
             },
           )
@@ -567,10 +591,14 @@ class PersistenceService {
   }
 
   /// 导出并分享"本次会话完整存档"/ Export & share the full-session archive
-  Future<bool> exportSessionArchiveAndShare() async {
+  ///
+  /// [maskSensitive] 默认 true，与 [buildSessionArchiveJson] 一致；需要原文
+  /// 存档时显式传 false。/ [maskSensitive] defaults to true, matching
+  /// [buildSessionArchiveJson]; pass false for a verbatim archive.
+  Future<bool> exportSessionArchiveAndShare({bool maskSensitive = true}) async {
     if (!_enabled) return false;
     try {
-      final json = await buildSessionArchiveJson();
+      final json = await buildSessionArchiveJson(maskSensitive: maskSensitive);
       final path = await ExportService.instance.writeToFile(
         json,
         'zik_session_${DateTime.now().millisecondsSinceEpoch}.json',
