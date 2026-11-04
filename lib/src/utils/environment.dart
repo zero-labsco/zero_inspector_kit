@@ -40,6 +40,27 @@ class InspectorEnvironment {
     return raw.isNotEmpty && raw.toLowerCase() == 'false';
   }
 
+  /// Compile-time inspector mode. Controlled by `--dart-define=INSPECTOR_MODES`.
+  /// - `'debug'` (default): enabled in debug/profile, tree-shaken out of release.
+  /// - `'all'`: also bundled and enabled in release (AOT) builds
+  ///   (used for QA / internal test builds).
+  /// Falls back to `'debug'` when the flag is unset.
+  /// 编译期检查器模式，由 `--dart-define=INSPECTOR_MODES` 控制。
+  /// - `'debug'`（默认）：debug/profile 启用，release 下被 tree-shake 剔除。
+  /// - `'all'`：release（AOT）构建也同样打进并启用（用于 QA / 内部测试）。
+  /// 未设置时回退为 `'debug'`。
+  static const String inspectorModes = String.fromEnvironment(
+    'INSPECTOR_MODES',
+    defaultValue: 'debug',
+  );
+
+  /// Whether the inspector is allowed to run in a release (AOT) build.
+  /// Compile-time constant so the inspector code is tree-shaken out by default
+  /// and only included when explicitly opted in via `INSPECTOR_MODES=all`.
+  /// 是否允许在 release（AOT）构建中运行检查器。编译期常量，所以默认会被摇树剔除，
+  /// 仅当显式 `INSPECTOR_MODES=all` 时才被打进包。
+  static bool get isInspectorAllowedInRelease => inspectorModes == 'all';
+
   /// 是否为调试模式 / Whether in debug mode
   static bool get isDebug => kDebugMode;
 }

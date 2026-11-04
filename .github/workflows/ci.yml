@@ -206,7 +206,7 @@ jobs:
       # 发版版本串一致性（pubspec / podspec / inspector_version / README / CHANGELOG）
       # Release version-string consistency (pubspec / podspec / inspector_version / README / CHANGELOG)
       - name: Check release version consistency
-        run: dart run tool/check_release.dart
+        run: dart run tools/check_release.dart
 
       # ========== Example 应用 / Example app ==========
 

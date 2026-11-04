@@ -1,3 +1,5 @@
+import 'src/utils/environment.dart';
+
 export 'src/ui/floating_button.dart';
 export 'src/ui/conditional_inspector.dart';
 export 'src/ui/widgets/inspector_error_boundary.dart';
@@ -717,7 +719,8 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
     //    need Material ancestor. Must NOT wrap with Material(color: transparent)
     //    because RenderMaterial fills the Overlay Stack and returns true from
     //    hitTestSelf, consuming all touch events and making the page unclickable
-    if (widget.enable && !kReleaseMode) {
+    if (widget.enable &&
+        (!kReleaseMode || InspectorEnvironment.isInspectorAllowedInRelease)) {
       _buttonOverlayEntry = OverlayEntry(
         builder: (context) =>
             FloatingInspectorButton(onPanelToggle: _togglePanel),

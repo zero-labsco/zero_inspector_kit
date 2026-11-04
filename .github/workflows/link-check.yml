@@ -14,6 +14,9 @@ on:
     paths:
       - 'README.md'
       - 'README_zh.md'
+      - 'README_de.md'
+      - 'README_es.md'
+      - 'README_ja.md'
       - 'CHANGELOG.md'
       # website/pages/ is intentionally NOT scanned: the Nextra source uses
       # extensionless route links (for example /Custom-Database-Provider) that
@@ -50,7 +53,7 @@ jobs:
             --retry-wait-time 2
             --max-retries 2
             --exclude "https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/.*"
-            README.md README_zh.md CHANGELOG.md
+            README.md README_zh.md README_de.md README_es.md README_ja.md CHANGELOG.md
           fail: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

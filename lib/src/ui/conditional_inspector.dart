@@ -35,9 +35,13 @@ class ConditionalInspector extends StatelessWidget {
   Widget build(BuildContext context) {
     // 除 release 外还要尊重 `--dart-define=INSPECTOR_ENABLED=false`：此前只看
     // `kReleaseMode`，该编译开关在 debug / profile 下完全不生效。
+    // 另外，当 `INSPECTOR_MODES=all` 显式开启时，release 下也允许挂载检查器。
     // Besides release, honor `--dart-define=INSPECTOR_ENABLED=false`: this used to
     // check `kReleaseMode` only, so the flag did nothing in debug / profile.
-    if (kReleaseMode || InspectorEnvironment.isInspectorExplicitlyDisabled) {
+    // Also, when `INSPECTOR_MODES=all` is explicitly set, the inspector is mounted
+    // even in release builds.
+    if ((kReleaseMode && !InspectorEnvironment.isInspectorAllowedInRelease) ||
+        InspectorEnvironment.isInspectorExplicitlyDisabled) {
       return child;
     }
 
@@ -52,9 +56,11 @@ class ConditionalInspector extends StatelessWidget {
 class ConditionalLogInterceptor {
   ConditionalLogInterceptor._();
 
-  /// 启动日志捕获（仅在非release模式下生效）/ Start log capture (only effective in non-release mode)
+  /// 启动日志捕获（仅在非release模式下生效，或 `INSPECTOR_MODES=all` 时生效）/ Start log capture (effective in non-release mode, or when `INSPECTOR_MODES=all`)
   static void start() {
-    if (kReleaseMode) return;
+    if (kReleaseMode && !InspectorEnvironment.isInspectorAllowedInRelease) {
+      return;
+    }
     // 导入并启动日志拦截器 / Import and start log interceptor
     try {
       // 使用动态方式避免release模式下的依赖 / Use dynamic approach to avoid dependencies in release mode

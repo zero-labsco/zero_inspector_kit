@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import '../services/alert_service.dart';
+import '../utils/environment.dart';
 import 'theme/inspector_theme.dart';
 import 'inspector_panel.dart';
 
@@ -201,7 +202,9 @@ class _FloatingInspectorButtonState extends State<FloatingInspectorButton>
 
   @override
   Widget build(BuildContext context) {
-    if (kReleaseMode) return const SizedBox.shrink();
+    if (kReleaseMode && !InspectorEnvironment.isInspectorAllowedInRelease) {
+      return const SizedBox.shrink();
+    }
     if (!widget.enabled || !_isVisible) return const SizedBox.shrink();
 
     return Stack(

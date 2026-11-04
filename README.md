@@ -1,9 +1,13 @@
+<div align="center">
+
 # Zero Inspector Kit
+
+</div>
 
 <div align="center" style="display: flex; align-items: center; justify-content: center; gap: 36px;">
 
 <img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Zee.png" width="88" alt="Zee mascot" />
-<span style="font-size: 1.1em; padding: 0 8px;"><strong>English</strong> &nbsp;|&nbsp; <a href="README_zh.md">简体中文</a></span>
+<span style="font-size: 1.1em; padding: 0 8px;"><strong>English</strong> &nbsp;|&nbsp; <a href="README_zh.md">简体中文</a> &nbsp;|&nbsp; <a href="README_de.md">Deutsch</a> &nbsp;|&nbsp; <a href="README_es.md">Español</a> &nbsp;|&nbsp; <a href="README_ja.md">日本語</a></span>
 <img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Amber.png" width="88" alt="Amber mascot" />
 
 </div>
@@ -19,13 +23,9 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release adds an opt-out for the global Zone — pass `enablePrintZoneCapture: false` to `runAppWithInspector` so no global Zone is ever introduced — and documents the library's non-intrusive design: `HttpOverrides` is chained over your existing one and the captured `HttpClient` is a transparent proxy, so your retry / proxy / interceptor logic is never altered. All users are encouraged to upgrade to the latest version (`^2.1.0`).
+> **🔔 Upgrade recommended:** This release adds an opt-in to bundle the inspector into release (AOT) builds for QA / internal testers — add `zero_inspector_kit.inspector_modes: all` to your app's `pubspec.yaml` and build via `dart run zero_inspector_kit:build_inspector build apk --release` (recommended — the helper reads the config from your `pubspec.yaml`; or pass `--dart-define=INSPECTOR_MODES=all` directly if you prefer not to use it). Release builds stay disabled and tree-shaken by default. Note: VM Service features (memory allocation histogram, object-graph analysis) remain unavailable in release even when enabled — use a `--profile` build for full memory profiling. All users are encouraged to upgrade to the latest version (`^2.2.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
-
-<p align="center">
-  <a href="https://ko-fi.com/amiskwok"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on ko-fi!" /></a>
-</p>
 
 ---
 
@@ -34,6 +34,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 - [Features](#features)
 - [Screenshots](#screenshots)
 - [Installation](#installation)
+- [Enabling the inspector in release builds](#enabling-the-inspector-in-release-builds)
 - [Usage](#usage)
   - [Zero-Invasion Integration](#zero-invasion-integration-recommended)
   - [Non-intrusive by design](#non-intrusive-by-design)
@@ -103,7 +104,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.1.0
+  zero_inspector_kit: ^2.2.0
 ```
 
 ### GitHub
@@ -113,7 +114,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.1.0   # replace 2.1.0 with the version you need
+      ref: release/v2.2.0   # replace 2.2.0 with the version you need
 ```
 
 ### OpenHarmony (鸿蒙)
@@ -125,10 +126,45 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.1.0   # replace 2.1.0 with the version you need
+      ref: ohos/v2.2.0   # replace 2.2.0 with the version you need
 ```
 
 Requires the OpenHarmony Flutter SDK and DevEco Studio; the bundled `ohos/` native module must be built as part of your OHOS app.
+
+---
+
+## Enabling the inspector in release builds
+
+By default the inspector is **auto-disabled and tree-shaken out of release (AOT) builds** — its code is physically absent from the production binary, so it cannot be toggled on at runtime. To ship a release build that still carries the inspector for QA / internal testers, opt in at **compile time**.
+
+If you add no `zero_inspector_kit:` key to your pubspec at all, it falls back to `debug` — release builds stay tree-shaken, exactly as before.
+
+Add the optional config to **your app's `pubspec.yaml`** (the app that depends on this package):
+
+```yaml
+zero_inspector_kit:
+  inspector_modes: all   # default is `debug`
+```
+
+The recommended approach is to keep the config in `pubspec.yaml` and build via the provided helper (it reads `inspector_modes` and injects the flag for you):
+
+```bash
+# from your app's directory
+dart run zero_inspector_kit:build_inspector build apk --release
+# or pass the flag directly:
+flutter build apk --release --dart-define=INSPECTOR_MODES=all
+```
+
+- `debug` (default): enabled in debug/profile, disabled (tree-shaken) in release.
+- `all`: also bundled and enabled in release (AOT) builds.
+
+> **⚠️ What does NOT work in a release build even when enabled**
+> A release (AOT) build disables the Dart VM Service, so everything that depends on it is unavailable regardless of this flag:
+> - Memory **allocation histogram** (VM Service `getAllocationProfile`)
+> - Deep object-graph / retaining-path analysis
+> - Any live VM Service introspection
+>
+> What still works in release: **HTTP / WebSocket / gRPC inspection, logs, error aggregation, FPS jank tracking, routes, and the bug-report exporter.** If testers need full memory profiling, give them a **`--profile`** build instead — it keeps the VM Service reachable while behaving like release.
 
 ---
 

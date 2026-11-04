@@ -33,8 +33,8 @@ This file defines the architecture, coding conventions, and required workflows f
 - Follow `effective_dart`; style is enforced by `flutter analyze` / `flutter_lints` (v6) in CI.
 - Use Conventional Commits for both commit messages AND PR titles: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `perf:`, `test:`, `build:`, `ci:`, `chore:`, `revert:`.
 - Do not break the public API without a major version bump.
-- **All text files use LF line endings** (enforced by `.gitattributes`, `* text=auto eol=lf`). Never commit CRLF — it makes `dart format` output differ between Windows and CI (Linux), causing repeated format-failure churn. After adding or editing files, normalize the tree before committing: Windows `powershell -File tool/normalize-eol.ps1`, macOS/Linux `bash tool/normalize-eol.sh`.
-  - 所有文本文件统一使用 **LF** 换行（`.gitattributes` 强制）。严禁提交 CRLF——否则 `dart format` 在 Windows 与 CI 上输出不一致。新增/修改文件后先归一化再提交：Windows 跑 `powershell -File tool/normalize-eol.ps1`，macOS/Linux 跑 `bash tool/normalize-eol.sh`。
+- **All text files use LF line endings** (enforced by `.gitattributes`, `* text=auto eol=lf`). Never commit CRLF — it makes `dart format` output differ between Windows and CI (Linux), causing repeated format-failure churn. After adding or editing files, normalize the tree before committing: Windows `powershell -File tools/normalize-eol.ps1`, macOS/Linux `bash tools/normalize-eol.sh`.
+  - 所有文本文件统一使用 **LF** 换行（`.gitattributes` 强制）。严禁提交 CRLF——否则 `dart format` 在 Windows 与 CI 上输出不一致。新增/修改文件后先归一化再提交：Windows 跑 `powershell -File tools/normalize-eol.ps1`，macOS/Linux 跑 `bash tools/normalize-eol.sh`。
 
 ## Workflows
 
@@ -87,19 +87,19 @@ Notes / 说明:
 All text files in this repository use **LF** line endings, enforced by `.gitattributes` (`* text=auto eol=lf`). Never commit CRLF — it makes `dart format` produce different output on Windows vs CI (Linux), causing repeated format-failure churn.
 
 - After adding or editing files, normalize the tree before committing:
-  - Windows: `powershell -File tool/normalize-eol.ps1`
-  - macOS / Linux: `bash tool/normalize-eol.sh`
+  - Windows: `powershell -File tools/normalize-eol.ps1`
+  - macOS / Linux: `bash tools/normalize-eol.sh`
   - (or any equivalent that rewrites CRLF → LF, strips the UTF-8 BOM, and skips binaries / `build/` / `.dart_tool/` / `node_modules` / `.next` / `.git`)
 - The `dart-format-fix.yml` CI workflow self-heals formatting on PRs, but normalizing locally keeps the tree clean and avoids surprise bot commits.
 
-/ 本仓库所有文本文件统一使用 **LF** 换行，由 `.gitattributes`（`* text=auto eol=lf`）强制。严禁提交 CRLF——否则 `dart format` 在 Windows 与 CI（Linux）上输出不一致，导致格式检查反复失败。新增/修改文件后请先跑 `powershell -File tool/normalize-eol.ps1` 归一化，再提交。
+/ 本仓库所有文本文件统一使用 **LF** 换行，由 `.gitattributes`（`* text=auto eol=lf`）强制。严禁提交 CRLF——否则 `dart format` 在 Windows 与 CI（Linux）上输出不一致，导致格式检查反复失败。新增/修改文件后请先跑 `powershell -File tools/normalize-eol.ps1` 归一化，再提交。
 
 ### CI
 - `ci.yml`: `actions/checkout@v7`, `subosito/flutter-action@v2`, `actions/cache@v5` (pub cache keyed on `pubspec.lock` plus `example/pubspec.lock`); runs `flutter analyze`, `flutter test`, and `pana` score check.
 - `stale.yml`: `actions/stale@v11` marks stale issues/PRs.
 - `dependabot-pr-bilingual.yml`: `actions/github-script@v7` appends a bilingual (EN-primary, ZH-secondary) summary to the **body** of Dependabot PRs only (`github.actor == 'dependabot[bot]'`, idempotent via marker). It does NOT touch the PR title or commit subject — those stay English per the Conventional Commits rule. When reviewing Dependabot PRs, verify the build passes, check changelogs for breaking changes on major bumps, and confirm the caret (`^`) constraint is preserved.
 - `dart-format-fix.yml`: on PR `opened`/`synchronize`/`reopened` (and `workflow_dispatch` manual trigger), runs `dart format .` and, if it changed anything, auto-commits and pushes the fix back to the **same PR branch** as `github-actions[bot]`. Keeps style consistent without reviewer nudging. Note: uses `pull_request` (not `pull_request_target`) with `permissions: contents: write`; if branch protection blocks workflow pushes or requires signed commits, switch it to open a fix branch / post a comment instead.
-- `link-check.yml`: on PR changes to `README.md`, `README_zh.md`, `CHANGELOG.md` (and `workflow_dispatch` manual trigger), runs `lychee-action@v2` to scan those docs for dead/broken links and fails only on real broken links (mailto and common redirects/rate-limits are excluded). `website/pages/` is deliberately **not** scanned: the Nextra source uses extensionless route links (for example `/Custom-Database-Provider`) that lychee resolves as local files and reports as missing, producing false positives — those routes are validated by the site build instead. Use the Actions tab manual run to scan the default branch on demand.
+- `link-check.yml`: on PR changes to any README (`README.md`, `README_zh.md`, `README_de.md`, `README_es.md`, `README_ja.md`) or `CHANGELOG.md` (and `workflow_dispatch` manual trigger), runs `lychee-action@v2` to scan those docs for dead/broken links and fails only on real broken links (mailto and common redirects/rate-limits are excluded). `website/pages/` is deliberately **not** scanned: the Nextra source uses extensionless route links (for example `/Custom-Database-Provider`) that lychee resolves as local files and reports as missing, producing false positives — those routes are validated by the site build instead. Use the Actions tab manual run to scan the default branch on demand.
 - `pr-title-check.yml` details: allowed types are `feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert`; `requireScope` is `false`; PRs labeled `dependencies` or `github-actions` are ignored. The same type list applies to commit messages (Conventional Commits).
 - `paths-ignore` skips pure assets/non-package files (images `**.png`/`**.jpg`/`**gif`/`**webp`/`**svg`/`**ico`, `**.txt`, `**.gitignore`, `LICENSE`, example build artifacts, etc.) but it MUST NOT blanket-ignore all `**.md` or `docs/**`. `README*.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `TODO.md`, `docs/**` are intentionally **kept OUT of `paths-ignore`** so docs-only PRs still trigger the `ci.yml` workflow — otherwise the entire workflow would be skipped and the branch-protection required checks would never appear (yellow), blocking merge.
 - Whether a triggered run actually executes the heavy jobs is decided by the `path-filter` job's `code` output:
@@ -109,25 +109,20 @@ All text files in this repository use **LF** line endings, enforced by `.gitattr
   - The only non-code exception kept in the `code` list is `.github/workflows/ci.yml` (CI config changes, e.g. Dependabot action bumps, must be validated).
 - Never reintroduce `'**.md'` or `'docs/**'` to `paths-ignore` — it would skip the whole workflow and block docs-only PRs from merging.
 
-### OpenHarmony 适配分支策略 / OHOS branch policy
+### Multilingual README sync / 多语言 README 同步
 
-- 鸿蒙适配（`ohos/` 原生工程、ohos 相关依赖）**只存在于鸿蒙适配分支**（如 `feat/ohos-support`），
-  **禁止合并进 `main`，也禁止用该分支发布 pub.dev**。
-  The OHOS adaptation (the `ohos/` native module and its OHOS dependencies) lives **only** on the
-  OHOS branch (e.g. `feat/ohos-support`); it must **never** be merged into `main` or used to
-  publish to pub.dev.
-- 原因：`pubspec.yaml` 里的 `sqflite_sqlcipher` 是 **git 依赖**（ohos 版本尚未发布到 pub.dev），
-  而 pub.dev 拒绝发布含 git 依赖的包（`Publishable packages can't have 'git' dependencies`）。
-  Reason: `sqflite_sqlcipher` in `pubspec.yaml` is a **git dependency** (the ohos build is not on
-  pub.dev), and pub.dev rejects packages with git dependencies.
-- 预期现象 / Expected symptoms on that branch:
-  - `flutter analyze` 稳定输出 1 条 warning：`Publishable packages can't have 'git' dependencies`（可忽略）。
-  - CI 的 `Pana Score Check` 会失败（预期），`Analyze & Test` 仍应保持通过。
-  - `flutter pub get` 需要能访问 atomgit（git 依赖要 clone）。
-- 发布 pub.dev 时：从**不含** `sqflite_sqlcipher` git 依赖的分支打包；若未来该包发布到 pub.dev，
-  改为版本依赖后即可并入主分支。
-  To publish: package from a branch **without** the git dependency. Once an ohos-capable version is
-  on pub.dev, switch to a version constraint and the code can be merged into the main branch.
+The project ships READMEs in five languages: `README.md` (English, **canonical source of truth**), `README_zh.md` (简体中文), `README_de.md` (Deutsch), `README_es.md` (Español), `README_ja.md` (日本語). Every file carries a centered title, a top language-switcher block listing all five languages (current one bolded, the rest as links), and the same body sections.
+
+**Rule — when documentation is modified, the multilingual READMEs MUST also be checked and updated:**
+- If you edit ANY user-facing documentation content that the English README covers (features, usage, API reference, install snippets, badges, the 🔔 upgrade callout, footer/links, the language switcher), you MUST propagate the same change into **every other language file**. A docs edit that touches only one language silently diverges the others — this is a recurring mistake to avoid.
+- **Version strings** (`^X.Y.Z`, `ref: release/vX.Y.Z`, the 🔔 upgrade callout) must be bumped in **all five** files when releasing, not just `README.md` / `README_zh.md`. The grep sanity check (see Release checklist) must scan `README*.md`, not just `README.md README_zh.md`.
+- **Language switcher**: the block at the top of every file must list all five languages; if you add or remove a language file, update the switcher in **all** files.
+- **Consistency check** before finishing: open each file and confirm (a) headings and Table-of-Contents anchors match GitHub's slug rules (mind umlauts/accents and full-width `（）` — prefer ASCII `()` in headings), and (b) the relative cross-language links (`README_*.md`) resolve. The `link-check.yml` CI now scans all five READMEs, so broken links fail the check.
+- These README files (`README*.md`) are already covered by `paths-ignore` exclusions and `link-check.yml`, so a docs-only or docs + code PR keeps the required checks green.
+
+多语言 README 同步：项目提供五种语言的 README（`README.md` 英文为**权威源**，`README_zh.md` 简体中文，`README_de.md` 德文，`README_es.md` 西班牙文，`README_ja.md` 日文）。每个文件都有居中标题、顶部语言切换块（列出全部五种语言，当前语言加粗、其余为链接）以及相同的正文段落。
+
+**规则——凡是修改文档，必须同步检查并更新多语言 README：** 修改了英文 README 覆盖的任何面向用户的文档内容（功能、用法、API、安装片段、徽章、🔔 升级提示、页脚链接、语言切换块），都必须把相同改动同步到**其余每一种语言**的文件；只改一种语言会让其它语言悄悄脱节。版本号（`^X.Y.Z`、`ref: release/vX.Y.Z`、🔔 升级提示）发版时须在**全部五个**文件中同步更新，而非仅 `README.md` / `README_zh.md`。新增或删除语言文件时，须同步更新所有文件的语言切换块。收尾前逐一打开各文件，确认标题与目录锚点符合 GitHub slug 规则（注意变音符号、重音字母及全角 `（）`——标题中优先用半角 `()`），且跨语言相对链接（`README_*.md`）可解析。`link-check.yml` 现已扫描全部五个 README，断链会导致检查失败。
 
 ### Release and publish
 1. Bump `version` in `pubspec.yaml` (semver; major bump for breaking public API).
@@ -150,7 +145,7 @@ All text files in this repository use **LF** line endings, enforced by `.gitattr
      ```
      / 每条变更必须英中双语（英文为主、中文为辅，EN-primary, ZH-secondary）。不要用 ` / ` 斜杠分隔中英文（太不显眼）。改用嵌套子条目：英文描述作为一级条目，中文翻译缩进为其下方子条目，且**不要**加"中文：" / "EN:" 这类显式标签。小节标题保持 `### Fixed / 修复`、`### Changed / 优化`、`### Added / 新增` 形式。
    - **Changelog scope rule / 变更日志范围规则:** Only changes to `lib/` (i.e. published-package runtime behavior) earn a CHANGELOG entry. Pure documentation updates (`README*.md`, `website/`, `docs/`) and `example/` changes must NOT get a CHANGELOG entry — they do not change the released package's runtime behavior. The single exception is a **pure version-bump commit**: bumping the version legitimately updates the CHANGELOG (and the doc version strings) as part of cutting the release, which is allowed. / 只有 `lib/` 的改动（即已发布包的运行行为）才进 CHANGELOG；纯文档（`README*.md`、`website/`、`docs/`）与 `example/` 的改动不应写进 CHANGELOG——它们不改变发布包的运行行为。唯一的例外是「单纯 bump 版本」的提交：为发版而更新 CHANGELOG（及文档版本号）是允许的。
-   - Grep sanity check before committing: `grep -rn "old_version" README.md README_zh.md website/pages` must return NOTHING (only legitimate historical prose may remain; the `__ZIK_VERSION__` placeholder is expected and is not a real version).
+   - Grep sanity check before committing: `grep -rn "old_version" README.md README_zh.md README_de.md README_es.md README_ja.md website/pages` must return NOTHING (only legitimate historical prose may remain; the `__ZIK_VERSION__` placeholder is expected and is not a real version).
    **Website (Nextra docs site):** `website/` is built by CI — `.github/workflows/docs.yml` runs `website/scripts/sync-docs.mjs --ci` whenever `website/**` or `pubspec.yaml` changes on `main`, and publishes `website/out/` to the root of the `gh-pages` branch. Version references in `website/pages/*.md` use the `__ZIK_VERSION__` placeholder, which is filled from `pubspec.yaml` at build time — bumping `pubspec.yaml` propagates to the site automatically. `main` no longer contains a generated `docs/` directory, so there is no build output to commit and nothing to conflict on.
 2. Update `README.md` / `CHANGELOG.md` as needed.
 3. Locally verify before pushing:
