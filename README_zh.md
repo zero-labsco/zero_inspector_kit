@@ -1,9 +1,13 @@
+<div align="center">
+
 # Zero Inspector Kit
+
+</div>
 
 <div align="center" style="display: flex; align-items: center; justify-content: center; gap: 36px;">
 
 <img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Zee.png" width="88" alt="Zee mascot" />
-<span style="font-size: 1.1em; padding: 0 8px;"><strong>简体中文</strong> &nbsp;|&nbsp; <a href="README.md">English</a></span>
+<span style="font-size: 1.1em; padding: 0 8px;"><a href="README.md">English</a> &nbsp;|&nbsp; <strong>简体中文</strong> &nbsp;|&nbsp; <a href="README_de.md">Deutsch</a> &nbsp;|&nbsp; <a href="README_es.md">Español</a> &nbsp;|&nbsp; <a href="README_ja.md">日本語</a></span>
 <img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Amber.png" width="88" alt="Amber mascot" />
 
 </div>
@@ -22,10 +26,6 @@
 > **🔔 推荐升级：** 本版本新增全局 Zone 的关闭开关——向 `runAppWithInspector` 传入 `enablePrintZoneCapture: false` 即可彻底不引入任何全局 Zone——并补充了「非侵入式设计」文档：`HttpOverrides` 是在你原有配置之外链式包裹、被拦截的 `HttpClient` 是透明代理，因此你的重试 / 代理 / 拦截器逻辑绝不会被改动。建议所有用户升级到最新版本（`^2.1.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
-
-<p align="center">
-  <a href="https://ko-fi.com/amiskwok"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on ko-fi!" /></a>
-</p>
 
 ---
 

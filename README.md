@@ -1,9 +1,13 @@
+<div align="center">
+
 # Zero Inspector Kit
+
+</div>
 
 <div align="center" style="display: flex; align-items: center; justify-content: center; gap: 36px;">
 
 <img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Zee.png" width="88" alt="Zee mascot" />
-<span style="font-size: 1.1em; padding: 0 8px;"><strong>English</strong> &nbsp;|&nbsp; <a href="README_zh.md">简体中文</a></span>
+<span style="font-size: 1.1em; padding: 0 8px;"><strong>English</strong> &nbsp;|&nbsp; <a href="README_zh.md">简体中文</a> &nbsp;|&nbsp; <a href="README_de.md">Deutsch</a> &nbsp;|&nbsp; <a href="README_es.md">Español</a> &nbsp;|&nbsp; <a href="README_ja.md">日本語</a></span>
 <img src="https://raw.githubusercontent.com/zero-labsco/zero_inspector_kit/main/image/mascot/Amber.png" width="88" alt="Amber mascot" />
 
 </div>
@@ -22,10 +26,6 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 > **🔔 Upgrade recommended:** This release adds an opt-out for the global Zone — pass `enablePrintZoneCapture: false` to `runAppWithInspector` so no global Zone is ever introduced — and documents the library's non-intrusive design: `HttpOverrides` is chained over your existing one and the captured `HttpClient` is a transparent proxy, so your retry / proxy / interceptor logic is never altered. All users are encouraged to upgrade to the latest version (`^2.1.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
-
-<p align="center">
-  <a href="https://ko-fi.com/amiskwok"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on ko-fi!" /></a>
-</p>
 
 ---
 
