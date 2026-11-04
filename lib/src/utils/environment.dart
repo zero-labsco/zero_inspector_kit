@@ -59,8 +59,7 @@ class InspectorEnvironment {
   /// and only included when explicitly opted in via `INSPECTOR_MODES=all`.
   /// 是否允许在 release（AOT）构建中运行检查器。编译期常量，所以默认会被摇树剔除，
   /// 仅当显式 `INSPECTOR_MODES=all` 时才被打进包。
-  static bool get isInspectorAllowedInRelease =>
-      inspectorModes == 'all';
+  static bool get isInspectorAllowedInRelease => inspectorModes == 'all';
 
   /// 是否为调试模式 / Whether in debug mode
   static bool get isDebug => kDebugMode;
