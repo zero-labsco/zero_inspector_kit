@@ -16,6 +16,33 @@ The inspector uses Flutter's `HttpOverrides` to intercept all HTTP traffic at th
 - **Dio**: Auto-captured (uses IOHttpClientAdapter → HttpClient) ✅ / 自动捕获 ✅
 - No manual interceptor setup needed / 无需手动添加拦截器
 
+## Coverage Limits & Manual Hooks / 覆盖范围与手动接入
+
+`HttpOverrides` only intercepts clients built on `dart:io`'s `HttpClient`. Traffic from Firebase, `cupertino_http` and `native_dio_adapter` is invisible; feed it manually with `InspectorService.instance.addNetworkRequest(NetworkRequest(...))` and it appears in the Network tab like any captured request.
+
+`HttpOverrides` 只能拦截基于 `dart:io` `HttpClient` 的客户端。Firebase、`cupertino_http`、`native_dio_adapter` 的流量不可见；可通过 `InspectorService.instance.addNetworkRequest(NetworkRequest(...))` 手动喂入，它们会像普通捕获请求一样出现在 Network 标签页。
+
+Zones created by `HttpOverrides.runZoned` bypass the global override. Keep capturing inside them by passing the public chained override:
+
+由 `HttpOverrides.runZoned` 创建的 zone 会绕过全局 override。传入公开的链式 override 即可继续捕获：
+
+```dart
+HttpOverrides.runWithHttpOverrides(
+  () => doNetworkWork(),
+  InspectorHttpOverrides(HttpOverrides.current),
+);
+
+// or with runZoned / 或改用 runZoned
+HttpOverrides.runZoned(
+  () => doNetworkWork(),
+  createHttpClient: createInspectorHttpClient,
+);
+```
+
+If the host reassigns `HttpOverrides.global` after `init()`, the inspector is silently bypassed. Call `ZeroInspectorKit.reinstallHttpOverrides()` once after installing your own override (or `dispose()` then `init()`). `dispose()` no longer overwrites the newer host override.
+
+如果宿主在 `init()` 之后重设了 `HttpOverrides.global`，检查器会被静默绕过。装好自己的 override 后调用一次 `ZeroInspectorKit.reinstallHttpOverrides()`（或先 `dispose()` 再 `init()`）即可；`dispose()` 也不会再覆盖宿主较新的 override。
+
 ## WebSocket & gRPC Capture / WebSocket 与 gRPC 抓取
 
 > **Available since v1.7.0** (opt-in, off by default)

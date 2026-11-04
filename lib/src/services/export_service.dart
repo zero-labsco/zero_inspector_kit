@@ -84,23 +84,10 @@ class ExportService {
   /// so `?token=` and JSON `password` fields were exported verbatim.
   Map<String, dynamic> _maskedJson(NetworkRequest e, bool maskSensitive) {
     final json = e.toJson();
-    if (!maskSensitive) return json;
-    if (e.headers != null) {
-      json['headers'] = SensitiveData.maskHeaders(e.headers!);
-    }
-    final url = e.url;
-    if (url.isNotEmpty) {
-      json['url'] = SensitiveData.maskUrl(url);
-    }
-    if (e.body != null) {
-      json['body'] = SensitiveData.maskBodyByContent(e.body.toString());
-    }
-    if (e.responseBody != null) {
-      json['responseBody'] = SensitiveData.maskBodyByContent(
-        e.responseBody.toString(),
-      );
-    }
-    return json;
+    // 与会话存档共用同一套规则，避免两条导出链路的脱敏范围逐渐分叉。
+    // Share the rules with the session archive so the two export paths cannot
+    // drift apart.
+    return maskSensitive ? SensitiveData.maskNetworkJson(json) : json;
   }
 
   /// 网络请求 → 复制为 cURL 命令 / Network request → cURL command
@@ -407,9 +394,14 @@ class ExportService {
     // relevant data when reporting a bug.
     if (logs != null && logs.isNotEmpty) {
       final sliced = logs.length > maxLogs ? logs.sublist(0, maxLogs) : logs;
+      final text = logsToText(sliced);
+      // 日志里也可能出现 Bearer / JWT / 手机号等凭据：此前只有网络段脱敏，
+      // 一键 bug report 传 maskSensitive: true 时仍会明文带出日志。
+      // Logs can carry Bearer / JWT / PII too: previously only the network
+      // section was masked, so a masked bug report still leaked log text.
       buf
         ..writeln()
-        ..writeln(logsToText(sliced));
+        ..writeln(maskSensitive ? SensitiveData.maskText(text) : text);
     }
 
     if (requests != null && requests.isNotEmpty) {

@@ -72,6 +72,7 @@ class InspectorHttpInterceptor {
 
   bool _started = false;
   HttpOverrides? _previousOverrides;
+  InspectorHttpOverrides? _installedOverrides;
 
   /// 启动全局 HTTP 请求拦截 / Start global HTTP request interception
   /// 链式包裹宿主已有的 HttpOverrides（若存在），避免静默覆盖代理 / 证书固定等配置。
@@ -81,34 +82,90 @@ class InspectorHttpInterceptor {
     if (_started) return;
     _started = true;
     _previousOverrides = HttpOverrides.current;
-    HttpOverrides.global = _InspectorHttpOverrides(_previousOverrides);
+    _installedOverrides = InspectorHttpOverrides(_previousOverrides);
+    HttpOverrides.global = _installedOverrides;
   }
 
   /// 停止全局 HTTP 请求拦截 / Stop global HTTP request interception
-  /// 恢复被包裹前的 HttpOverrides（而非置 null，避免丢弃宿主配置）。
-  /// Restores the previous HttpOverrides (instead of nulling it out, which
-  /// would discard host configurations).
+  ///
+  /// 仅当当前 override 仍是本拦截器安装的实例时才恢复旧值：宿主在 init()
+  /// 之后自行重设 HttpOverrides.global 时，dispose() 不能把宿主的新配置
+  /// 覆盖回旧值（此前无条件写回，会静默丢掉宿主的代理 / 证书固定设置）。
+  /// Restores the previous override only when the current one is still the
+  /// instance we installed. If the host replaced `HttpOverrides.global`
+  /// after init(), disposing must NOT overwrite the host's new configuration.
   void stop() {
     if (!_started) return;
     _started = false;
-    HttpOverrides.global = _previousOverrides;
+    if (identical(HttpOverrides.current, _installedOverrides)) {
+      HttpOverrides.global = _previousOverrides;
+    }
     _previousOverrides = null;
+    _installedOverrides = null;
+  }
+
+  /// 宿主在 init() 之后重设了 HttpOverrides.global 时，重新链式包裹当前的
+  /// override。/ Re-chain over the current global HttpOverrides after the host
+  /// replaced it following init().
+  ///
+  /// Dart 的 HttpOverrides.global 是静态字段、没有赋值钩子，插件无法被动感知
+  /// 宿主的重设，因此只能由宿主显式调用一次（或先 dispose() 再 init()）。
+  /// 幂等：当前已经是 InspectorHttpOverrides 时直接跳过，绝不叠加多层包装。
+  /// `HttpOverrides.global` is a static field with no assignment hook, so the
+  /// plugin cannot detect the replacement passively; the host must call this
+  /// once (or dispose() then init()). Idempotent: skips when the current
+  /// override is already an InspectorHttpOverrides, so layers never stack.
+  void reinstall() {
+    if (!_started) return;
+    final current = HttpOverrides.current;
+    if (identical(current, _installedOverrides) ||
+        current is InspectorHttpOverrides) {
+      return;
+    }
+    _previousOverrides = current;
+    _installedOverrides = InspectorHttpOverrides(_previousOverrides);
+    HttpOverrides.global = _installedOverrides;
   }
 
   /// 是否已启动全局拦截 / Whether global interception has started
   bool get isStarted => _started;
 }
 
-/// HTTP 请求覆盖类 / HTTP request override class
-/// 通过 HttpOverrides 机制实现全局 HTTP 请求拦截 / Implement global HTTP request interception via HttpOverrides mechanism
-class _InspectorHttpOverrides extends HttpOverrides {
-  final HttpOverrides? _delegate;
-  _InspectorHttpOverrides(this._delegate);
+/// 链式 HttpOverrides（公开）/ Chained HttpOverrides (public)
+///
+/// 供宿主在 `HttpOverrides.runWithHttpOverrides()` / `runZoned()` 内继续保持
+/// 检查器捕获：zone 级 override 会屏蔽全局 override，把本实例传进去即可。
+/// Pass this instance to `HttpOverrides.runWithHttpOverrides()` / `runZoned()`
+/// so capture keeps working inside zones, which otherwise bypass the global
+/// override.
+///
+/// ```dart
+/// HttpOverrides.runWithHttpOverrides(
+///   () => doNetworkWork(),
+///   InspectorHttpOverrides(HttpOverrides.current),
+/// );
+/// ```
+class InspectorHttpOverrides extends HttpOverrides {
+  /// 被包裹的原 override（代理 / 证书固定 / 自定义 createHttpClient）。
+  /// The original override being chained (proxy / cert pinning / custom client).
+  final HttpOverrides? delegate;
+
+  InspectorHttpOverrides([this.delegate]);
 
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     final client =
-        _delegate?.createHttpClient(context) ?? super.createHttpClient(context);
+        delegate?.createHttpClient(context) ?? super.createHttpClient(context);
     return _InspectorHttpClient(client);
   }
 }
+
+/// 便捷工厂：供 `HttpOverrides.runZoned(createHttpClient: ...)` 使用。
+/// Convenience factory for `HttpOverrides.runZoned(createHttpClient: ...)`.
+///
+/// 若宿主在 zone 内也需要自己的 client factory，请改用
+/// `InspectorHttpOverrides(delegate).createHttpClient` 以保留链式语义。
+/// If the host also needs its own client factory inside the zone, use
+/// `InspectorHttpOverrides(delegate).createHttpClient` to keep the chain.
+HttpClient createInspectorHttpClient(SecurityContext? context) =>
+    InspectorHttpOverrides().createHttpClient(context);

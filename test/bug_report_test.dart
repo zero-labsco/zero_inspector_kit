@@ -47,4 +47,29 @@ void main() {
     expect(report, isNot(contains('secret-token')));
     expect(report, contains('***'));
   });
+
+  test('buildBugReport also masks credentials inside the log section', () {
+    final logs = [
+      LogEntry(
+        id: '1',
+        level: LogLevel.info,
+        message: 'Authorization: Bearer super-secret-token',
+        timestamp: DateTime.fromMillisecondsSinceEpoch(0),
+      ),
+    ];
+
+    final masked = ExportService.instance.buildBugReport(
+      deviceInfo: 'dev',
+      logs: logs,
+      maskSensitive: true,
+    );
+    expect(masked, isNot(contains('super-secret-token')));
+    expect(masked, contains('Bearer ***'));
+
+    final verbatim = ExportService.instance.buildBugReport(
+      deviceInfo: 'dev',
+      logs: logs,
+    );
+    expect(verbatim, contains('super-secret-token'));
+  });
 }

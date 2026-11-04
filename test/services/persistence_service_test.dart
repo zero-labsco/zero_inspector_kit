@@ -190,6 +190,45 @@ void main() {
   );
 
   test(
+    '会话存档默认脱敏、可显式导出原文 / session archive masks by default and can be exported verbatim',
+    () async {
+      final svc = PersistenceService.instance;
+      svc.enqueueLog(
+        LogEntry(
+          id: 'log-secret',
+          level: LogLevel.info,
+          message: 'Authorization: Bearer super-secret-token',
+          timestamp: DateTime.now(),
+        ),
+      );
+      svc.enqueueNetwork(
+        NetworkRequest(
+          id: 'net-secret',
+          method: 'GET',
+          url: 'https://example.com/api?token=abc123',
+          headers: const {'Authorization': 'Bearer super-secret-token'},
+          requestTime: DateTime.now().millisecondsSinceEpoch,
+          responseBody: '{"password":"hunter2"}',
+        ),
+      );
+      await svc.flush();
+
+      final masked =
+          jsonDecode(await svc.buildSessionArchiveJson())
+              as Map<String, dynamic>;
+      expect(masked.toString(), isNot(contains('super-secret-token')));
+      expect(masked.toString(), isNot(contains('hunter2')));
+      expect(masked.toString(), contains('***'));
+
+      final verbatim =
+          jsonDecode(await svc.buildSessionArchiveJson(maskSensitive: false))
+              as Map<String, dynamic>;
+      expect(verbatim.toString(), contains('super-secret-token'));
+      expect(verbatim.toString(), contains('hunter2'));
+    },
+  );
+
+  test(
     '同一日志 id 重复入队只落一行最新内容 / re-enqueuing the same log id persists one row',
     () async {
       final svc = PersistenceService.instance;

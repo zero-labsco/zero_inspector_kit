@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.3.0
+
+Thanks to @B3K4682 for the review notes on release builds, `HttpOverrides` coverage and persisted credentials — those suggestions prompted this release.
+  - 感谢 @B3K4682 就 release 构建、`HttpOverrides` 覆盖范围与持久化凭据给出的建议，本次修复正是据此展开。
+
+### Added / 新增
+
+- Added `InspectorHttpOverrides` and `createInspectorHttpClient()` so hosts can keep network capture inside `HttpOverrides.runWithHttpOverrides()` / `runZoned()` zones, which otherwise bypass the global override. Both chain over any existing `HttpOverrides` instead of replacing it.
+  - 新增 `InspectorHttpOverrides` 与 `createInspectorHttpClient()`：宿主可在 `HttpOverrides.runWithHttpOverrides()` / `runZoned()` 的 zone 内继续保持网络捕获（这些 zone 原本会绕过全局 override）；两者都链式包裹已有的 `HttpOverrides`，而非替换。
+- Added `ZeroInspectorKit.reinstallHttpOverrides()` (and `InspectorHttpInterceptor.instance.reinstall()`) to re-chain over a `HttpOverrides.global` replaced by the host after `init()`. It is idempotent and a no-op in default release builds.
+  - 新增 `ZeroInspectorKit.reinstallHttpOverrides()`（以及 `InspectorHttpInterceptor.instance.reinstall()`）：宿主在 `init()` 之后重设了 `HttpOverrides.global` 时用于重新链式包裹；幂等，且默认 release 构建下为空操作。
+
+### Fixed / 修复
+
+- Made default release (AOT) builds truly inert: `init()`, `wrapApp()` and `runAppWithInspector()` now bail out on a compile-time constant, so log/network capture, the global `Zone`, `FlutterError.onError` hooking and SQLite persistence are no longer activated in production. Previously only the floating button was hidden while collection kept running and writing to disk. The `INSPECTOR_MODES=all` QA opt-in is unchanged.
+  - 修复默认 release（AOT）构建并未真正禁用检查器的问题：`init()`、`wrapApp()`、`runAppWithInspector()` 现在通过编译期常量直接返回，生产包不再启动日志/网络采集、不再引入全局 `Zone`、不再接管 `FlutterError.onError`、不再写 SQLite。此前只是隐藏悬浮按钮，采集与落盘仍在后台运行；`INSPECTOR_MODES=all` 的 QA 开关行为不变。
+- Masked credentials in the full-session archive and in the log section of bug reports. `buildSessionArchiveJson()` / `exportSessionArchiveAndShare()` now default to `maskSensitive: true` and reuse the same `SensitiveData` rules as network exports (headers, URL query, bodies, Bearer/JWT/PII); pass `maskSensitive: false` for a verbatim archive.
+  - 修复完整会话存档与 bug 报告日志段明文导出凭据的问题：`buildSessionArchiveJson()` / `exportSessionArchiveAndShare()` 默认 `maskSensitive: true`，并复用与网络导出相同的 `SensitiveData` 规则（请求头、URL query、body、Bearer/JWT/PII）；需要原文存档时传 `maskSensitive: false`。
+- Fixed `InspectorHttpInterceptor.stop()` overwriting a newer host-installed `HttpOverrides.global`: it now restores the previous override only when the current one is still the instance the inspector installed, so `dispose()` no longer silently drops host proxy / certificate-pinning configuration.
+  - 修复 `InspectorHttpInterceptor.stop()` 会覆盖宿主后来新装的 `HttpOverrides.global` 的问题：现在仅当当前 override 仍是检查器自己安装的实例时才恢复旧值，`dispose()` 不再静默丢掉宿主的代理 / 证书固定配置。
+
 ## 2.2.0
 
 ### Added / 新增
