@@ -23,7 +23,7 @@ Flutter 向けのアプリ内開発者コンソールです。HTTP・WebSocket�
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 アップグレードを推奨：** このリリースでは、QA／社内テスト向けにインスペクターを release（AOT）ビルドに同梱するオプションを追加しました——あなたのアプリの `pubspec.yaml`（このパッケージに依存するアプリ）に `zero_inspector_kit.inspector_modes: all` を追加し、`dart run zero_inspector_kit:build_inspector build apk --release`（このヘルパーはパッケージに同梱されます。あるいは `--dart-define=INSPECTOR_MODES=all` を直接指定しても可）でビルドします。release ビルドはデフォルトで無効かつ tree-shake により除外されたままです。注意：VM Service 系の機能（メモリ割り当てヒストグラム、オブジェクトグラフ解析）は、たとえ有効にしても release では引き続き利用できません——完全なメモリ解析には `--profile` ビルドを使用してください。すべてのユーザーに最新バージョン（`^2.2.0`）へのアップグレードをお勧めします。
+> **🔔 アップグレードを推奨：** このリリースでは、QA／社内テスト向けにインスペクターを release（AOT）ビルドに同梱するオプションを追加しました——あなたのアプリの `pubspec.yaml`（このパッケージに依存するアプリ）に `zero_inspector_kit.inspector_modes: all` を追加し、`dart run zero_inspector_kit:build_inspector build apk --release`（推奨——ヘルパーが `pubspec.yaml` の設定を読み取ります。使いたくない場合は `--dart-define=INSPECTOR_MODES=all` を直接指定しても可）でビルドします。release ビルドはデフォルトで無効かつ tree-shake により除外されたままです。注意：VM Service 系の機能（メモリ割り当てヒストグラム、オブジェクトグラフ解析）は、たとえ有効にしても release では引き続き利用できません——完全なメモリ解析には `--profile` ビルドを使用してください。すべてのユーザーに最新バージョン（`^2.2.0`）へのアップグレードをお勧めします。
 
 🌐 **[公式ウェブサイト](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[pub.dev で見る](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[GitHub で見る](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -145,7 +145,7 @@ zero_inspector_kit:
   inspector_modes: all   # デフォルトは `debug`
 ```
 
-その後、ビルド補助スクリプトでビルドします（`dart run zero_inspector_kit:build_inspector`、または直接フラグを指定）：
+推奨の方法は、設定を `pubspec.yaml` に残したまま、同梱のヘルパーでビルドすることです（`inspector_modes` を読み取り、flag を自動で注入します）：
 
 ```bash
 # アプリのディレクトリで実行

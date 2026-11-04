@@ -23,7 +23,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release adds an opt-in to bundle the inspector into release (AOT) builds for QA / internal testers — add `zero_inspector_kit.inspector_modes: all` to your app's `pubspec.yaml` and build via `dart run zero_inspector_kit:build_inspector build apk --release` (the helper ships with the package, or just pass `--dart-define=INSPECTOR_MODES=all` directly). Release builds stay disabled and tree-shaken by default. Note: VM Service features (memory allocation histogram, object-graph analysis) remain unavailable in release even when enabled — use a `--profile` build for full memory profiling. All users are encouraged to upgrade to the latest version (`^2.2.0`).
+> **🔔 Upgrade recommended:** This release adds an opt-in to bundle the inspector into release (AOT) builds for QA / internal testers — add `zero_inspector_kit.inspector_modes: all` to your app's `pubspec.yaml` and build via `dart run zero_inspector_kit:build_inspector build apk --release` (recommended — the helper reads the config from your `pubspec.yaml`; or pass `--dart-define=INSPECTOR_MODES=all` directly if you prefer not to use it). Release builds stay disabled and tree-shaken by default. Note: VM Service features (memory allocation histogram, object-graph analysis) remain unavailable in release even when enabled — use a `--profile` build for full memory profiling. All users are encouraged to upgrade to the latest version (`^2.2.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -146,7 +146,7 @@ zero_inspector_kit:
   inspector_modes: all   # default is `debug`
 ```
 
-Then build through the provided helper (`dart run zero_inspector_kit:build_inspector`, or just pass the flag directly):
+The recommended approach is to keep the config in `pubspec.yaml` and build via the provided helper (it reads `inspector_modes` and injects the flag for you):
 
 ```bash
 # from your app's directory

@@ -76,9 +76,9 @@ zero_inspector_kit:
   inspector_modes: all   # default is `debug`
 ```
 
-Then build through the provided helper (`dart run zero_inspector_kit:build_inspector`, or just pass the flag directly):
+The recommended approach is to keep the config in `pubspec.yaml` and build via the provided helper (it reads `inspector_modes` and injects the flag for you):
 
-随后通过构建辅助脚本构建（`dart run zero_inspector_kit:build_inspector`，或直接传入 flag）：
+推荐做法是在 `pubspec.yaml` 中保留该配置，并通过随包发布的辅助脚本构建（它会读取 `inspector_modes` 并自动注入 flag）：
 
 ```bash
 # from your app's directory / 在你的应用目录下执行
