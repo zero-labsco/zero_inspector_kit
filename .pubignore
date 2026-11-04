@@ -14,3 +14,13 @@ build/
 # tooling, NOT part of the published package. The build helper is published instead as a
 # Dart bin/ executable (bin/build_inspector.dart) and is intentionally NOT excluded.
 tools/
+
+# Nextra documentation site source — compiled and published to gh-pages by CI, never part of the package.
+website/
+
+# Consumer-facing package should not ship tests, generated docs, images, or IDE files.
+# (example/ is kept so pub.dev still renders the Example tab.)
+test/
+docs/
+image/
+*.iml
