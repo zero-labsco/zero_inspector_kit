@@ -23,7 +23,37 @@ Flutter 向けのアプリ内開発者コンソールです。HTTP・WebSocket�
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 アップグレードを推奨：** このリリースではグローバル Zone を無効にするオプションが追加されました——`runAppWithInspector` に `enablePrintZoneCapture: false` を渡すことで、グローバル Zone は一切導入されません——また、ライブラリの非侵襲的な設計についてもドキュメント化しました：`HttpOverrides` は既存の設定の上にチェーンされ、捕捉された `HttpClient` は透過的なプロキシであるため、リトライ／プロキシ／インターセプタのロジックが変更されることはありません。すべてのユーザーに最新バージョン（`^2.1.0`）へのアップグレードをお勧めします。
+> **🔔 アップグレードを推奨：** このリリースでは、QA／社内テスト向けにインスペクターを release（AOT）ビルドに同梱するオプションを追加しました——`pubspec.yaml` で `inspector_modes: all` を設定し、`dart tool/build_inspector.dart build apk --release`（または `--dart-define=INSPECTOR_MODES=all` を指定）でビルドします。release ビルドはデフォルトで無効かつ tree-shake により除外されたままです。注意：VM Service 系の機能（メモリ割り当てヒストグラム、オブジェクトグラフ解析）は、たとえ有効にしても release では引き続き利用できません——完全なメモリ解析には `--profile` ビルドを使用してください。すべてのユーザーに最新バージョン（`^2.2.0`）へのアップグレードをお勧めします。
+
+## release ビルドでのインスペクター有効化（QA／社内テスト）
+
+デフォルトでは、インスペクターは release（AOT）ビルドで**自動無効化され、tree-shake によって除外されます**——そのコードは最終バイナリに存在しないため、実行時に有効化することはできません。QA／社内テスト用にインスペクターを同梱した release ビルドを配布するには、**コンパイル時に**オプトインする必要があります。
+
+アプリの `pubspec.yaml` にオプション設定を追加します：
+
+```yaml
+zero_inspector_kit:
+  inspector_modes: all   # デフォルトは `debug`
+```
+
+その後、付属のビルド補助スクリプトでビルドします（このキーを読み取り、対応する `--dart-define` を透過的に渡します）：
+
+```bash
+dart tool/build_inspector.dart build apk --release
+# または直接フラグを指定：
+flutter build apk --release --dart-define=INSPECTOR_MODES=all
+```
+
+- `debug`（デフォルト）：debug/profile で有効、release では無効（tree-shake 除外）。
+- `all` / `release`：release ビルドにも同梱・有効化されます。
+
+> **⚠️ 有効にしても release では利用できないもの**
+> release（AOT）ビルドでは Dart VM Service が無効化されるため、それに依存する機能はこのフラグに関わらず利用できません：
+> - メモリ**割り当てヒストグラム**（VM Service の `getAllocationProfile`）
+> - オブジェクトグラフ／リテイン・パスの深い解析
+> - 任意のライブ VM Service イントロスペクション
+>
+> release でも利用できるもの：**HTTP／WebSocket／gRPC 検査、ログ、エラー集約、FPS ジャンク追跡、ルート、バグレポート出力。** テスターが完全なメモリ解析を必要とする場合は、**`--profile`** ビルドを渡してください——VM Service は到達可能なまま、挙動は release に近いです。
 
 🌐 **[公式ウェブサイト](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[pub.dev で見る](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[GitHub で見る](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -102,7 +132,7 @@ Flutter 向けのアプリ内開発者コンソールです。HTTP・WebSocket�
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.1.0
+  zero_inspector_kit: ^2.2.0
 ```
 
 ### GitHub
@@ -112,7 +142,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.1.0   # 必要なバージョンに 2.1.0 を置き換えてください
+      ref: release/v2.2.0   # 必要なバージョンに 2.2.0 を置き換えてください
 ```
 
 ### OpenHarmony
@@ -124,7 +154,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.1.0   # 必要なバージョンに 2.1.0 を置き換えてください
+      ref: ohos/v2.2.0   # 必要なバージョンに 2.2.0 を置き換えてください
 ```
 
 OpenHarmony の Flutter SDK と DevEco Studio が必要です；同梱の `ohos/` ネイティブモジュールは OHOS アプリの一部としてビルドする必要があります。

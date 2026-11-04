@@ -23,7 +23,37 @@ Eine In-App-Entwicklerkonsole für Flutter: Inspektion von HTTP-, WebSocket- und
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade empfohlen:** Dieses Release fügt eine Option zum Deaktivieren der globalen Zone hinzu – übergeben Sie `enablePrintZoneCapture: false` an `runAppWithInspector`, damit niemals eine globale Zone eingeführt wird – und dokumentiert das nicht-invasive Design der Bibliothek: `HttpOverrides` wird über Ihre bestehende Konfiguration gelegt und der abgefangene `HttpClient` ist ein transparenter Proxy, sodass Ihre Retry-/Proxy-/Interceptor-Logik niemals verändert wird. Allen Nutzern wird ein Upgrade auf die neueste Version (`^2.1.0`) empfohlen.
+> **🔔 Upgrade empfohlen:** Dieses Release fügt eine Opt-in-Möglichkeit hinzu, den Inspector in Release-(AOT-)Builds für QA / interne Tester einzubinden – setze `inspector_modes: all` in `pubspec.yaml` und baue via `dart tool/build_inspector.dart build apk --release` (oder übergebe `--dart-define=INSPECTOR_MODES=all`). Release-Builds bleiben standardmäßig deaktiviert und werden weg-optimiert. Hinweis: VM-Service-Funktionen (Speicher-Allocationshistogramm, Objektgraphen-Analyse) bleiben im Release selbst bei Aktivierung unverfügbar – nutze für die vollständige Speicheranalyse einen `--profile`-Build. Allen Nutzern wird ein Upgrade auf die neueste Version (`^2.2.0`) empfohlen.
+
+## Den Inspector in Release-Builds aktivieren (QA / interne Tests)
+
+Standardmäßig ist der Inspector in Release-(AOT-)Builds **automatisch deaktiviert und wird weg-optimiert (tree-shaken)** – sein Code fehlt im fertigen Binary, kann also zur Laufzeit nicht eingeschaltet werden. Um einen Release-Build auszuliefern, der für QA / interne Tester trotzdem den Inspector enthält, muss man ihn zur **Kompilierzeit** aktivieren.
+
+Füge die optionale Konfiguration in deine `pubspec.yaml` ein:
+
+```yaml
+zero_inspector_kit:
+  inspector_modes: all   # Standard ist `debug`
+```
+
+Baue dann über das mitgelieferte Hilfsskript (es liest den Schlüssel und reicht das passende `--dart-define` durch):
+
+```bash
+dart tool/build_inspector.dart build apk --release
+# oder das Flag direkt übergeben:
+flutter build apk --release --dart-define=INSPECTOR_MODES=all
+```
+
+- `debug` (Standard): in debug/profile aktiv, in Release deaktiviert (weg-optimiert).
+- `all` / `release`: auch in Release-Builds eingebunden und aktiviert.
+
+> **⚠️ Was im Release auch bei Aktivierung NICHT funktioniert**
+> Ein Release-(AOT-)Build deaktiviert den Dart VM Service, daher ist alles, was davon abhängt, unabhängig von diesem Schalter nicht verfügbar:
+> - Speicher-**Allocationshistogramm** (VM Service `getAllocationProfile`)
+> - Tiefe Objektgraphen-/Retaining-Pfad-Analyse
+> - Jede live VM-Service-Introspektion
+>
+> Im Release weiterhin verfügbar: **HTTP-/WebSocket-/gRPC-Inspektion, Logs, Fehleraggregation, FPS-Jank-Tracking, Routen und der Bug-Report-Export.** Brauchen Tester die vollständige Speicheranalyse, gib ihnen einen **`--profile`**-Build – dieser hält den VM Service erreichbar und verhält sich doch wie Release.
 
 🌐 **[Offizielle Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[Auf pub.dev ansehen](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[Auf GitHub ansehen](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -102,7 +132,7 @@ Eine In-App-Entwicklerkonsole für Flutter: Inspektion von HTTP-, WebSocket- und
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.1.0
+  zero_inspector_kit: ^2.2.0
 ```
 
 ### GitHub
@@ -112,7 +142,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.1.0   # ersetzen Sie 2.1.0 durch die benötigte Version
+      ref: release/v2.2.0   # ersetzen Sie 2.2.0 durch die benötigte Version
 ```
 
 ### OpenHarmony
@@ -124,7 +154,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.1.0   # ersetzen Sie 2.1.0 durch die benötigte Version
+      ref: ohos/v2.2.0   # ersetzen Sie 2.2.0 durch die benötigte Version
 ```
 
 Benötigt das OpenHarmony Flutter SDK und DevEco Studio; das mitgelieferte `ohos/`-Native-Modul muss als Teil Ihrer OHOS-App gebaut werden.
