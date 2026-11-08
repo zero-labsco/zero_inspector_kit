@@ -23,7 +23,7 @@ Eine In-App-Entwicklerkonsole für Flutter: Inspektion von HTTP-, WebSocket- und
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade empfohlen:** Dieses Release ergänzt `InspectorHttpOverrides` / `createInspectorHttpClient()` für die Erfassung innerhalb von `HttpOverrides.runWithHttpOverrides()`-Zonen sowie `reinstallHttpOverrides()` für Apps, die das globale Override nach der Init ersetzen, und macht Standard-Release-(AOT-)Builds wirklich inert. Allen Nutzern wird ein Upgrade auf die neueste Version (`^2.3.0`) empfohlen.
+> **🔔 Upgrade empfohlen:** Dieses Release härtet Datenschutz und Release-Builds ab: Die Maskierung umfasst nun Zugangsdaten / PII in gültigem JSON, URL-Fragments und Log-Exporte; `--dart-define=INSPECTOR_ENABLED=false` wird an allen Einstiegspunkten wieder beachtet; und `runAppWithInspector()` leitet alle init-Optionen weiter. Allen Nutzern wird ein Upgrade auf die neueste Version (`^2.4.0`) empfohlen.
 
 🌐 **[Offizielle Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[Auf pub.dev ansehen](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[Auf GitHub ansehen](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -103,7 +103,7 @@ Eine In-App-Entwicklerkonsole für Flutter: Inspektion von HTTP-, WebSocket- und
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.3.0
+  zero_inspector_kit: ^2.4.0
 ```
 
 ### GitHub
@@ -113,7 +113,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.3.0   # ersetzen Sie 2.3.0 durch die benötigte Version
+      ref: release/v2.4.0   # ersetzen Sie 2.4.0 durch die benötigte Version
 ```
 
 ### OpenHarmony
@@ -125,7 +125,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.3.0   # ersetzen Sie 2.3.0 durch die benötigte Version
+      ref: ohos/v2.4.0   # ersetzen Sie 2.4.0 durch die benötigte Version
 ```
 
 Benötigt das OpenHarmony Flutter SDK und DevEco Studio; das mitgelieferte `ohos/`-Native-Modul muss als Teil Ihrer OHOS-App gebaut werden.

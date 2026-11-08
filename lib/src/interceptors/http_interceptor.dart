@@ -6,6 +6,7 @@ import 'dart:math';
 import '../models/network_request.dart';
 import '../models/interceptor_rule.dart';
 import '../services/inspector_service.dart';
+import '../utils/environment.dart';
 
 part 'inspector_http_client.dart';
 part 'inspector_response_proxy.dart';
@@ -79,8 +80,20 @@ class InspectorHttpInterceptor {
   /// Chains over any existing HttpOverrides (if present) instead of silently
   /// replacing it, preserving host proxy / cert-pinning configurations.
   void start() {
+    if (InspectorEnvironment.isInspectorDisabledInCurrentBuild) return;
+    if (InspectorEnvironment.isInspectorExplicitlyDisabled) return;
     if (_started) return;
     _started = true;
+    // dart:io 只暴露 `current` getter 与 `global` **setter**（没有 global
+    // getter），所以读取当前 override 只能用 zone-aware 的 `current`；写入目标
+    // 仍是 global。正常集成路径中两者指向同一个实例（init() 不在任何自定义
+    // zone 里执行），不会串味；宿主若在自定义 zone 内调用，stop() 的
+    // identical 守卫会阻止误恢复。
+    // dart:io exposes only the `current` getter and a `global` **setter** (no
+    // global getter), so reading the active override has to go through the
+    // zone-aware `current`. On the normal integration path both refer to the
+    // same instance (init() runs outside any custom zone); the identical guard
+    // in stop() prevents a wrong restore if a host calls this inside a zone.
     _previousOverrides = HttpOverrides.current;
     _installedOverrides = InspectorHttpOverrides(_previousOverrides);
     HttpOverrides.global = _installedOverrides;
@@ -110,16 +123,33 @@ class InspectorHttpInterceptor {
   ///
   /// Dart 的 HttpOverrides.global 是静态字段、没有赋值钩子，插件无法被动感知
   /// 宿主的重设，因此只能由宿主显式调用一次（或先 dispose() 再 init()）。
-  /// 幂等：当前已经是 InspectorHttpOverrides 时直接跳过，绝不叠加多层包装。
+  /// 幂等：当前仍是我们安装的实例时直接跳过，绝不叠加多层包装。若当前已经是
+  /// 别的 `InspectorHttpOverrides`（宿主按 zone 示例自行安装），则接管它，
+  /// 保证 `stop()` 之后仍能恢复到它包裹的原始配置。
   /// `HttpOverrides.global` is a static field with no assignment hook, so the
   /// plugin cannot detect the replacement passively; the host must call this
   /// once (or dispose() then init()). Idempotent: skips when the current
-  /// override is already an InspectorHttpOverrides, so layers never stack.
+  /// override is still the installed instance, so layers never stack. A host-
+  /// installed `InspectorHttpOverrides` is adopted so stop() can still restore
+  /// the original delegate.
   void reinstall() {
+    if (InspectorEnvironment.isInspectorDisabledInCurrentBuild) return;
+    if (InspectorEnvironment.isInspectorExplicitlyDisabled) return;
     if (!_started) return;
+    // 同 start()：dart:io 没有 global getter，只能读 zone-aware 的 current。
+    // Same as start(): dart:io has no global getter, only the zone-aware
+    // `current` getter is available for reading.
     final current = HttpOverrides.current;
-    if (identical(current, _installedOverrides) ||
-        current is InspectorHttpOverrides) {
+    if (identical(current, _installedOverrides)) return;
+    if (current is InspectorHttpOverrides) {
+      // 宿主用公开的 InspectorHttpOverrides 自行装了链式 override（zone 示例
+      // 就是这种）时**接管**它，而不是简单跳过：否则 _installedOverrides 仍
+      // 指向旧实例，stop() 的 identical 判断失配，再也不恢复旧配置。
+      // When the host installed its own chained override (as the zone snippet
+      // does), *adopt* it instead of skipping: skipping would leave
+      // _installedOverrides stale, so stop() never restores anything.
+      _installedOverrides = current;
+      _previousOverrides = current.delegate;
       return;
     }
     _previousOverrides = current;
@@ -145,6 +175,13 @@ class InspectorHttpInterceptor {
 ///   InspectorHttpOverrides(HttpOverrides.current),
 /// );
 /// ```
+///
+/// `init()` 之后 `HttpOverrides.current` 本身就是一个
+/// [InspectorHttpOverrides]；本类会自动拆掉这层嵌套，因此上面的示例**不会**
+/// 产生双层代理、同一请求也只会被记录一次。
+/// After `init()`, `HttpOverrides.current` is itself an
+/// [InspectorHttpOverrides]; this class unwraps that layer automatically, so
+/// the snippet above does NOT create a double proxy or duplicate records.
 class InspectorHttpOverrides extends HttpOverrides {
   /// 被包裹的原 override（代理 / 证书固定 / 自定义 createHttpClient）。
   /// The original override being chained (proxy / cert pinning / custom client).
@@ -154,8 +191,23 @@ class InspectorHttpOverrides extends HttpOverrides {
 
   @override
   HttpClient createHttpClient(SecurityContext? context) {
+    // 逐层拆掉 delegate 链里的 InspectorHttpOverrides：zone 级 override
+    // 常以 `InspectorHttpOverrides(HttpOverrides.current)` 构造，而 current
+    // 已经是全局的 InspectorHttpOverrides。不拆会形成两层
+    // _InspectorHttpClient，每层都调用 addNetworkRequest，同一请求被记两次。
+    // Unwrap any InspectorHttpOverrides in the delegate chain: zone overrides
+    // are often built as `InspectorHttpOverrides(HttpOverrides.current)` while
+    // `current` is already the global InspectorHttpOverrides. Without this,
+    // two _InspectorHttpClient layers each call addNetworkRequest and every
+    // request shows up twice.
+    HttpOverrides? effective = delegate;
+    while (true) {
+      final current = effective;
+      if (current is! InspectorHttpOverrides) break;
+      effective = current.delegate;
+    }
     final client =
-        delegate?.createHttpClient(context) ?? super.createHttpClient(context);
+        effective?.createHttpClient(context) ?? super.createHttpClient(context);
     return _InspectorHttpClient(client);
   }
 }

@@ -68,7 +68,34 @@ jobs:
         run: flutter pub get
 
       - name: Dry-run pub publish validation
-        run: dart pub publish --dry-run
+        run: |
+          set -o pipefail
+          dart pub publish --dry-run | tee /tmp/zik_dryrun.txt
+          # `dart pub publish --dry-run` does NOT verify that files referenced by
+          # pubspec.yaml `screenshots` are actually INSIDE the archive. pub.dev
+          # rejects the upload server-side ("Screenshot ... is missing from
+          # archive"), which a dry-run cannot see — this exact gap made 2.3.0
+          # publish twice with a "successful" workflow. Cross-check every
+          # declared screenshot against the dry-run file listing.
+          # dry-run 不会校验 pubspec.yaml `screenshots` 引用的图片是否被
+          # .pubignore 排除；只有 pub.dev 服务端会拒收，2.3.0 曾因此连发两次失败。
+          python3 - <<'PY'
+          import re, sys
+          pubspec = open('pubspec.yaml', encoding='utf-8').read()
+          listing = open('/tmp/zik_dryrun.txt', encoding='utf-8').read()
+          block = re.search(r'(?ms)^screenshots:\s*\n(.*?)(?=^\S|\Z)', pubspec)
+          if not block:
+              sys.exit('::error::Could not parse the pubspec.yaml `screenshots:` block')
+          paths = re.findall(r'^\s*path:\s*(\S+)\s*$', block.group(1), re.M)
+          if not paths:
+              sys.exit('::error::No `screenshots: path:` entries found')
+          missing = [p for p in paths if p.split('/')[-1] not in listing]
+          if missing:
+              sys.exit('::error::Screenshots missing from published archive: '
+                       + ', '.join(missing)
+                       + ' — check .pubignore (image/screenshot/ must NOT be excluded)')
+          print('OK: all %d declared screenshots are present in the archive' % len(paths))
+          PY
 
       # ========== 正式发布到 pub.dev / Actual publish to pub.dev ==========
       # 社区成熟 Action：k-paxian/dart-package-publisher（内部自动处理 OAuth2 credentials）
@@ -85,9 +112,34 @@ jobs:
           # Skip format and static analysis (already verified in CI)
           flutter: true
           skipTests: true
-          force: true
+          # MUST stay false: with `force: true` the action swallowed a failed
+          # upload ("Failed to update packages") and the job still reported
+          # success, so a GitHub Release was created for a version that never
+          # reached pub.dev. The explicit verification below is the second guard.
+          # 必须为 false：此前 force: true 会吞掉上传失败，job 仍显示 success，
+          # 于是 pub.dev 上根本没有这个版本却创建了 Release。
+          force: false
+
+      - name: Verify the version is live on pub.dev
+        run: |
+          VERSION="${{ steps.extract-tag.outputs.version }}"
+          # pub.dev 提示索引最长可能 10 分钟，给 30 x 10s = 5 分钟窗口。
+          # pub.dev says indexing can take up to 10 minutes; allow a 5-minute window.
+          for i in $(seq 1 30); do
+            if curl -fsS "https://pub.dev/api/packages/zero_inspector_kit/versions/$VERSION" -o /dev/null; then
+              echo "OK: zero_inspector_kit $VERSION is live on pub.dev"
+              exit 0
+            fi
+            echo "Waiting for pub.dev index ($i/12) ..."
+            sleep 10
+          done
+          echo "::error::Publish reported success but $VERSION is not on pub.dev"
+          exit 1
 
       # ========== 创建 GitHub Release ==========
+      # 只在上一步确认 pub.dev 已收录该版本后才创建，避免"有 Release 没包"。
+      # Only runs after the version is confirmed on pub.dev, so there can never
+      # be a GitHub Release without a published package.
 
       - name: Extract CHANGELOG entry for this version
         id: changelog

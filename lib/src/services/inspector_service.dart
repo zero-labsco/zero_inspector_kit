@@ -11,6 +11,7 @@ import '../models/route_entry.dart';
 import '../models/interceptor_rule.dart';
 import 'alert_service.dart';
 import 'persistence_service.dart';
+import '../utils/environment.dart';
 
 /// Zone 标记键：当前连接是 WebSocket 握手。
 /// 由 [InspectorWebSocket.connect] 在调用 `WebSocket.connect` 时用 `runZoned` 设置，
@@ -84,6 +85,21 @@ class InspectorService {
 
   /// 单例实例 / Singleton instance
   static final InspectorService instance = InspectorService._();
+
+  /// 采集是否已被禁用（默认 release，或显式 INSPECTOR_ENABLED=false）。
+  /// 公开单例也可以由宿主直接调用（例如原生客户端的手动埋点），所以服务层
+  /// 必须自己把住这道门，而不能只依赖 ZeroInspectorKit.init() 提前 return。
+  /// Whether collection is disabled (default release or an explicit
+  /// INSPECTOR_ENABLED=false). Hosts can call the exported singleton directly
+  /// (e.g. manual native-client instrumentation), so the service layer must
+  /// enforce the gate itself instead of relying on init() returning early.
+  ///
+  /// 第一项是 `const` 且单独判断，AOT 仍能折叠并摇树掉后续写入代码。
+  /// The first operand is `const` and checked separately so AOT can still
+  /// fold the condition and tree-shake the writes behind it.
+  bool get _collectionDisabled =>
+      InspectorEnvironment.isInspectorDisabledInCurrentBuild ||
+      InspectorEnvironment.isInspectorExplicitlyDisabled;
 
   /// 数据流拆分通知器：network / log / route / interceptor 各自独立，
   /// 避免任一数据写入触发全部 viewer 重建（面板用 IndexedStack 常驻挂载时尤其明显）。
@@ -310,6 +326,7 @@ class InspectorService {
   /// 添加网络请求记录 / Add network request record
   /// [request] 网络请求对象 / Network request object
   void addNetworkRequest(NetworkRequest request) {
+    if (_collectionDisabled) return;
     // 同一 id 重复登记会让列表出现重复行（历史上有过 ID 碰撞的先例），
     // 这里做兜底去重。Guard against duplicate ids, which would otherwise show
     // up as duplicate rows (ID collisions have happened before).
@@ -456,6 +473,7 @@ class InspectorService {
   /// 添加日志条目 / Add log entry
   /// [entry] 日志条目对象 / Log entry object
   void addLogEntry(LogEntry entry) {
+    if (_collectionDisabled) return;
     final last = _logEntries.isNotEmpty ? _logEntries.first : null;
     if (last != null &&
         _isWithinReassembleWindow(last.timestamp, entry.timestamp)) {
@@ -528,6 +546,7 @@ class InspectorService {
   /// [logs] must be newest-first (the order returned by
   /// [PersistenceService.loadLogs]).
   void restoreLogs(Iterable<LogEntry> logs) {
+    if (_collectionDisabled) return;
     _logVersion++;
     for (final l in logs) {
       _logEntries.addLast(l);
@@ -539,6 +558,7 @@ class InspectorService {
   /// 添加路由记录 / Add route record
   /// [entry] 路由记录对象 / Route record object
   void addRouteEntry(RouteEntry entry) {
+    if (_collectionDisabled) return;
     _routeEntries.addFirst(entry);
     _trimQueue(_routeEntries, _maxRouteItems);
     routeNotifier.notifyThrottled();
