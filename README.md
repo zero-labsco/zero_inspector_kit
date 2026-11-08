@@ -23,7 +23,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 Upgrade recommended:** This release adds `InspectorHttpOverrides` / `createInspectorHttpClient()` for capture inside `HttpOverrides.runWithHttpOverrides()` zones and `reinstallHttpOverrides()` for hosts that replace the global override after init, and makes default release (AOT) builds truly inert. All users are encouraged to upgrade to the latest version (`^2.3.0`).
+> **🔔 Upgrade recommended:** This release hardens privacy and release builds: masking now covers credentials / PII inside valid JSON, URL fragments and log exports; `--dart-define=INSPECTOR_ENABLED=false` is honored at every entry point again; and the one-line `runAppWithInspector()` forwards all init options. All users are encouraged to upgrade to the latest version (`^2.4.0`).
 
 🌐 **[Official Website](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[View on pub.dev](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[View on GitHub](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -104,7 +104,7 @@ An in-app developer console for Flutter: inspect HTTP, WebSocket & gRPC traffic,
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.3.0
+  zero_inspector_kit: ^2.4.0
 ```
 
 ### GitHub
@@ -114,7 +114,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.3.0   # replace 2.3.0 with the version you need
+      ref: release/v2.4.0   # replace 2.4.0 with the version you need
 ```
 
 ### OpenHarmony (鸿蒙)
@@ -126,7 +126,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.3.0   # replace 2.3.0 with the version you need
+      ref: ohos/v2.4.0   # replace 2.4.0 with the version you need
 ```
 
 Requires the OpenHarmony Flutter SDK and DevEco Studio; the bundled `ohos/` native module must be built as part of your OHOS app.

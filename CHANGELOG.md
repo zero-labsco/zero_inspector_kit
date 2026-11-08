@@ -1,5 +1,39 @@
 # Changelog
 
+## 2.4.0
+
+Hardening release: privacy fixes across every export path, a restored `INSPECTOR_ENABLED=false` opt-out, and full option forwarding from the one-line entry point.
+  - 加固版本：修复所有导出链路的隐私缺口，恢复 `INSPECTOR_ENABLED=false` 开关，并让一句话式入口透传全部选项。
+
+### Added / 新增
+
+- Added `maskSensitive` to the log export chain (`logsToJson`, `logsToText`, `copyLogs`, `exportLogsToFile`, `exportLogsAndShare`) and to `netToCsv`; `exportNetToFile(format: 'csv')` now forwards the flag instead of silently ignoring it. Every existing default stays unchanged, so this is fully backward compatible.
+  - 日志导出链路（`logsToJson`、`logsToText`、`copyLogs`、`exportLogsToFile`、`exportLogsAndShare`）与 `netToCsv` 新增 `maskSensitive`；`exportNetToFile(format: 'csv')` 不再忽略该开关。所有既有默认值保持不变，完全向后兼容。
+- Added an export-masking toggle to the Logs tab, matching the existing Network tab toggle. Both stay off by default (verbatim exports) so hosts keep full control and can enable masking before copying / sharing outside the team.
+  - 日志页新增「导出脱敏」开关，与网络页既有开关一致；两者默认关闭（原文导出），由宿主自行控制，对外复制 / 分享前再手动开启。
+- `runAppWithInspector()` now forwards every `init()` option (capture toggles, capacity limits, callbacks, `customButton`, …). `customButton` is now actually rendered — it used to be a dead parameter.
+  - `runAppWithInspector()` 现透传 `init()` 的全部选项（各采集开关、容量上限、回调、`customButton` 等）；`customButton` 此前是无效参数，现在会真正渲染。
+
+### Fixed / 修复
+
+- Restored `--dart-define=INSPECTOR_ENABLED=false`. Two independent bugs were involved: `isInspectorEnabled` / `isInspectorExplicitlyDisabled` read the flag through a **non-const** `String.fromEnvironment`, which always evaluates to `''` at runtime (so the flag never worked anywhere, including `ConditionalInspector`), and the 2.3.0 compile-time release gate had become the only check left in the entry points. Both getters are now `const`, and `init()` / `runAppWithInspector()` / `wrapApp()` / `reinstallHttpOverrides()` plus the exported service singletons share one gate, so manual instrumentation such as `InspectorService.instance.addNetworkRequest(...)` cannot write memory in disabled builds either.
+  - 修复 `--dart-define=INSPECTOR_ENABLED=false`：存在两处独立问题——`isInspectorEnabled` / `isInspectorExplicitlyDisabled` 用**非常量**的 `String.fromEnvironment` 读取，运行时恒为空串（该开关从未真正生效，连 `ConditionalInspector` 也一样）；且入口层只剩 2.3.0 的编译期 release gate。现在两个 getter 都改为 `const`，`init()` / `runAppWithInspector()` / `wrapApp()` / `reinstallHttpOverrides()` 与导出的服务单例共用同一判断，手动埋点（如 `InspectorService.instance.addNetworkRequest(...)`）在禁用构建下也不再写入内存。
+- Fixed masking of valid JSON bodies: structured masking only nulled sensitive *keys*, so a credential or PII value under an ordinary key (`{"phone":"13800138000"}`, `{"message":"Bearer eyJ..."}`) was exported verbatim. String values now pass through the same Bearer/JWT/PII rules as non-JSON text.
+  - 修复合法 JSON 的脱敏：结构化路径此前只把敏感**键**置空，普通键下的凭据 / PII 值（如 `{"phone":"13800138000"}`、`{"message":"Bearer eyJ..."}`）会原样导出；现在字符串值同样经过 Bearer/JWT/PII 规则。
+- `SensitiveData.maskUrl()` now also masks sensitive keys in the URL fragment (`#access_token=...`, used by OAuth implicit / OIDC) and strips `userInfo` (`https://user:pass@host`).
+  - `SensitiveData.maskUrl()` 现在也遮蔽 URL fragment 中的敏感键（OAuth implicit / OIDC 的 `#access_token=...`），并去除 `userInfo`（`https://user:pass@host`）。
+- `InspectorHttpOverrides` now unwraps an `InspectorHttpOverrides` delegate, so the documented `InspectorHttpOverrides(HttpOverrides.current)` zone snippet no longer creates a double proxy that records each request twice. `reinstall()` adopts a host-installed chained override instead of skipping it (which left `stop()` unable to restore anything).
+  - `InspectorHttpOverrides` 会拆开同为 `InspectorHttpOverrides` 的 delegate，文档中的 `InspectorHttpOverrides(HttpOverrides.current)` zone 示例不再产生双层代理、把同一请求记录两次；`reinstall()` 遇到宿主自行安装的链式 override 会接管而非跳过（此前会让 `stop()` 无法恢复配置）。
+- `InspectorHttpInterceptor.start()` / `reinstall()` now honor the same collection gate as the facade, so calling the exported singleton directly cannot start interception in a disabled build. Documented the `dart:io` constraint behind the read/write pair (`current` is the only getter; `global` is setter-only) and kept `stop()`'s `identical` guard so a zone-local override is never written back into the global slot on `dispose()`.
+  - `InspectorHttpInterceptor.start()` / `reinstall()` 现在与门面共用同一采集 gate，直接调用导出的单例也无法在禁用构建下启动拦截；补充说明了 `dart:io` 的读写约束（只有 `current` getter，`global` 仅 setter），并保留 `stop()` 的 `identical` 守卫，避免把 zone 级 override 写回全局。
+- `init(enable: false)` no longer consumes `_initialized` permanently, so a later `init()` can enable the inspector without calling `dispose()` first.
+  - 修复 `init(enable: false)` 会永久占用 `_initialized` 的问题：后续可直接再次 `init()` 启用，无需先 `dispose()`。
+
+### Internal / 内部
+
+- `pub-publish.yml` no longer uses `force: true` (which swallowed a failed upload and still reported success), verifies the version is live on pub.dev before creating a GitHub Release, and checks that every `pubspec.yaml` `screenshots` file is present in the dry-run archive. The PR title check now uses `pull_request` instead of the `pull_request_target` event restricted on 2026-12-02, and CI runs dedicated `--dart-define` test variants.
+  - `pub-publish.yml` 去掉 `force: true`（此前会吞掉上传失败并仍报 success），创建 GitHub Release 前先确认版本已在 pub.dev 上线，并校验 `pubspec.yaml` 的 `screenshots` 文件确实在包内；PR 标题检查改用 `pull_request` 以避开 2026-12-02 的 `pull_request_target` 默认限制；CI 增加 `--dart-define` 变体测试。
+
 ## 2.3.0
 
 Thanks to @B3K4682 for the review notes on release builds, `HttpOverrides` coverage and persisted credentials — those suggestions prompted this release.

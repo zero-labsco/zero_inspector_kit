@@ -260,6 +260,12 @@ class _LogViewerState extends State<LogViewer> {
   ///
   /// 带缓存：按数据版本号失效，避免每次重建都对全量日志建集合 + 排序。
   /// Cached by data version so every rebuild doesn't rebuild the set + sort.
+  /// 导出时是否遮蔽日志中的 Bearer / JWT / PII。默认关闭（原文导出），
+  /// 与网络页开关一致，由宿主按需开启。
+  /// Whether exports mask Bearer / JWT / PII in logs. Off by default (verbatim
+  /// exports), matching the NetworkViewer toggle; hosts opt in as needed.
+  bool _maskSensitive = false;
+
   List<String>? _availableTagsCache;
   int _availableTagsVersion = -1;
 
@@ -311,6 +317,20 @@ class _LogViewerState extends State<LogViewer> {
                 ),
               ),
               const Spacer(),
+              // 导出遮蔽开关：与网络页一致，默认关闭，需要对外分享时再开启，
+              // 避免日志里的 Bearer / JWT / PII 随导出带出。
+              // Mask toggle: matches NetworkViewer, off by default; enable it
+              // before sharing logs so Bearer / JWT / PII are not exported.
+              InspectorIconButton(
+                icon: _maskSensitive
+                    ? Icons.visibility_off_rounded
+                    : Icons.visibility_rounded,
+                tooltip: _maskSensitive
+                    ? 'Sensitive hidden'
+                    : 'Sensitive visible',
+                color: _maskSensitive ? InspectorColors.accent : null,
+                onTap: () => setState(() => _maskSensitive = !_maskSensitive),
+              ),
               if (selected == null)
                 Expanded(
                   child: SingleChildScrollView(
@@ -344,12 +364,14 @@ class _LogViewerState extends State<LogViewer> {
                             if (logs.isEmpty) return;
                             final ok = await ExportService.instance.copyLogs(
                               logs,
+                              maskSensitive: _maskSensitive,
                             );
                             if (mounted) {
                               InspectorToast.showOn(
                                 messenger,
                                 ok
                                     ? 'Copied ${logs.length} logs as JSON'
+                                          '${_maskSensitive ? ' (sensitive hidden)' : ''}'
                                     : 'Copy failed — clipboard unavailable',
                               );
                             }
@@ -370,11 +392,13 @@ class _LogViewerState extends State<LogViewer> {
                             await ExportService.instance.exportLogsAndShare(
                               logs,
                               json: false,
+                              maskSensitive: _maskSensitive,
                             );
                             if (mounted) {
                               InspectorToast.showOn(
                                 messenger,
-                                'Sharing ${logs.length} logs as Text',
+                                'Sharing ${logs.length} logs as Text'
+                                '${_maskSensitive ? ' (sensitive hidden)' : ''}',
                               );
                             }
                           },

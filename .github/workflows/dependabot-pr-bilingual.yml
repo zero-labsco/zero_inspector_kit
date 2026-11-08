@@ -6,6 +6,17 @@ name: Dependabot PR Bilingual Body
 #
 # 在 Dependabot 创建的 PR 正文中追加「英文为主、中文为辅」的双语说明。
 # PR 标题与 commit 标题保持英文（符合项目约定式提交规范），仅丰富正文内容。
+# NOTE (2026-12-02): GitHub blocks `pull_request_target` on public repositories
+# by default unless an Actions event policy explicitly allows it. This workflow
+# MUST keep that event: it needs `pull-requests: write` to edit the PR body, and
+# a `pull_request` event opened by Dependabot only receives a read-only token.
+# It never checks out or executes PR code (github-script only) — the safe use of
+# `pull_request_target`. Configure the allow-policy under
+# Settings -> Actions -> Policies before 2026-12-02, or the bilingual body will
+# silently stop being appended (it is NOT a required check, so nothing breaks).
+# 注意：该 workflow 必须保留 pull_request_target（写 PR 正文需要写权限），请在
+# 仓库 Settings -> Actions -> Policies 显式允许；否则 2026-12-02 后会静默停更
+# 双语正文（它不是 required check，不影响合并）。
 on:
   pull_request_target:
     types:
