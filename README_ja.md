@@ -23,7 +23,7 @@ Flutter 向けのアプリ内開発者コンソールです。HTTP・WebSocket�
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 アップグレードを推奨：** このリリースでは、`HttpOverrides.runWithHttpOverrides()` などの zone 内でも捕捉を維持する `InspectorHttpOverrides` / `createInspectorHttpClient()` と、init 後にグローバル override を差し替えた場合に再装着する `reinstallHttpOverrides()` を追加し、デフォルトの release（AOT）ビルドを完全に非アクティブ化しました。すべてのユーザーに最新バージョン（`^2.3.0`）へのアップグレードをお勧めします。
+> **🔔 アップグレードを推奨：** このリリースでは、正規 JSON 内の認証情報 / 個人情報、URL fragment、ログのエクスポートにマスキングを拡張し、`--dart-define=INSPECTOR_ENABLED=false` が入口層で無効になっていた問題を修正し、1 行で使える `runAppWithInspector()` が init の全オプションを転送するようになりました。すべてのユーザーに最新バージョン（`^2.4.0`）へのアップグレードをお勧めします。
 
 🌐 **[公式ウェブサイト](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[pub.dev で見る](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[GitHub で見る](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -103,7 +103,7 @@ Flutter 向けのアプリ内開発者コンソールです。HTTP・WebSocket�
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.3.0
+  zero_inspector_kit: ^2.4.0
 ```
 
 ### GitHub
@@ -113,7 +113,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.3.0   # 必要なバージョンに 2.3.0 を置き換えてください
+      ref: release/v2.4.0   # 必要なバージョンに 2.4.0 を置き換えてください
 ```
 
 ### OpenHarmony
@@ -125,7 +125,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.3.0   # 必要なバージョンに 2.3.0 を置き換えてください
+      ref: ohos/v2.4.0   # 必要なバージョンに 2.4.0 を置き換えてください
 ```
 
 OpenHarmony の Flutter SDK と DevEco Studio が必要です；同梱の `ohos/` ネイティブモジュールは OHOS アプリの一部としてビルドする必要があります。

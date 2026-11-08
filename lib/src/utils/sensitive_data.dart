@@ -145,37 +145,79 @@ class SensitiveData {
   static String maskUrl(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null) return url;
+
+    // 1) query：?token=...
     final query = uri.queryParameters;
-    if (query.isEmpty) return url;
-    var changed = false;
-    final masked = <String, String>{};
+    var queryChanged = false;
+    final maskedQuery = <String, String>{};
     for (final entry in query.entries) {
       if (isSensitiveKey(entry.key)) {
-        masked[entry.key] = placeholder;
-        changed = true;
+        maskedQuery[entry.key] = placeholder;
+        queryChanged = true;
       } else {
-        masked[entry.key] = entry.value;
+        maskedQuery[entry.key] = entry.value;
       }
     }
-    if (!changed) return url;
-    try {
-      return uri.replace(queryParameters: masked).toString();
-    } catch (_) {
-      // queryParameters 替换失败（如含非常规字符）时退化为字符串级替换。
-      // Fall back to string-level replacement when queryParameters rewrite
-      // fails (e.g. unusual characters).
-      var out = url;
-      for (final entry in query.entries) {
+
+    // 2) fragment：OAuth implicit / OIDC 把 access_token、id_token 放在
+    //    `#access_token=...` 里，queryParameters 完全看不到这部分。
+    //    OAuth implicit / OIDC place access_token / id_token in the fragment,
+    //    which `queryParameters` never exposes.
+    var fragmentChanged = false;
+    var newFragment = uri.fragment;
+    if (newFragment.isNotEmpty && newFragment.contains('=')) {
+      final maskedFrag = <String, String>{};
+      for (final entry in Uri.splitQueryString(newFragment).entries) {
         if (isSensitiveKey(entry.key)) {
-          out = out.replaceAll(
-            '${entry.key}=${Uri.encodeComponent(entry.value)}',
-            '${entry.key}=$placeholder',
-          );
-          out = out.replaceAll(
-            '${entry.key}=${entry.value}',
-            '${entry.key}=$placeholder',
-          );
+          maskedFrag[entry.key] = placeholder;
+          fragmentChanged = true;
+        } else {
+          maskedFrag[entry.key] = entry.value;
         }
+      }
+      if (fragmentChanged) {
+        newFragment = Uri(queryParameters: maskedFrag).query;
+      }
+    }
+
+    // 3) userInfo：https://user:pass@host 也是明文凭据。
+    //    userInfo (`https://user:pass@host`) is a cleartext credential too.
+    final hasUserInfo = uri.userInfo.isNotEmpty;
+
+    if (!queryChanged && !fragmentChanged && !hasUserInfo) return url;
+    try {
+      return uri
+          .replace(
+            // 传 null 表示"保持原样"，避免无关的 query/fragment 被重新编码。
+            // null means "leave unchanged", so unrelated parts are not re-encoded.
+            queryParameters: queryChanged ? maskedQuery : null,
+            fragment: fragmentChanged ? newFragment : null,
+            userInfo: hasUserInfo ? placeholder : null,
+          )
+          .toString();
+    } catch (_) {
+      // queryParameters / fragment 替换失败（如含非常规字符）时退化为字符串级替换。
+      // Fall back to string-level replacement when the rewrite fails
+      // (e.g. unusual characters).
+      var out = url;
+      void replacePair(String key, String value) {
+        out = out.replaceAll(
+          '$key=${Uri.encodeComponent(value)}',
+          '$key=$placeholder',
+        );
+        out = out.replaceAll('$key=$value', '$key=$placeholder');
+      }
+
+      for (final entry in query.entries) {
+        if (isSensitiveKey(entry.key)) replacePair(entry.key, entry.value);
+      }
+      if (uri.fragment.isNotEmpty && uri.fragment.contains('=')) {
+        for (final entry in Uri.splitQueryString(uri.fragment).entries) {
+          if (isSensitiveKey(entry.key)) replacePair(entry.key, entry.value);
+        }
+      }
+      if (hasUserInfo) {
+        out = out.replaceFirst('${uri.userInfo}@', '$placeholder@');
       }
       return out;
     }
@@ -268,6 +310,14 @@ class SensitiveData {
       });
     } else if (value is List) {
       return value.map(_maskJsonValue).toList();
+    } else if (value is String) {
+      // 结构化 JSON 路径同样要做**值级**脱敏：此前只有非 JSON 的 catch 分支
+      // 调用 [_applyTokenAndPii]，于是 {"phone":"13800138000"}、
+      // {"message":"Bearer eyJ..."} 这类"键不敏感、值敏感"的内容被原样导出。
+      // Value-level masking is required on the structured path too: only the
+      // non-JSON fallback used to call [_applyTokenAndPii], so a non-sensitive
+      // key holding a credential / PII value was exported verbatim.
+      return _applyTokenAndPii(value);
     }
     return value;
   }

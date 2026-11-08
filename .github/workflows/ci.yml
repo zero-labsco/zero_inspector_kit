@@ -203,6 +203,18 @@ jobs:
       - name: Run plugin unit tests
         run: flutter test
 
+      # 编译期 flag 分支：普通 `flutter test` 恒为 debug 且不带任何 dart-define，
+      # 永远覆盖不到 INSPECTOR_ENABLED / INSPECTOR_MODES 这两条路径。对应测试
+      # 在无 flag 的全量 test 中会自行 skip，只在这两步里真正执行。
+      # Compile-time flag paths: a plain `flutter test` is always debug with no
+      # dart-define, so it never reaches these branches. Those test files skip
+      # themselves in the full run and only execute in these two steps.
+      - name: Test explicit-disable flag
+        run: flutter test test/explicit_disable_test.dart --dart-define=INSPECTOR_ENABLED=false
+
+      - name: Test release QA opt-in flag
+        run: flutter test test/release_opt_in_test.dart --dart-define=INSPECTOR_MODES=all
+
       # 发版版本串一致性（pubspec / podspec / inspector_version / README / CHANGELOG）
       # Release version-string consistency (pubspec / podspec / inspector_version / README / CHANGELOG)
       - name: Check release version consistency

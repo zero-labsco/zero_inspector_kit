@@ -42,23 +42,41 @@ class ExportService {
   // ==================== 导出方法 / Export methods ====================
 
   /// 日志 → JSON / Logs to JSON
-  String logsToJson(List<LogEntry> logs) => jsonEncode({
-    'exportedAt': DateTime.now().toIso8601String(),
-    'count': logs.length,
-    'logs': logs.map((e) => e.toJson()).toList(),
-  });
+  ///
+  /// [maskSensitive] 为 true 时遮蔽日志正文 / 标签中的 Bearer、JWT 与 PII，
+  /// 与会话存档、bug report 保持一致（此前日志导出链路完全没有脱敏能力）。
+  /// When true, masks Bearer / JWT / PII in the message and tag, matching the
+  /// session archive and bug report (this path previously had no masking at all).
+  String logsToJson(List<LogEntry> logs, {bool maskSensitive = false}) =>
+      jsonEncode({
+        'exportedAt': DateTime.now().toIso8601String(),
+        'count': logs.length,
+        'logs': logs.map((e) {
+          final json = e.toJson();
+          if (!maskSensitive) return json;
+          return <String, dynamic>{
+            ...json,
+            'message': SensitiveData.maskText(e.message),
+            if (e.tag != null) 'tag': SensitiveData.maskText(e.tag!),
+          };
+        }).toList(),
+      });
 
   /// 日志 → 纯文本 / Logs to text
-  String logsToText(List<LogEntry> logs) {
+  String logsToText(List<LogEntry> logs, {bool maskSensitive = false}) {
     final buf = StringBuffer()
       ..writeln('=== Zero Inspector Kit - Logs ===')
       ..writeln('Exported: ${DateTime.now().toIso8601String()}')
       ..writeln('Total: ${logs.length}')
       ..writeln('=' * 50);
     for (final log in logs) {
-      buf.writeln('${log.timestamp} [${_lvl(log.level)}] ${log.message}');
+      final message = maskSensitive
+          ? SensitiveData.maskText(log.message)
+          : log.message;
+      buf.writeln('${log.timestamp} [${_lvl(log.level)}] $message');
       if (log.tag != null && log.tag!.isNotEmpty) {
-        buf.writeln('  Tag: ${log.tag}');
+        final tag = maskSensitive ? SensitiveData.maskText(log.tag!) : log.tag!;
+        buf.writeln('  Tag: $tag');
       }
       buf.writeln('');
     }
@@ -137,7 +155,12 @@ class ExportService {
 
   /// 网络请求 → CSV / Network to CSV
   /// 列：method,url,statusCode,durationMs,requestTime,hasBody,hasResponse
-  String netToCsv(List<NetworkRequest> requests) {
+  ///
+  /// [maskSensitive] 为 true 时同样遮蔽 URL 里的凭据（此前该格式完全忽略
+  /// 脱敏开关，`?token=` 会随 CSV 明文导出）。
+  /// When true, masks credentials in the URL too (this format previously
+  /// ignored the flag entirely and leaked `?token=` into the CSV).
+  String netToCsv(List<NetworkRequest> requests, {bool maskSensitive = false}) {
     final buf = StringBuffer()
       ..writeln(
         'method,url,statusCode,durationMs,requestTime,hasBody,hasResponse',
@@ -146,7 +169,7 @@ class ExportService {
       buf.writeln(
         [
           _csvCell(r.method),
-          _csvCell(r.url),
+          _csvCell(maskSensitive ? SensitiveData.maskUrl(r.url) : r.url),
           r.statusCode?.toString() ?? '',
           r.duration?.toString() ?? '',
           r.requestTime.toString(),
@@ -289,11 +312,16 @@ class ExportService {
   }
 
   /// 导出日志到文件 / Export logs to a file
-  Future<String> exportLogsToFile(List<LogEntry> logs, {bool json = true}) =>
-      writeToFile(
-        json ? logsToJson(logs) : logsToText(logs),
-        'zero_inspector_logs.${json ? 'json' : 'txt'}',
-      );
+  Future<String> exportLogsToFile(
+    List<LogEntry> logs, {
+    bool json = true,
+    bool maskSensitive = false,
+  }) => writeToFile(
+    json
+        ? logsToJson(logs, maskSensitive: maskSensitive)
+        : logsToText(logs, maskSensitive: maskSensitive),
+    'zero_inspector_logs.${json ? 'json' : 'txt'}',
+  );
 
   /// 导出网络请求到文件（支持 json/csv/har）/ Export network requests to a file
   Future<String> exportNetToFile(
@@ -302,7 +330,7 @@ class ExportService {
     bool maskSensitive = false,
   }) {
     final content = switch (format) {
-      'csv' => netToCsv(requests),
+      'csv' => netToCsv(requests, maskSensitive: maskSensitive),
       'har' => netToHar(requests, maskSensitive: maskSensitive),
       _ => netToJson(requests, maskSensitive: maskSensitive),
     };
@@ -330,8 +358,13 @@ class ExportService {
   Future<void> exportLogsAndShare(
     List<LogEntry> logs, {
     bool json = true,
+    bool maskSensitive = false,
   }) async {
-    final path = await exportLogsToFile(logs, json: json);
+    final path = await exportLogsToFile(
+      logs,
+      json: json,
+      maskSensitive: maskSensitive,
+    );
     await shareFile(path, mimeType: json ? 'application/json' : 'text/plain');
   }
 
@@ -447,8 +480,15 @@ class ExportService {
   /// 返回是否复制成功，供调用方按结果反馈（此前恒返回 void，失败也会提示成功）。
   /// Returns whether the copy succeeded so callers can report accurately (it
   /// used to return void, so failures still showed a success toast).
-  Future<bool> copyLogs(List<LogEntry> logs, {bool json = true}) async =>
-      copy(json ? logsToJson(logs) : logsToText(logs));
+  Future<bool> copyLogs(
+    List<LogEntry> logs, {
+    bool json = true,
+    bool maskSensitive = false,
+  }) async => copy(
+    json
+        ? logsToJson(logs, maskSensitive: maskSensitive)
+        : logsToText(logs, maskSensitive: maskSensitive),
+  );
 
   /// 复制网络请求 / Copy network requests
   /// [maskSensitive] 为 true 时遮蔽敏感头。

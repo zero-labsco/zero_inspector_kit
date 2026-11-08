@@ -23,7 +23,7 @@
 [![Dart](https://img.shields.io/badge/Dart-✓-0175C2?logo=dart)](https://dart.dev)
 [![Style: effective dart](https://img.shields.io/badge/style-effective_dart-40c4ff.svg)](https://pub.dev/packages/effective_dart)
 
-> **🔔 推荐升级：** 本版本新增 `InspectorHttpOverrides` / `createInspectorHttpClient()`（在 `HttpOverrides.runWithHttpOverrides()` 等 zone 内继续保持捕获）与 `reinstallHttpOverrides()`（init 后重设全局 override 时重新挂载），并让默认 release（AOT）构建真正做到零侵入。建议所有用户升级到最新版本（`^2.3.0`）。
+> **🔔 推荐升级：** 本版本加固隐私与 release 行为：脱敏覆盖合法 JSON 内的凭据 / PII、URL fragment 与日志导出；修复 `--dart-define=INSPECTOR_ENABLED=false` 在入口层失效；并让一句话式 `runAppWithInspector()` 透传全部 init 选项。建议所有用户升级到最新版本（`^2.4.0`）。
 
 🌐 **[官方网站](https://www.zerolabsco.com/)** &nbsp;·&nbsp; 📦 **[在 pub.dev 查看](https://pub.dev/packages/zero_inspector_kit)** &nbsp;·&nbsp; 🔗 **[查看 GitHub 仓库](https://github.com/zero-labsco/zero_inspector_kit)**
 
@@ -103,7 +103,7 @@
 
 ```yaml
 dependencies:
-  zero_inspector_kit: ^2.3.0
+  zero_inspector_kit: ^2.4.0
 ```
 
 ### GitHub
@@ -113,7 +113,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: release/v2.3.0   # 将 2.3.0 替换为你需要的版本号
+      ref: release/v2.4.0   # 将 2.4.0 替换为你需要的版本号
 ```
 
 ### OpenHarmony（鸿蒙）
@@ -125,7 +125,7 @@ dependencies:
   zero_inspector_kit:
     git:
       url: https://github.com/zero-labsco/zero_inspector_kit.git
-      ref: ohos/v2.3.0   # 将 2.3.0 替换为你需要的版本号
+      ref: ohos/v2.4.0   # 将 2.4.0 替换为你需要的版本号
 ```
 
 需配合 OpenHarmony Flutter SDK 与 DevEco Studio；随包提供的 `ohos/` 原生模块需作为你的 OHOS 应用的一部分一起构建。

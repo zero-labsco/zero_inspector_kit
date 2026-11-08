@@ -260,9 +260,11 @@ class _NetworkViewerState extends State<NetworkViewer> {
   RequestInterceptorRule? _editingRule;
   bool _showInterceptorPanel = false;
 
-  /// 导出时是否遮蔽敏感请求头（Authorization/Cookie 等）。默认关闭（完整可见）。
-  /// Whether to mask sensitive headers (Authorization/Cookie/...) on export.
-  /// Disabled by default so cURL/JSON reflect the real request verbatim.
+  /// 导出时是否遮蔽敏感信息（请求头 / URL 凭据 / body）。默认关闭，
+  /// 保持原文导出；需要对外复制 / 分享时由宿主用工具栏开关显式开启。
+  /// Whether exports mask sensitive data (headers / URL credentials / bodies).
+  /// Off by default so exports stay verbatim; hosts can enable it from the
+  /// toolbar before copying / sharing outside the team.
   bool _maskSensitive = false;
 
   /// 批量选择模式 / Batch selection mode

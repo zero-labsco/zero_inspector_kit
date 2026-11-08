@@ -156,6 +156,13 @@ class ZeroInspectorKit {
   /// cached read-only connections.
   static SqliteDatabaseProvider? _sqliteProvider;
 
+  /// init() 传入的自定义悬浮按钮，供 [wrapApp] 构建的 wrapper 使用。
+  /// 此前该参数只在签名 / 文档里存在，从未被读取（传了完全无效）。
+  /// The custom floating button passed to init(), consumed by the wrapper
+  /// built in [wrapApp]. Previously it was only declared and documented but
+  /// never read, so passing it had no effect at all.
+  static Widget? _customButton;
+
   /// 初始化检查器 / Initialize inspector
   /// [enable] 是否启用检查器（默认 true，release模式下自动为 false）/ Whether to enable inspector (default true, auto false in release mode)
   /// [enableLogCapture] 是否启用日志捕获（默认 true）/ Whether to enable log capture (default true)
@@ -210,16 +217,30 @@ class ZeroInspectorKit {
     // or write to disk. Must stay a const condition so AOT can fold the
     // branch and tree-shake the unreachable collection code below.
     if (InspectorEnvironment.isInspectorDisabledInCurrentBuild) return;
+    // 显式 --dart-define=INSPECTOR_ENABLED=false 也必须关掉整个入口：上面的
+    // 编译期常量在 debug / profile 下恒为 false，只靠它会让该 flag 完全失效。
+    // 保持两条独立判断（第一条必须是 const），AOT 才会折叠掉不可达分支。
+    // An explicit --dart-define=INSPECTOR_ENABLED=false must disable this entry
+    // point as well: the const gate above is always false in debug/profile, so
+    // relying on it alone silently ignored the flag. Keep two separate checks
+    // (the first MUST stay const) so AOT can fold the unreachable branch.
+    if (InspectorEnvironment.isInspectorExplicitlyDisabled) return;
 
     if (_initialized) return;
-    _initialized = true;
 
     // 记录是否用全局 Zone 抓裸 print()；runAppWithInspector 据此决定是否套 Zone。
     // Record whether to capture raw print() via a global Zone; runAppWithInspector
     // uses this to decide whether to wrap runApp in a Zone.
     _enablePrintZoneCapture = enablePrintZoneCapture;
+    _customButton = customButton;
 
+    // enable: false 只表示"本次不启动采集"，不能永久占用 _initialized：
+    // 否则之后再 init() 也起不来，必须先 dispose()，与直觉不符。
+    // enable: false means "don't start collection this time" and must NOT
+    // consume _initialized permanently, or every later init() would be a
+    // no-op until dispose() — surprising and easy to get wrong.
     if (!enable) return;
+    _initialized = true;
 
     // 应用容量与 body 预览配置（全部命名可选，向后兼容）
     // Apply capacity & body preview configuration (all optional, backward compatible)
@@ -397,6 +418,7 @@ class ZeroInspectorKit {
     // released them before).
     await _sqliteProvider?.dispose();
     _sqliteProvider = null;
+    _customButton = null;
     await PersistenceService.instance.dispose();
     _initialized = false;
   }
@@ -465,7 +487,12 @@ class ZeroInspectorKit {
     // In default release builds skip even the wrapper widget (no injected
     // RouteObserver, no OverlayEntry): the host app stays untouched.
     if (InspectorEnvironment.isInspectorDisabledInCurrentBuild) return app;
-    return _InspectorAppWrapper(app: app, enable: enable);
+    if (InspectorEnvironment.isInspectorExplicitlyDisabled) return app;
+    return _InspectorAppWrapper(
+      app: app,
+      enable: enable,
+      customButton: _customButton,
+    );
   }
 
   /// 宿主在 `init()` 之后重设了 `HttpOverrides.global` 时，重新安装链式网络拦截。
@@ -476,6 +503,7 @@ class ZeroInspectorKit {
   /// A no-op in default release builds; repeated calls never stack layers.
   static void reinstallHttpOverrides() {
     if (InspectorEnvironment.isInspectorDisabledInCurrentBuild) return;
+    if (InspectorEnvironment.isInspectorExplicitlyDisabled) return;
     InspectorHttpInterceptor.instance.reinstall();
   }
 
@@ -503,14 +531,32 @@ class ZeroInspectorKit {
   ///   forwarded to [init]. When false, **no global Zone is ever introduced** —
   ///   only the `debugPrint` override stays active and raw `print()` is not
   ///   captured. An escape hatch for hosts wary of any global Zone intrusion.
+  /// 一句话式集成同样透传 [init] 的全部开关 / 配置：此前只透传 6 项，
+  /// 用推荐入口时无法关闭网络 / 日志 / 持久化采集，也改不了容量上限。
+  /// The one-liner forwards every [init] flag / option now: it used to forward
+  /// only six, so the recommended entry point could not disable network / log /
+  /// persistence capture or tune any capacity limit.
   static void runAppWithInspector(
     Widget app, {
     bool enable = true,
+    bool enableLogCapture = true,
+    bool enableNetworkCapture = true,
+    bool enableErrorCapture = true,
+    bool enablePersistence = true,
+    bool enableFlutterLeakTracker = true,
+    bool enableDatabaseScan = true,
+    bool enableRouteTracking = true,
     bool enableWidgetInspector = true,
     bool enableNetworkTimeline = true,
-    bool enableErrorCapture = true,
     bool enableNetworkReplay = false,
     bool enablePrintZoneCapture = true,
+    Widget? customButton,
+    void Function(LogEntry)? onLogCaptured,
+    void Function(ErrorRecord)? onErrorReport,
+    int? maxNetworkItems,
+    int? maxLogItems,
+    int? maxRouteItems,
+    int? maxBodyPreviewBytes,
   }) {
     // 默认 release 构建连全局 Zone / wrapper 都不引入：既不 init（无采集、
     // 无落盘），也不改动宿主 app 的 widget 树。仅 `INSPECTOR_MODES=all`
@@ -523,14 +569,34 @@ class ZeroInspectorKit {
       runApp(app);
       return;
     }
+    // 显式关闭时同样不引入 Zone / wrapper，宿主 app 原样启动。
+    // With an explicit opt-out, skip the Zone / wrapper too and run the host
+    // app untouched.
+    if (InspectorEnvironment.isInspectorExplicitlyDisabled) {
+      runApp(app);
+      return;
+    }
 
     init(
       enable: enable,
+      enableLogCapture: enableLogCapture,
+      enableNetworkCapture: enableNetworkCapture,
+      enableErrorCapture: enableErrorCapture,
+      enablePersistence: enablePersistence,
+      enableFlutterLeakTracker: enableFlutterLeakTracker,
+      enableDatabaseScan: enableDatabaseScan,
+      enableRouteTracking: enableRouteTracking,
       enableWidgetInspector: enableWidgetInspector,
       enableNetworkTimeline: enableNetworkTimeline,
-      enableErrorCapture: enableErrorCapture,
       enableNetworkReplay: enableNetworkReplay,
       enablePrintZoneCapture: enablePrintZoneCapture,
+      customButton: customButton,
+      onLogCaptured: onLogCaptured,
+      onErrorReport: onErrorReport,
+      maxNetworkItems: maxNetworkItems,
+      maxLogItems: maxLogItems,
+      maxRouteItems: maxRouteItems,
+      maxBodyPreviewBytes: maxBodyPreviewBytes,
     );
 
     // 宿主显式关闭 Zone 级 print 捕获：彻底不套 Zone，直接 runApp。
@@ -650,7 +716,18 @@ class _InspectorAppWrapper extends StatefulWidget {
   /// 是否启用检查器 / Whether to enable inspector
   final bool enable;
 
-  const _InspectorAppWrapper({required this.app, this.enable = true});
+  /// 宿主自定义悬浮按钮（可选）；缺省时用 [FloatingInspectorButton]。
+  /// 自定义按钮会被 GestureDetector 包一层，点击仍可开关面板。
+  /// Optional host-supplied floating button; falls back to
+  /// [FloatingInspectorButton]. A custom button is wrapped in a
+  /// GestureDetector so tapping it still toggles the panel.
+  final Widget? customButton;
+
+  const _InspectorAppWrapper({
+    required this.app,
+    this.enable = true,
+    this.customButton,
+  });
 
   @override
   State<_InspectorAppWrapper> createState() => _InspectorAppWrapperState();
@@ -757,8 +834,18 @@ class _InspectorAppWrapperState extends State<_InspectorAppWrapper> {
     if (widget.enable &&
         (!kReleaseMode || InspectorEnvironment.isInspectorAllowedInRelease)) {
       _buttonOverlayEntry = OverlayEntry(
-        builder: (context) =>
-            FloatingInspectorButton(onPanelToggle: _togglePanel),
+        builder: (context) {
+          final custom = widget.customButton;
+          if (custom != null) {
+            // 自定义按钮通常没有自己的 onTap；包一层让点击仍能开关面板。
+            // 若宿主按钮自带手势，Flutter 的命中测试会让更深的那个优先。
+            // Custom widgets usually have no onTap of their own; wrap so a tap
+            // still toggles the panel. A host button with its own gesture wins
+            // the hit test (it is deeper in the tree).
+            return GestureDetector(onTap: _togglePanel, child: custom);
+          }
+          return FloatingInspectorButton(onPanelToggle: _togglePanel);
+        },
       );
       overlay.insert(_buttonOverlayEntry!);
     }

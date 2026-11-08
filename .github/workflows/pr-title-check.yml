@@ -1,7 +1,14 @@
 name: PR Title Check
 
 on:
-  pull_request_target:
+  # `pull_request_target` runs with a write-capable token on the *base* branch and
+  # is restricted by GitHub's default event policy on public repositories from
+  # 2026-12-02. This job only READS the PR title (amannn/action-semantic-pull-request
+  # needs `pull-requests: read`, nothing more), so `pull_request` is both safer
+  # and unaffected by that policy change.
+  # 该 job 只读取 PR 标题，不需要写权限；改用 pull_request 避免 2026-12-02 起
+  # 公共仓库默认策略阻断 pull_request_target，导致这个 required check 消失。
+  pull_request:
     types:
       - opened
       - edited

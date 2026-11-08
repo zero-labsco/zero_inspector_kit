@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zero_inspector_kit/zero_inspector_kit.dart';
 
@@ -49,5 +51,50 @@ void main() {
     expect(masked['headers'], isNull);
     expect(masked['body'], isNull);
     expect(masked['responseBody'], isNull);
+  });
+
+  test(
+    'maskBody masks credentials / PII in valid JSON under ordinary keys',
+    () {
+      // 结构化 JSON 路径此前只置空敏感**键**，非敏感键下的值级凭据原样导出。
+      // The structured JSON path used to null only sensitive *keys*, leaking
+      // credential / PII values stored under ordinary keys.
+      const body =
+          '{"phone":"13800138000",'
+          '"message":"Bearer eyJhbGciOi.abcdefgh.ijklmnop",'
+          '"nested":{"idCard":"11010119900101123X"}}';
+      final masked = SensitiveData.maskBody(body);
+
+      expect(masked, isNot(contains('13800138000')));
+      expect(masked, isNot(contains('eyJhbGciOi')));
+      expect(masked, isNot(contains('11010119900101123X')));
+      // 脱敏后仍必须是合法 JSON，不能退化成整段占位符。
+      // Masking must keep the payload valid JSON instead of collapsing it.
+      expect(jsonDecode(masked), isA<Map>());
+      expect(jsonDecode(masked)['phone'], SensitiveData.placeholder);
+    },
+  );
+
+  test('maskUrl covers URL fragment and userInfo credentials', () {
+    // OAuth implicit / OIDC return tokens in the fragment, invisible to
+    // queryParameters. / OAuth implicit / OIDC 把 token 放在 fragment 里。
+    final withFragment = SensitiveData.maskUrl(
+      'https://example.com/cb#access_token=abc123&state=xyz',
+    );
+    expect(withFragment, isNot(contains('abc123')));
+    expect(withFragment, contains('access_token='));
+    expect(withFragment, contains('state=xyz'));
+
+    final withUserInfo = SensitiveData.maskUrl(
+      'https://user:s3cr3t@example.com/api',
+    );
+    expect(withUserInfo, isNot(contains('s3cr3t')));
+    expect(withUserInfo, contains('example.com/api'));
+
+    // 普通 URL 不应被改写。/ An ordinary URL must stay byte-identical.
+    expect(
+      SensitiveData.maskUrl('https://example.com/api?limit=10'),
+      'https://example.com/api?limit=10',
+    );
   });
 }
